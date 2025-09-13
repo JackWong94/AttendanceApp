@@ -5,7 +5,7 @@ import 'package:attendanceapp/services/camera_service.dart'; // ✅ import Camer
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await CameraService().initCamera(); // ✅ Initialize shared camera
+  await CameraService().initCamera(forceReinitOnWeb: true); // ✅ Initialize shared camera
 
   runApp(const MyApp());
 }

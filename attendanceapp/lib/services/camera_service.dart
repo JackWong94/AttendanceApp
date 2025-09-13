@@ -1,5 +1,6 @@
 import 'package:camera/camera.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 
 class CameraService {
   static final CameraService _instance = CameraService._internal();
@@ -9,8 +10,21 @@ class CameraService {
   CameraController? controller;
   Future<void>? initializeFuture;
 
-  Future<void> initCamera() async {
-    if (controller != null) return; // Already initialized
+  /// Initialize or reinitialize camera
+  Future<void> initCamera({bool forceReinitOnWeb = false}) async {
+    // If mobile and already initialized, skip
+    if (!kIsWeb && controller != null) return;
+
+    // If web and forceReinitOnWeb, dispose previous controller
+    if (kIsWeb && controller != null && forceReinitOnWeb) {
+      try {
+        await controller!.dispose();
+        controller = null;
+        initializeFuture = null;
+      } catch (e) {
+        debugPrint("Error disposing web camera: $e");
+      }
+    }
 
     List<CameraDescription> cameras = [];
 
@@ -24,6 +38,7 @@ class CameraService {
               (c) => c.lensDirection == CameraLensDirection.front,
           orElse: () => cameras.first,
         );
+
         controller = CameraController(frontCamera, ResolutionPreset.medium);
         initializeFuture = controller!.initialize();
         await initializeFuture;
@@ -32,4 +47,7 @@ class CameraService {
       debugPrint("Camera initialization error: $e");
     }
   }
+
+  /// Helper to check if camera is available
+  bool get isCameraAvailable => controller != null && controller!.value.isInitialized;
 }
