@@ -53,9 +53,12 @@ Copy-Item -Path ".\build\web\*" -Destination $TempPath -Recurse
 Write-Host "Clearing old files in '$BranchName' branch..." -ForegroundColor Green
 git rm -rf * | Out-Null
 
-# Step 6: Copy web build to gh-pages branch
-Write-Host "Copying new web build to '$BranchName' branch..." -ForegroundColor Green
-Copy-Item -Path "$TempPath\*" -Destination "." -Recurse
+# Step 6: Copy web build directly to ROOT of gh-pages
+Write-Host "Copying new web build to '$BranchName' ROOT..." -ForegroundColor Green
+# Ensure only contents of build/web are copied to root, not a nested folder
+Get-ChildItem -Path $TempPath | ForEach-Object {
+    Copy-Item -Path $_.FullName -Destination "." -Recurse
+}
 
 # Step 7: Delete temporary folder
 Write-Host "Deleting temporary folder..." -ForegroundColor Green
