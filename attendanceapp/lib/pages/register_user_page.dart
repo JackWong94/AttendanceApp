@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:attendanceapp/widgets/camera_placeholder.dart';
 import 'package:attendanceapp/services/camera_service.dart'; // ✅ use shared service
 import 'package:camera/camera.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class RegisterUserPage extends StatefulWidget {
   const RegisterUserPage({super.key});
@@ -40,12 +41,24 @@ class _RegisterUserPageState extends State<RegisterUserPage> {
       final email = _emailController.text;
       final id = _idController.text;
 
-      debugPrint("User Registered: $name, $email, $id");
+      try {
+        await FirebaseFirestore.instance.collection('users').add({
+          'name': name,
+          'email': email,
+          'employeeId': id,
+          'createdAt': FieldValue.serverTimestamp(),
+        });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("User registered successfully!")),
-      );
-      Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("User registered successfully!")),
+        );
+
+        Navigator.pop(context);
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Error saving user: $e")),
+        );
+      }
     }
   }
 
