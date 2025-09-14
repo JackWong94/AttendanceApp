@@ -10,7 +10,7 @@ Future<void> loadModels({int retries = 5, int delayMs = 500}) async {
   }
 
   if (!js_util.hasProperty(html.window, 'faceapi')) {
-    print("face-api.js not loaded yet!");
+    print("Face-api.js not loaded yet!");
     return;
   }
 
@@ -29,7 +29,7 @@ Future<void> loadModels({int retries = 5, int delayMs = 500}) async {
 
     print("Models loaded successfully");
   } catch (e) {
-    print("Error loading face-api.js models: $e");
+    print("Error loading Face-api.js models: $e");
   }
 }
 

@@ -40,7 +40,7 @@ class _RegisterUserPageState extends State<RegisterUserPage> {
       });
       print("Face-api.js models loaded!");
     } catch (e) {
-      print("Error loading face-api.js models: $e");
+      print("Error loading Face-api.js models: $e");
     }
   }
 
