@@ -15,8 +15,8 @@ class _FirestoreDemoState extends State<FirestoreDemo> {
   @override
   void initState() {
     super.initState();
-    _addUser();      // Add a test user
-    _printUsers();   // Print all users
+    //_addUser();      // Add a test user
+    _listenUsers();  // Listen in real-time
   }
 
   Future<void> _addUser() async {
@@ -32,15 +32,16 @@ class _FirestoreDemoState extends State<FirestoreDemo> {
     }
   }
 
-  Future<void> _printUsers() async {
-    try {
-      final snapshot = await users.get();
+  void _listenUsers() {
+    users.snapshots().listen((snapshot) {
+      print('--- Firestore Users ---');
       for (var doc in snapshot.docs) {
         print('User: ${doc.data()}');
       }
-    } catch (e) {
-      print('Error fetching users: $e');
-    }
+      print('-----------------------');
+    }, onError: (error) {
+      print('Error listening to users: $error');
+    });
   }
 
   @override
