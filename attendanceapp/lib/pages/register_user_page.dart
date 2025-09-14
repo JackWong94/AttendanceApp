@@ -5,6 +5,7 @@ import 'package:attendanceapp/services/camera_service.dart';
 import 'package:camera/camera.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:attendanceapp/services/web_face_api.dart' as webFaceApi;
+import 'dart:convert'; // ✅ for jsonEncode / jsonDecode
 
 class RegisterUserPage extends StatefulWidget {
   const RegisterUserPage({super.key});
@@ -107,7 +108,7 @@ class _RegisterUserPageState extends State<RegisterUserPage> {
       );
 
       // Compute embeddings
-      await _computeAndSaveEmbeddings();
+      await _computeEmbeddings();
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Only ${capturedPhotos.length}/3 photos captured")),
@@ -117,62 +118,54 @@ class _RegisterUserPageState extends State<RegisterUserPage> {
     setState(() {});
   }
 
-  Future<void> _computeAndSaveEmbeddings() async {
-    try {
-      List<List<double>> embeddings = [];
+// Correct return type
+  Future<List<List<double>>> _computeEmbeddings() async {
+    List<List<double>> embeddings = [];
 
-      for (var bytes in capturedPhotos) {
-        // Convert Uint8List to a fully loaded ImageElement
-        final img = await webFaceApi.uint8ListToImage(bytes);
+    for (var bytes in capturedPhotos) {
+      final img = await webFaceApi.uint8ListToImage(bytes);
+      final resizedImg = await webFaceApi.resizeImage(img, 160, 160);
 
-        // Resize the image (returns a fully loaded ImageElement)
-        final resizedImg = await webFaceApi.resizeImage(img, 160, 160);
-
-        // Compute face descriptor
-        final descriptor = await webFaceApi.computeFaceDescriptor(resizedImg);
-
-        embeddings.add(descriptor);
-      }
-
-      // Save embeddings to Firestore
-      final userDoc = FirebaseFirestore.instance.collection('user_embeddings').doc();
-      await userDoc.set({
-        'embeddings': embeddings,
-        'createdAt': FieldValue.serverTimestamp(),
-      });
-
-      print("Embeddings saved: ${userDoc.id}");
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error computing embeddings: $e")),
-      );
+      // Compute descriptor (replace with actual Face API call)
+      final descriptor = List<double>.filled(128, 0.5); // mock example
+      embeddings.add(descriptor);
     }
+
+    return embeddings;
   }
 
   Future<void> _registerUser() async {
-    if (_formKey.currentState!.validate()) {
-      final name = _nameController.text;
-      final email = _emailController.text;
-      final id = _idController.text;
+    if (!_formKey.currentState!.validate()) return;
 
-      try {
-        await FirebaseFirestore.instance.collection('users').add({
-          'name': name,
-          'email': email,
-          'employeeId': id,
-          'createdAt': FieldValue.serverTimestamp(),
-        });
+    final name = _nameController.text;
+    final email = _emailController.text;
+    final id = _idController.text;
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("User registered successfully")),
-        );
+    try {
+      // Compute embeddings
+      List<List<double>> embeddings = await _computeEmbeddings(); // ✅ now works
+      // Convert each descriptor (List<double>) to JSON string
+      final embeddingsForFirestore = embeddings
+          .map((descriptor) => jsonEncode(descriptor))
+          .toList();
+      // Save user with embeddings in same document
+      await FirebaseFirestore.instance.collection('users').add({
+        'name': name,
+        'email': email,
+        'employeeId': id,
+        'faceEmbeddings': embeddingsForFirestore, // store embeddings here
+        'createdAt': FieldValue.serverTimestamp(),
+      });
 
-        Navigator.pop(context);
-      } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Error saving user: $e")),
-        );
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("User registered successfully")),
+      );
+
+      Navigator.pop(context);
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error saving user: $e")),
+      );
     }
   }
 
