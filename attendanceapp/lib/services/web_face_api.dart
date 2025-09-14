@@ -4,37 +4,43 @@ import 'dart:js_util' as js_util;
 import 'dart:async';
 
 /// Load face-api.js models
-Future<void> loadModels({int retries = 5, int delayMs = 500}) async {
+/// Load face-api.js models
+Future<void> loadModels({int retries = 5, int delayMs = 1}) async {
+  // Wait until window.faceapi exists
   for (var i = 0; i < retries; i++) {
     if (js_util.hasProperty(html.window, 'faceapi')) break;
     await Future.delayed(Duration(milliseconds: delayMs));
   }
 
   if (!js_util.hasProperty(html.window, 'faceapi')) {
-    print("Face-api.js not loaded yet!");
-    return;
+    throw Exception("Face-api.js not loaded after $retries attempts!");
   }
 
   try {
     final faceapi = js_util.getProperty(html.window, 'faceapi');
 
-    await js_util.promiseToFuture(
-        js_util.callMethod(js_util.getProperty(faceapi, 'nets')['ssdMobilenetv1'], 'loadFromUri', ['/models/'])
-    );
-    await js_util.promiseToFuture(
-        js_util.callMethod(js_util.getProperty(faceapi, 'nets')['faceLandmark68Net'], 'loadFromUri', ['/models/'])
-    );
-    await js_util.promiseToFuture(
-        js_util.callMethod(js_util.getProperty(faceapi, 'nets')['faceRecognitionNet'], 'loadFromUri', ['/models/'])
-    );
+    // === CHANGE 1: use getProperty instead of [] ===
+    final nets = js_util.getProperty(faceapi, 'nets');
 
+    await js_util.promiseToFuture(
+        js_util.callMethod(js_util.getProperty(nets, 'ssdMobilenetv1'), 'loadFromUri', ['/models/'])
+    );
+    await js_util.promiseToFuture(
+        js_util.callMethod(js_util.getProperty(nets, 'faceLandmark68Net'), 'loadFromUri', ['/models/'])
+    );
+    await js_util.promiseToFuture(
+        js_util.callMethod(js_util.getProperty(nets, 'faceRecognitionNet'), 'loadFromUri', ['/models/'])
+    );
+    await js_util.promiseToFuture(
+        js_util.callMethod(js_util.getProperty(nets, 'tinyFaceDetector'), 'loadFromUri', ['/models/'])
+    );
     print("Models loaded successfully");
   } catch (e) {
     print("Error loading Face-api.js models: $e");
   }
 }
 
-/// Convert Uint8List bytes to a fully loaded HTML ImageElement (web)
+// Convert Uint8List bytes to a fully loaded HTML ImageElement (web)
 Future<html.ImageElement> uint8ListToImage(Uint8List bytes) async {
   final blob = html.Blob([bytes]);
   final url = html.Url.createObjectUrlFromBlob(blob);
@@ -50,7 +56,7 @@ Future<html.ImageElement> uint8ListToImage(Uint8List bytes) async {
   return img;
 }
 
-/// Resize image using Canvas (web) and return a Future<ImageElement>
+// Resize image using Canvas (web) and return a Future<ImageElement>
 Future<html.ImageElement> resizeImage(html.ImageElement img, int width, int height) {
   final canvas = html.CanvasElement(width: width, height: height);
   canvas.context2D.drawImageScaled(img, 0, 0, width, height);
@@ -67,11 +73,33 @@ Future<html.ImageElement> resizeImage(html.ImageElement img, int width, int heig
   return promise.then((_) => resizedImg);
 }
 
-/// Compute face embedding
+/// Compute face embedding safely with exception
 Future<List<double>> computeFaceDescriptor(html.ImageElement img) async {
   final faceapi = js_util.getProperty(html.window, 'faceapi');
-  final descriptor = await js_util.promiseToFuture<List<dynamic>>(
-      js_util.callMethod(faceapi, 'computeFaceDescriptor', [img])
-  );
-  return descriptor.map((e) => e as double).toList();
+
+  if (faceapi == null) throw Exception("face-api.js not loaded");
+
+  // === CHANGE 2: Use TinyFaceDetector options properly ===
+  final options = js_util.callConstructor(
+      js_util.getProperty(faceapi, 'TinyFaceDetectorOptions'), []);
+
+  // === CHANGE 3: Correct face detection chain ===
+  final detection = await js_util.promiseToFuture(
+      js_util.callMethod(faceapi, 'detectSingleFace', [img, options]));
+
+  if (detection == null) throw Exception("No face detected");
+
+  // Add landmarks
+  final detectionWithLandmarks = await js_util.promiseToFuture(
+      js_util.callMethod(detection, 'withFaceLandmarks', []));
+
+  // Add descriptor
+  final descriptorJs = await js_util.promiseToFuture<List<dynamic>>(
+      js_util.callMethod(detectionWithLandmarks, 'withFaceDescriptor', []));
+
+  if (descriptorJs == null || descriptorJs.isEmpty) {
+    throw Exception("Failed to compute descriptor");
+  }
+
+  return descriptorJs.map((e) => e as double).toList();
 }

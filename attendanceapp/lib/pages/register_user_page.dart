@@ -6,6 +6,7 @@ import 'package:camera/camera.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:attendanceapp/services/web_face_api.dart' as webFaceApi;
 import 'dart:convert'; // ✅ for jsonEncode / jsonDecode
+import 'dart:html' as html;
 
 class RegisterUserPage extends StatefulWidget {
   const RegisterUserPage({super.key});
@@ -107,8 +108,6 @@ class _RegisterUserPageState extends State<RegisterUserPage> {
         const SnackBar(content: Text("Face recording complete!")),
       );
 
-      // Compute embeddings
-      await _computeEmbeddings();
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Only ${capturedPhotos.length}/3 photos captured")),
@@ -118,21 +117,65 @@ class _RegisterUserPageState extends State<RegisterUserPage> {
     setState(() {});
   }
 
-// Correct return type
-  Future<List<List<double>>> _computeEmbeddings() async {
+  /// Compute embeddings for captured photos with retry logic
+  Future<List<List<double>>> _computeEmbeddings({
+    int retries = 3,
+    int delayMs = 500,
+  }) async {
     List<List<double>> embeddings = [];
 
-    for (var bytes in capturedPhotos) {
-      final img = await webFaceApi.uint8ListToImage(bytes);
-      final resizedImg = await webFaceApi.resizeImage(img, 160, 160);
+    for (var i = 0; i < capturedPhotos.length; i++) {
+      final bytes = capturedPhotos[i];
+      bool success = false;
+      List<double>? descriptor;
 
-      // Compute descriptor (replace with actual Face API call)
-      final descriptor = List<double>.filled(128, 0.5); // mock example
-      embeddings.add(descriptor);
+      for (int attempt = 1; attempt <= retries; attempt++) {
+        html.ImageElement img;
+        html.ImageElement resizedImg;
+
+        // Step 1: Load image
+        try {
+          img = await webFaceApi.uint8ListToImage(bytes);
+        } catch (e) {
+          print("Attempt $attempt: Failed to load image for photo #$i: $e");
+          if (attempt < retries) await Future.delayed(Duration(milliseconds: delayMs));
+          continue; // Retry
+        }
+
+        // Step 2: Resize image
+        try {
+          resizedImg = await webFaceApi.resizeImage(img, 160, 160);
+        } catch (e) {
+          print("Attempt $attempt: Failed to resize image for photo #$i: $e");
+          if (attempt < retries) await Future.delayed(Duration(milliseconds: delayMs));
+          continue; // Retry
+        }
+
+        // Step 3: Compute descriptor
+        try {
+          descriptor = await webFaceApi.computeFaceDescriptor(resizedImg);
+          if (descriptor.isEmpty) {
+            throw Exception("No face detected in photo #$i");
+          }
+          success = true;
+          break; // Success, exit retry loop
+        } catch (e) {
+          print("Attempt $attempt: Failed to compute descriptor for photo #$i: $e");
+          if (attempt < retries) await Future.delayed(Duration(milliseconds: delayMs));
+        }
+      }
+
+      if (success && descriptor != null) {
+        embeddings.add(descriptor);
+        print("Successfully computed embedding for photo #$i");
+      } else {
+        print("Failed to compute embedding for photo #$i after $retries attempts.");
+      }
     }
 
     return embeddings;
   }
+
 
   Future<void> _registerUser() async {
     if (!_formKey.currentState!.validate()) return;
@@ -143,7 +186,7 @@ class _RegisterUserPageState extends State<RegisterUserPage> {
 
     try {
       // Compute embeddings
-      List<List<double>> embeddings = await _computeEmbeddings(); // ✅ now works
+      List<List<double>> embeddings = await _computeEmbeddings();
       // Convert each descriptor (List<double>) to JSON string
       final embeddingsForFirestore = embeddings
           .map((descriptor) => jsonEncode(descriptor))
