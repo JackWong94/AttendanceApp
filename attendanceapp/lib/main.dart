@@ -27,20 +27,25 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       initialRoute: '/login',
       //Debugger for Firestore, remove during production START
+      // 🔹 Global debug overlay
       builder: (context, child) {
-        // Wrap all pages in a Stack
         return Stack(
           children: [
-            child!,                     // The page (login/register/etc)
+            child!, // your normal pages
+
+            // Overlay FirestoreDemo at bottom center
             Positioned(
-              top: 0,
+              bottom: 16,
+              left: 0,
               right: 0,
-              child: SizedBox(
-                width: 250,
-                height: 150,
-                child: Card(
-                  color: Colors.white70,
-                  child: FirestoreDemo(), // Your debug widget
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 320),
+                  child: Card(
+                    elevation: 6,
+                    margin: const EdgeInsets.all(8),
+                    child: const FirestoreDemo(),
+                  ),
                 ),
               ),
             ),
