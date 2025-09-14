@@ -4,6 +4,7 @@ import 'package:attendanceapp/widgets/camera_placeholder.dart';
 import 'package:attendanceapp/services/camera_service.dart';
 import 'package:camera/camera.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:attendanceapp/services/web_face_api.dart' as webFaceApi;
 
 class RegisterUserPage extends StatefulWidget {
   const RegisterUserPage({super.key});
