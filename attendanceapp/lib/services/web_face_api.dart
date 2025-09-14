@@ -73,38 +73,46 @@ Future<html.ImageElement> resizeImage(html.ImageElement img, int width, int heig
   return promise.then((_) => resizedImg);
 }
 
-/// Compute face embedding safely with exception
-Future<List<double>> computeFaceDescriptor(html.ImageElement img) async {
+/// Compute face embedding safely with exception and debug download
+Future<List<double>> computeFaceDescriptorSafe(html.ImageElement img) async {
   final faceapi = js_util.getProperty(html.window, 'faceapi');
-
   if (faceapi == null) throw Exception("face-api.js not loaded");
 
-// === CHANGE 2: Use TinyFaceDetector options properly ===
-  final TinyFaceDetectorOptions = js_util.getProperty(faceapi, 'TinyFaceDetectorOptions');
-  final options = js_util.callConstructor(TinyFaceDetectorOptions, [
-    js_util.jsify({'inputSize': 160, 'scoreThreshold': 0.5}) // optional, adjust if needed
-  ]);
+  // TinyFaceDetector options
+  final options = js_util.callConstructor(
+    js_util.getProperty(faceapi, 'TinyFaceDetectorOptions'),
+    [],
+  );
 
-// === CHANGE 3: Correct face detection chain ===
+  // Step 1: detect face
   final detection = await js_util.promiseToFuture(
-      js_util.callMethod(faceapi, 'detectSingleFace', [img, options])
+    js_util.callMethod(faceapi, 'detectSingleFace', [img, options]),
   );
-  if (detection == null) throw Exception("No face detected");
 
-// Add landmarks
+  if (detection == null) {
+    throw Exception("No face detected");
+  }
+
+  // Step 2: add landmarks
   final detectionWithLandmarks = await js_util.promiseToFuture(
-      js_util.callMethod(detection, 'withFaceLandmarks', [])
+    js_util.callMethod(detection, 'withFaceLandmarks', []),
   );
 
-// Add descriptor
+  if (detectionWithLandmarks == null) {
+    throw Exception("Failed to add landmarks");
+  }
+
+  // Step 3: add descriptor
   final detectionWithDescriptor = await js_util.promiseToFuture(
-      js_util.callMethod(detectionWithLandmarks, 'withFaceDescriptor', [])
+    js_util.callMethod(detectionWithLandmarks, 'withFaceDescriptor', []),
   );
 
-// The descriptor array
-  final descriptorJs = js_util.getProperty(detectionWithDescriptor, 'descriptor');
-  if (descriptorJs == null) throw Exception("Failed to compute descriptor");
+  if (detectionWithDescriptor == null) {
+    throw Exception("Failed to compute descriptor");
+  }
 
-// Convert to Dart list
-  return (descriptorJs as List).map((e) => e as double).toList();
+  final descriptorJs = js_util.getProperty(detectionWithDescriptor, 'descriptor');
+  if (descriptorJs == null) throw Exception("Descriptor is null");
+
+  return (descriptorJs as List<dynamic>).map((e) => e as double).toList();
 }

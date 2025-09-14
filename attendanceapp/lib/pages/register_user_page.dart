@@ -138,35 +138,25 @@ class _RegisterUserPageState extends State<RegisterUserPage> {
       List<double>? descriptor;
 
       for (int attempt = 1; attempt <= retries; attempt++) {
-        html.ImageElement img;
-        html.ImageElement resizedImg;
-
-        // Step 1: Load image
         try {
-          img = await webFaceApi.uint8ListToImage(bytes);
-        } catch (e) {
-          print("Attempt $attempt: Failed to load image for photo #$i: $e");
-          if (attempt < retries) await Future.delayed(Duration(milliseconds: delayMs));
-          continue; // Retry
-        }
+          // Step 1: Load image
+          final img = await webFaceApi.uint8ListToImage(bytes);
 
-        // Step 2: Resize image
-        try {
-          resizedImg = await webFaceApi.resizeImage(img, 160, 160);
-        } catch (e) {
-          print("Attempt $attempt: Failed to resize image for photo #$i: $e");
-          if (attempt < retries) await Future.delayed(Duration(milliseconds: delayMs));
-          continue; // Retry
-        }
+          // Step 2: Resize image
+          final resizedImg = await webFaceApi.resizeImage(img, 160, 160);
 
-        // Step 3: Compute descriptor
-        try {
-          descriptor = await webFaceApi.computeFaceDescriptor(resizedImg);
+          // --- DOWNLOAD THE RESIZED IMAGE FOR DEBUG ---
+          downloadImageForDebug(resizedImg, filename: "photo_${i}_debug.png");
+
+          // Step 3: Compute descriptor safely
+          descriptor = await webFaceApi.computeFaceDescriptorSafe(resizedImg);
+
           if (descriptor.isEmpty) {
             throw Exception("No face detected in photo #$i");
           }
+
           success = true;
-          break; // Success, exit retry loop
+          break; // Exit retry loop on success
         } catch (e) {
           print("Attempt $attempt: Failed to compute descriptor for photo #$i: $e");
           if (attempt < retries) await Future.delayed(Duration(milliseconds: delayMs));
@@ -183,7 +173,6 @@ class _RegisterUserPageState extends State<RegisterUserPage> {
 
     return embeddings;
   }
-
 
   Future<void> _registerUser() async {
     if (!_formKey.currentState!.validate()) return;
@@ -325,4 +314,26 @@ class _RegisterUserPageState extends State<RegisterUserPage> {
       ),
     );
   }
+}
+
+void downloadImageForDebug(html.ImageElement img, {String filename = "debug_face.png"}) {
+  // Create a canvas
+  final canvas = html.CanvasElement(width: img.width!, height: img.height!);
+  final ctx = canvas.context2D;
+
+  // Draw the image
+  ctx.drawImage(img, 0, 0);
+
+  // Optional: draw a rectangle for debugging (face bounding box)
+  ctx.strokeStyle = "red";
+  ctx.lineWidth = 3;
+  ctx.strokeRect(0, 0, img.width!, img.height!); // Example: full image or bounding box
+
+  // Convert canvas to data URL
+  final dataUrl = canvas.toDataUrl("image/png");
+
+  // Create an anchor element to download
+  final anchor = html.AnchorElement(href: dataUrl)
+    ..setAttribute("download", filename)
+    ..click();
 }
