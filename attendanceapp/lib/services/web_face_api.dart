@@ -4,7 +4,6 @@ import 'dart:js_util' as js_util;
 import 'dart:async';
 
 /// Load face-api.js models
-/// Load face-api.js models
 Future<void> loadModels({int retries = 5, int delayMs = 1}) async {
   // Wait until window.faceapi exists
   for (var i = 0; i < retries; i++) {
@@ -34,6 +33,7 @@ Future<void> loadModels({int retries = 5, int delayMs = 1}) async {
     await js_util.promiseToFuture(
         js_util.callMethod(js_util.getProperty(nets, 'tinyFaceDetector'), 'loadFromUri', ['/models/'])
     );
+
     print("Models loaded successfully");
   } catch (e) {
     print("Error loading Face-api.js models: $e");
@@ -79,27 +79,32 @@ Future<List<double>> computeFaceDescriptor(html.ImageElement img) async {
 
   if (faceapi == null) throw Exception("face-api.js not loaded");
 
-  // === CHANGE 2: Use TinyFaceDetector options properly ===
-  final options = js_util.callConstructor(
-      js_util.getProperty(faceapi, 'TinyFaceDetectorOptions'), []);
+// === CHANGE 2: Use TinyFaceDetector options properly ===
+  final TinyFaceDetectorOptions = js_util.getProperty(faceapi, 'TinyFaceDetectorOptions');
+  final options = js_util.callConstructor(TinyFaceDetectorOptions, [
+    js_util.jsify({'inputSize': 160, 'scoreThreshold': 0.5}) // optional, adjust if needed
+  ]);
 
-  // === CHANGE 3: Correct face detection chain ===
+// === CHANGE 3: Correct face detection chain ===
   final detection = await js_util.promiseToFuture(
-      js_util.callMethod(faceapi, 'detectSingleFace', [img, options]));
-
+      js_util.callMethod(faceapi, 'detectSingleFace', [img, options])
+  );
   if (detection == null) throw Exception("No face detected");
 
-  // Add landmarks
+// Add landmarks
   final detectionWithLandmarks = await js_util.promiseToFuture(
-      js_util.callMethod(detection, 'withFaceLandmarks', []));
+      js_util.callMethod(detection, 'withFaceLandmarks', [])
+  );
 
-  // Add descriptor
-  final descriptorJs = await js_util.promiseToFuture<List<dynamic>>(
-      js_util.callMethod(detectionWithLandmarks, 'withFaceDescriptor', []));
+// Add descriptor
+  final detectionWithDescriptor = await js_util.promiseToFuture(
+      js_util.callMethod(detectionWithLandmarks, 'withFaceDescriptor', [])
+  );
 
-  if (descriptorJs == null || descriptorJs.isEmpty) {
-    throw Exception("Failed to compute descriptor");
-  }
+// The descriptor array
+  final descriptorJs = js_util.getProperty(detectionWithDescriptor, 'descriptor');
+  if (descriptorJs == null) throw Exception("Failed to compute descriptor");
 
-  return descriptorJs.map((e) => e as double).toList();
+// Convert to Dart list
+  return (descriptorJs as List).map((e) => e as double).toList();
 }

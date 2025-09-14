@@ -108,6 +108,14 @@ class _RegisterUserPageState extends State<RegisterUserPage> {
         const SnackBar(content: Text("Face recording complete!")),
       );
 
+      // 🔹 Compute embeddings automatically after capturing all 3 photos
+      try {
+        final embeddings = await _computeEmbeddings();
+        print("Computed embeddings: $embeddings");
+      } catch (e) {
+        print("Error computing embeddings: $e");
+      }
+
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Only ${capturedPhotos.length}/3 photos captured")),
