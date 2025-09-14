@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 import 'dart:html' as html;
 import 'dart:js_util' as js_util;
+import 'dart:async';
 
 /// Load face-api.js models
 Future<void> loadModels({int retries = 5, int delayMs = 500}) async {
@@ -33,19 +34,37 @@ Future<void> loadModels({int retries = 5, int delayMs = 500}) async {
   }
 }
 
-/// Convert Flutter Uint8List to HTML ImageElement
-html.ImageElement uint8ListToImage(Uint8List bytes) {
+/// Convert Uint8List bytes to a fully loaded HTML ImageElement (web)
+Future<html.ImageElement> uint8ListToImage(Uint8List bytes) async {
   final blob = html.Blob([bytes]);
   final url = html.Url.createObjectUrlFromBlob(blob);
+
   final img = html.ImageElement(src: url);
+
+  // Wait until the image is fully loaded using decode() -> JS Promise -> Dart Future
+  await js_util.promiseToFuture<void>(js_util.callMethod(img, 'decode', []));
+
+  // Free the object URL after loading
+  html.Url.revokeObjectUrl(url);
+
   return img;
 }
 
-/// Resize image using Canvas
-html.ImageElement resizeImage(html.ImageElement img, int width, int height) {
+/// Resize image using Canvas (web) and return a Future<ImageElement>
+Future<html.ImageElement> resizeImage(html.ImageElement img, int width, int height) {
   final canvas = html.CanvasElement(width: width, height: height);
   canvas.context2D.drawImageScaled(img, 0, 0, width, height);
-  return html.ImageElement(src: canvas.toDataUrl());
+
+  final resizedImg = html.ImageElement(src: canvas.toDataUrl());
+
+  // Use JS Promise to Future instead of Completer
+  final promise = js_util.promiseToFuture<void>(
+    js_util.callMethod(
+      resizedImg, 'decode', [], // decode() returns a Promise that resolves when the image is ready
+    ),
+  );
+
+  return promise.then((_) => resizedImg);
 }
 
 /// Compute face embedding

@@ -122,12 +122,15 @@ class _RegisterUserPageState extends State<RegisterUserPage> {
       List<List<double>> embeddings = [];
 
       for (var bytes in capturedPhotos) {
-        final img = webFaceApi.resizeImage(
-          webFaceApi.uint8ListToImage(bytes),
-          160,
-          160,
-        );
-        final descriptor = await webFaceApi.computeFaceDescriptor(img);
+        // Convert Uint8List to a fully loaded ImageElement
+        final img = await webFaceApi.uint8ListToImage(bytes);
+
+        // Resize the image (returns a fully loaded ImageElement)
+        final resizedImg = await webFaceApi.resizeImage(img, 160, 160);
+
+        // Compute face descriptor
+        final descriptor = await webFaceApi.computeFaceDescriptor(resizedImg);
+
         embeddings.add(descriptor);
       }
 
