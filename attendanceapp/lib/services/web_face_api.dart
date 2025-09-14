@@ -1,19 +1,36 @@
-@JS()
-library web_face_api;
-
 import 'dart:typed_data';
 import 'dart:html' as html;
-import 'package:js/js.dart';
-import 'package:js/js_util.dart';
-
-@JS('faceapi')
-external dynamic get faceapi;
+import 'dart:js_util' as js_util;
 
 /// Load face-api.js models
-Future<void> loadModels() async {
-  await promiseToFuture(faceapi.nets.ssdMobilenetv1.loadFromUri('/models/'));
-  await promiseToFuture(faceapi.nets.faceLandmark68Net.loadFromUri('/models/'));
-  await promiseToFuture(faceapi.nets.faceRecognitionNet.loadFromUri('/models/'));
+Future<void> loadModels({int retries = 5, int delayMs = 500}) async {
+  for (var i = 0; i < retries; i++) {
+    if (js_util.hasProperty(html.window, 'faceapi')) break;
+    await Future.delayed(Duration(milliseconds: delayMs));
+  }
+
+  if (!js_util.hasProperty(html.window, 'faceapi')) {
+    print("face-api.js not loaded yet!");
+    return;
+  }
+
+  try {
+    final faceapi = js_util.getProperty(html.window, 'faceapi');
+
+    await js_util.promiseToFuture(
+        js_util.callMethod(js_util.getProperty(faceapi, 'nets')['ssdMobilenetv1'], 'loadFromUri', ['/models/'])
+    );
+    await js_util.promiseToFuture(
+        js_util.callMethod(js_util.getProperty(faceapi, 'nets')['faceLandmark68Net'], 'loadFromUri', ['/models/'])
+    );
+    await js_util.promiseToFuture(
+        js_util.callMethod(js_util.getProperty(faceapi, 'nets')['faceRecognitionNet'], 'loadFromUri', ['/models/'])
+    );
+
+    print("Models loaded successfully");
+  } catch (e) {
+    print("Error loading face-api.js models: $e");
+  }
 }
 
 /// Convert Flutter Uint8List to HTML ImageElement
@@ -33,6 +50,9 @@ html.ImageElement resizeImage(html.ImageElement img, int width, int height) {
 
 /// Compute face embedding
 Future<List<double>> computeFaceDescriptor(html.ImageElement img) async {
-  final descriptor = await promiseToFuture<List<dynamic>>(faceapi.computeFaceDescriptor(img));
+  final faceapi = js_util.getProperty(html.window, 'faceapi');
+  final descriptor = await js_util.promiseToFuture<List<dynamic>>(
+      js_util.callMethod(faceapi, 'computeFaceDescriptor', [img])
+  );
   return descriptor.map((e) => e as double).toList();
 }

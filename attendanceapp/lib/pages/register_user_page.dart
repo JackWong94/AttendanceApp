@@ -21,13 +21,27 @@ class _RegisterUserPageState extends State<RegisterUserPage> {
   final TextEditingController _idController = TextEditingController();
 
   final CameraService _cameraService = CameraService();
+  List<Uint8List> capturedPhotos = [];
 
-  List<Uint8List> capturedPhotos = []; // store 3 captured images
+  bool _modelsLoaded = false;
 
   @override
   void initState() {
     super.initState();
     _cameraService.initCamera();
+    _loadFaceApiModels();
+  }
+
+  Future<void> _loadFaceApiModels() async {
+    try {
+      await webFaceApi.loadModels();
+      setState(() {
+        _modelsLoaded = true;
+      });
+      print("Face-api.js models loaded!");
+    } catch (e) {
+      print("Error loading face-api.js models: $e");
+    }
   }
 
   @override
@@ -38,8 +52,14 @@ class _RegisterUserPageState extends State<RegisterUserPage> {
     super.dispose();
   }
 
-  /// Capture 3 photos (center, left, right)
   Future<void> _captureFaceSequence() async {
+    if (!_modelsLoaded) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Face models not loaded yet")),
+      );
+      return;
+    }
+
     capturedPhotos.clear();
 
     final steps = [
@@ -85,6 +105,9 @@ class _RegisterUserPageState extends State<RegisterUserPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Face recording complete!")),
       );
+
+      // Compute embeddings
+      await _computeAndSaveEmbeddings();
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Only ${capturedPhotos.length}/3 photos captured")),
@@ -94,7 +117,35 @@ class _RegisterUserPageState extends State<RegisterUserPage> {
     setState(() {});
   }
 
-  /// Save user data + images to Firestore
+  Future<void> _computeAndSaveEmbeddings() async {
+    try {
+      List<List<double>> embeddings = [];
+
+      for (var bytes in capturedPhotos) {
+        final img = webFaceApi.resizeImage(
+          webFaceApi.uint8ListToImage(bytes),
+          160,
+          160,
+        );
+        final descriptor = await webFaceApi.computeFaceDescriptor(img);
+        embeddings.add(descriptor);
+      }
+
+      // Save embeddings to Firestore
+      final userDoc = FirebaseFirestore.instance.collection('user_embeddings').doc();
+      await userDoc.set({
+        'embeddings': embeddings,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+
+      print("Embeddings saved: ${userDoc.id}");
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error computing embeddings: $e")),
+      );
+    }
+  }
+
   Future<void> _registerUser() async {
     if (_formKey.currentState!.validate()) {
       final name = _nameController.text;
@@ -107,14 +158,13 @@ class _RegisterUserPageState extends State<RegisterUserPage> {
           'email': email,
           'employeeId': id,
           'createdAt': FieldValue.serverTimestamp(),
-          // You can later add image uploads to Firebase Storage here
         });
 
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("User registered successfully")),
         );
 
-        Navigator.pop(context); // go back after saving
+        Navigator.pop(context);
       } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text("Error saving user: $e")),
@@ -140,25 +190,18 @@ class _RegisterUserPageState extends State<RegisterUserPage> {
                   : FutureBuilder<void>(
                 future: _cameraService.initializeFuture,
                 builder: (context, snapshot) {
-                  if (snapshot.connectionState ==
-                      ConnectionState.done) {
+                  if (snapshot.connectionState == ConnectionState.done) {
                     return AspectRatio(
-                      aspectRatio:
-                      _cameraService.controller!.value.aspectRatio,
-                      child:
-                      CameraPreview(_cameraService.controller!),
+                      aspectRatio: _cameraService.controller!.value.aspectRatio,
+                      child: CameraPreview(_cameraService.controller!),
                     );
                   } else {
-                    return const Center(
-                      child: CircularProgressIndicator(),
-                    );
+                    return const Center(child: CircularProgressIndicator());
                   }
                 },
               ),
             ),
             const SizedBox(height: 24),
-
-            // Form
             Form(
               key: _formKey,
               child: Column(
@@ -169,8 +212,7 @@ class _RegisterUserPageState extends State<RegisterUserPage> {
                       labelText: "Full Name",
                       border: OutlineInputBorder(),
                     ),
-                    validator: (value) =>
-                    value == null || value.isEmpty ? "Enter name" : null,
+                    validator: (value) => value == null || value.isEmpty ? "Enter name" : null,
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
@@ -179,9 +221,7 @@ class _RegisterUserPageState extends State<RegisterUserPage> {
                       labelText: "Email",
                       border: OutlineInputBorder(),
                     ),
-                    validator: (value) => value == null || !value.contains("@")
-                        ? "Enter valid email"
-                        : null,
+                    validator: (value) => value == null || !value.contains("@") ? "Enter valid email" : null,
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
@@ -190,38 +230,29 @@ class _RegisterUserPageState extends State<RegisterUserPage> {
                       labelText: "Employee ID",
                       border: OutlineInputBorder(),
                     ),
-                    validator: (value) =>
-                    value == null || value.isEmpty ? "Enter ID" : null,
+                    validator: (value) => value == null || value.isEmpty ? "Enter ID" : null,
                   ),
                 ],
               ),
             ),
             const SizedBox(height: 24),
-
-            // Face recording button
             ElevatedButton.icon(
               onPressed: _captureFaceSequence,
               icon: const Icon(Icons.videocam),
               label: const Text("Record Face (3 Photos)"),
             ),
             const SizedBox(height: 16),
-
-            // Preview captured thumbnails
             if (capturedPhotos.isNotEmpty)
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: capturedPhotos
                     .map((bytes) => Padding(
                   padding: const EdgeInsets.all(4.0),
-                  child: Image.memory(bytes,
-                      width: 80, height: 80, fit: BoxFit.cover),
+                  child: Image.memory(bytes, width: 80, height: 80, fit: BoxFit.cover),
                 ))
                     .toList(),
               ),
-
             const SizedBox(height: 24),
-
-            // Save & Cancel
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
