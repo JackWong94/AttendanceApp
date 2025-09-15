@@ -3,6 +3,16 @@ import 'dart:html' as html;
 import 'dart:js_util' as js_util;
 import 'dart:async';
 
+String getModelPath() {
+  final path = html.window.location.pathname ?? "";
+  // If served under GitHub Pages (/AttendanceApp/), use that
+  if (path.startsWith('/AttendanceApp/')) {
+    return '/AttendanceApp/models/';
+  } else {
+    return '/models/';
+  }
+}
+
 /// Load face-api.js models
 Future<void> loadModels({int retries = 5, int delayMs = 1}) async {
   // Wait until window.faceapi exists
@@ -21,17 +31,19 @@ Future<void> loadModels({int retries = 5, int delayMs = 1}) async {
     // === CHANGE 1: use getProperty instead of [] ===
     final nets = js_util.getProperty(faceapi, 'nets');
 
+    final modelPath = getModelPath();
+
     await js_util.promiseToFuture(
-        js_util.callMethod(js_util.getProperty(nets, 'ssdMobilenetv1'), 'loadFromUri', ['/models/'])
+        js_util.callMethod(js_util.getProperty(nets, 'ssdMobilenetv1'), 'loadFromUri', [modelPath])
     );
     await js_util.promiseToFuture(
-        js_util.callMethod(js_util.getProperty(nets, 'faceLandmark68Net'), 'loadFromUri', ['/models/'])
+        js_util.callMethod(js_util.getProperty(nets, 'faceLandmark68Net'), 'loadFromUri', [modelPath])
     );
     await js_util.promiseToFuture(
-        js_util.callMethod(js_util.getProperty(nets, 'faceRecognitionNet'), 'loadFromUri', ['/models/'])
+        js_util.callMethod(js_util.getProperty(nets, 'faceRecognitionNet'), 'loadFromUri', [modelPath])
     );
     await js_util.promiseToFuture(
-        js_util.callMethod(js_util.getProperty(nets, 'tinyFaceDetector'), 'loadFromUri', ['/models/'])
+        js_util.callMethod(js_util.getProperty(nets, 'tinyFaceDetector'), 'loadFromUri', [modelPath])
     );
 
     print("Models loaded successfully");
