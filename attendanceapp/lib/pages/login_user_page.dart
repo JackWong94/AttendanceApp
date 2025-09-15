@@ -4,20 +4,8 @@ import 'package:attendanceapp/pages/register_user_page.dart';
 import 'package:attendanceapp/services/camera_service.dart';
 import 'package:attendanceapp/services/face_model_service.dart';
 import 'package:attendanceapp/services/face_recognition_service.dart';
+import 'package:attendanceapp/pages/attendance_page.dart';
 import 'package:camera/camera.dart';
-
-/// Placeholder for AttendancePage (replace later with real page)
-class AttendancePage extends StatelessWidget {
-  const AttendancePage({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text("Attendance")),
-      body: const Center(child: Text("Attendance Page")),
-    );
-  }
-}
 
 class LoginUserPage extends StatefulWidget {
   const LoginUserPage({super.key});
