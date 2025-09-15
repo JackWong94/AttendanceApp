@@ -73,67 +73,58 @@ Future<html.ImageElement> resizeImage(html.ImageElement img, int width, int heig
   return promise.then((_) => resizedImg);
 }
 
-/// Compute face embedding safely with exception, debug download included (TinyFaceDetector)
+/// Compute face embedding with TinyFaceDetector (all-in-one chain)
 Future<List<double>> computeFaceDescriptorSafe(html.ImageElement img) async {
   final faceapi = js_util.getProperty(html.window, 'faceapi');
   if (faceapi == null) throw Exception("Step 0: face-api.js not loaded");
 
-  // Step 1: create TinyFaceDetector options
+  // Step 1: TinyFaceDetector options
   final options = js_util.callConstructor(
     js_util.getProperty(faceapi, 'TinyFaceDetectorOptions'),
     [js_util.jsify({
-      'inputSize': 160,      // matches your image size
-      'scoreThreshold': 0.1, // very easy detection
+      'inputSize': 160,
+      'scoreThreshold': 0.1,
     })],
   );
   print("Step 1: TinyFaceDetector options created");
 
-  // Step 1.5: download the image for debugging
+  // Step 1.5: Download image for debugging
   try {
     final anchor = html.AnchorElement(href: img.src)
       ..download = "debug_face.png"
       ..click();
-    print("Step 1.5: Image downloaded for debug");
+    print("Step 1.5: Debug image downloaded");
   } catch (e) {
-    print("Warning: Failed to download image for debug: $e");
+    print("Warning: Failed to download debug image: $e");
   }
 
   try {
-    // Step 2: detect single face using TinyFaceDetector
-    final detection = await js_util.promiseToFuture(
-      js_util.callMethod(faceapi, 'detectSingleFace', [img, options]),
-    );
-
-    if (detection == null) {
-      throw Exception("Step 2: No face detected");
-    }
-    print("Step 2: Face detected");
-
-    // Step 3: add landmarks
-    final detectionWithLandmarks = await js_util.promiseToFuture(
-      js_util.callMethod(detection, 'withFaceLandmarks', []),
-    );
-    if (detectionWithLandmarks == null) {
-      throw Exception("Step 3: Failed to add landmarks");
-    }
-    print("Step 3: Landmarks added");
-
-    // Step 4: add descriptor
+    // Step 2–4: Run pipeline in one chain (face -> landmarks -> descriptor)
     final detectionWithDescriptor = await js_util.promiseToFuture(
-      js_util.callMethod(detectionWithLandmarks, 'withFaceDescriptor', []),
+      js_util.callMethod(
+        js_util.callMethod(
+          js_util.callMethod(faceapi, 'detectSingleFace', [img, options]),
+          'withFaceLandmarks',
+          [],
+        ),
+        'withFaceDescriptor',
+        [],
+      ),
     );
+
     if (detectionWithDescriptor == null) {
-      throw Exception("Step 4: Failed to compute descriptor");
+      throw Exception("Pipeline failed: no descriptor result");
     }
-    print("Step 4: Descriptor computed");
+    print("Pipeline complete: Descriptor computed");
 
+    // Step 5: Extract descriptor
     final descriptorJs = js_util.getProperty(detectionWithDescriptor, 'descriptor');
-    if (descriptorJs == null) throw Exception("Step 5: Descriptor is null");
+    if (descriptorJs == null) throw Exception("Descriptor property missing");
 
-    print("Step 5: Descriptor retrieved successfully");
-    return (descriptorJs as List<dynamic>).map((e) => e as double).toList();
+    return (descriptorJs as List).map((e) => e as double).toList();
   } catch (e) {
-    print("Error during face processing: $e");
+    print("Error in pipeline: $e");
     rethrow;
   }
 }
+
