@@ -25,25 +25,10 @@ class _RegisterUserPageState extends State<RegisterUserPage> {
   final CameraService _cameraService = CameraService();
   List<Uint8List> capturedPhotos = [];
 
-  bool _modelsLoaded = false;
-
   @override
   void initState() {
     super.initState();
     _cameraService.initCamera();
-    _loadFaceApiModels();
-  }
-
-  Future<void> _loadFaceApiModels() async {
-    try {
-      await webFaceApi.loadModels();
-      setState(() {
-        _modelsLoaded = true;
-      });
-      print("Face-api.js models loaded!");
-    } catch (e) {
-      print("Error loading Face-api.js models: $e");
-    }
   }
 
   @override
@@ -55,13 +40,6 @@ class _RegisterUserPageState extends State<RegisterUserPage> {
   }
 
   Future<void> _captureFaceSequence() async {
-    if (!_modelsLoaded) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Face models not loaded yet")),
-      );
-      return;
-    }
-
     capturedPhotos.clear();
 
     final steps = [
@@ -215,18 +193,7 @@ class _RegisterUserPageState extends State<RegisterUserPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text("Register New User")),
-      body: _modelsLoaded
-          ? _buildForm() // your current form + camera preview
-          : Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: const [
-            CircularProgressIndicator(),
-            SizedBox(height: 16),
-            Text("Loading Face Models... Please wait"),
-          ],
-        ),
-      ),
+      body: _buildForm(),
     );
   }
 

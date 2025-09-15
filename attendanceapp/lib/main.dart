@@ -35,7 +35,7 @@ class MyApp extends StatelessWidget {
       initialRoute: '/login',
       //Debugger for Firestore, remove during production START
       // 🔹 Global debug overlay
-
+/*
       builder: (context, child) {
         return Stack(
           children: [
@@ -60,6 +60,8 @@ class MyApp extends StatelessWidget {
           ],
         );
       },
+
+ */
       //Debugger for Firestore, remove during production END
       routes: {
         '/register': (context) => const RegisterUserPage(), // ✅ no camera param
