@@ -145,9 +145,6 @@ class _RegisterUserPageState extends State<RegisterUserPage> {
           // Step 2: Resize image
           final resizedImg = await webFaceApi.resizeImage(img, 160, 160);
 
-          // --- DOWNLOAD THE RESIZED IMAGE FOR DEBUG ---
-          downloadImageForDebug(resizedImg, filename: "photo_${i}_debug.png");
-
           // Step 3: Compute descriptor safely
           descriptor = await webFaceApi.computeFaceDescriptorSafe(resizedImg);
 
@@ -314,26 +311,4 @@ class _RegisterUserPageState extends State<RegisterUserPage> {
       ),
     );
   }
-}
-
-void downloadImageForDebug(html.ImageElement img, {String filename = "debug_face.png"}) {
-  // Create a canvas
-  final canvas = html.CanvasElement(width: img.width!, height: img.height!);
-  final ctx = canvas.context2D;
-
-  // Draw the image
-  ctx.drawImage(img, 0, 0);
-
-  // Optional: draw a rectangle for debugging (face bounding box)
-  ctx.strokeStyle = "red";
-  ctx.lineWidth = 3;
-  ctx.strokeRect(0, 0, img.width!, img.height!); // Example: full image or bounding box
-
-  // Convert canvas to data URL
-  final dataUrl = canvas.toDataUrl("image/png");
-
-  // Create an anchor element to download
-  final anchor = html.AnchorElement(href: dataUrl)
-    ..setAttribute("download", filename)
-    ..click();
 }

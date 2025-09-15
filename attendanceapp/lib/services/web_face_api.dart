@@ -73,46 +73,67 @@ Future<html.ImageElement> resizeImage(html.ImageElement img, int width, int heig
   return promise.then((_) => resizedImg);
 }
 
-/// Compute face embedding safely with exception and debug download
+/// Compute face embedding safely with exception, debug download included (TinyFaceDetector)
 Future<List<double>> computeFaceDescriptorSafe(html.ImageElement img) async {
   final faceapi = js_util.getProperty(html.window, 'faceapi');
-  if (faceapi == null) throw Exception("face-api.js not loaded");
+  if (faceapi == null) throw Exception("Step 0: face-api.js not loaded");
 
-  // TinyFaceDetector options
+  // Step 1: create TinyFaceDetector options
   final options = js_util.callConstructor(
     js_util.getProperty(faceapi, 'TinyFaceDetectorOptions'),
-    [],
+    [js_util.jsify({
+      'inputSize': 160,      // matches your image size
+      'scoreThreshold': 0.1, // very easy detection
+    })],
   );
+  print("Step 1: TinyFaceDetector options created");
 
-  // Step 1: detect face
-  final detection = await js_util.promiseToFuture(
-    js_util.callMethod(faceapi, 'detectSingleFace', [img, options]),
-  );
-
-  if (detection == null) {
-    throw Exception("No face detected");
+  // Step 1.5: download the image for debugging
+  try {
+    final anchor = html.AnchorElement(href: img.src)
+      ..download = "debug_face.png"
+      ..click();
+    print("Step 1.5: Image downloaded for debug");
+  } catch (e) {
+    print("Warning: Failed to download image for debug: $e");
   }
 
-  // Step 2: add landmarks
-  final detectionWithLandmarks = await js_util.promiseToFuture(
-    js_util.callMethod(detection, 'withFaceLandmarks', []),
-  );
+  try {
+    // Step 2: detect single face using TinyFaceDetector
+    final detection = await js_util.promiseToFuture(
+      js_util.callMethod(faceapi, 'detectSingleFace', [img, options]),
+    );
 
-  if (detectionWithLandmarks == null) {
-    throw Exception("Failed to add landmarks");
+    if (detection == null) {
+      throw Exception("Step 2: No face detected");
+    }
+    print("Step 2: Face detected");
+
+    // Step 3: add landmarks
+    final detectionWithLandmarks = await js_util.promiseToFuture(
+      js_util.callMethod(detection, 'withFaceLandmarks', []),
+    );
+    if (detectionWithLandmarks == null) {
+      throw Exception("Step 3: Failed to add landmarks");
+    }
+    print("Step 3: Landmarks added");
+
+    // Step 4: add descriptor
+    final detectionWithDescriptor = await js_util.promiseToFuture(
+      js_util.callMethod(detectionWithLandmarks, 'withFaceDescriptor', []),
+    );
+    if (detectionWithDescriptor == null) {
+      throw Exception("Step 4: Failed to compute descriptor");
+    }
+    print("Step 4: Descriptor computed");
+
+    final descriptorJs = js_util.getProperty(detectionWithDescriptor, 'descriptor');
+    if (descriptorJs == null) throw Exception("Step 5: Descriptor is null");
+
+    print("Step 5: Descriptor retrieved successfully");
+    return (descriptorJs as List<dynamic>).map((e) => e as double).toList();
+  } catch (e) {
+    print("Error during face processing: $e");
+    rethrow;
   }
-
-  // Step 3: add descriptor
-  final detectionWithDescriptor = await js_util.promiseToFuture(
-    js_util.callMethod(detectionWithLandmarks, 'withFaceDescriptor', []),
-  );
-
-  if (detectionWithDescriptor == null) {
-    throw Exception("Failed to compute descriptor");
-  }
-
-  final descriptorJs = js_util.getProperty(detectionWithDescriptor, 'descriptor');
-  if (descriptorJs == null) throw Exception("Descriptor is null");
-
-  return (descriptorJs as List<dynamic>).map((e) => e as double).toList();
 }
