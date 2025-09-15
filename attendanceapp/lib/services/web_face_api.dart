@@ -89,6 +89,7 @@ Future<List<double>> computeFaceDescriptorSafe(html.ImageElement img) async {
   print("Step 1: TinyFaceDetector options created");
 
   // Step 1.5: Download image for debugging
+  /*
   try {
     final anchor = html.AnchorElement(href: img.src)
       ..download = "debug_face.png"
@@ -96,7 +97,7 @@ Future<List<double>> computeFaceDescriptorSafe(html.ImageElement img) async {
     print("Step 1.5: Debug image downloaded");
   } catch (e) {
     print("Warning: Failed to download debug image: $e");
-  }
+  }*/
 
   try {
     // Step 2–4: Run pipeline in one chain (face -> landmarks -> descriptor)

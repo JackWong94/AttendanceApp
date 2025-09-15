@@ -66,8 +66,8 @@ class _RegisterUserPageState extends State<RegisterUserPage> {
 
     final steps = [
       {"instruction": "Look straight ahead", "angle": "center"},
-      {"instruction": "Turn your head to the LEFT", "angle": "left"},
-      {"instruction": "Turn your head to the RIGHT", "angle": "right"},
+      {"instruction": "Slightly turn your head to the LEFT", "angle": "left"},
+      {"instruction": "Slightly turn your head to the RIGHT", "angle": "right"},
     ];
 
     for (var step in steps) {
@@ -104,14 +104,10 @@ class _RegisterUserPageState extends State<RegisterUserPage> {
     }
 
     if (capturedPhotos.length == 3) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Face recording complete!")),
-      );
-
+      print("Face recording complete!");
       // 🔹 Compute embeddings automatically after capturing all 3 photos
       try {
         final embeddings = await _computeEmbeddings();
-        print("Computed embeddings: $embeddings");
       } catch (e) {
         print("Error computing embeddings: $e");
       }
@@ -131,7 +127,7 @@ class _RegisterUserPageState extends State<RegisterUserPage> {
     int delayMs = 500,
   }) async {
     List<List<double>> embeddings = [];
-
+    bool allSuccess = true;
     for (var i = 0; i < capturedPhotos.length; i++) {
       final bytes = capturedPhotos[i];
       bool success = false;
@@ -165,9 +161,18 @@ class _RegisterUserPageState extends State<RegisterUserPage> {
         print("Successfully computed embedding for photo #$i");
       } else {
         print("Failed to compute embedding for photo #$i after $retries attempts.");
+        allSuccess = false;
       }
     }
-
+    if (allSuccess) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("✅ Face Succefully Registered! ")),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("❌ Not Succesfully Registered! Please Retry!")),
+      );
+    }
     return embeddings;
   }
 
