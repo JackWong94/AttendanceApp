@@ -23,7 +23,6 @@ class AttendanceService {
     final timestamp = DateTime.now();
 
     if (query.docs.isEmpty) {
-      // No record today yet
       if (!isScanIn) {
         throw Exception("❌ $userId cannot scan out without scanning in today");
       }
@@ -31,7 +30,7 @@ class AttendanceService {
       await _firestore.collection('attendance').add({
         'user': userRef,
         'date': dateStr,
-        'scanIn': timestamp,
+        'scanIn': Timestamp.fromDate(timestamp), // ✅ Firestore Timestamp
       });
     } else {
       final docRef = query.docs.first.reference;
@@ -45,7 +44,7 @@ class AttendanceService {
           throw Exception("❌ $userId cannot scan in after scanning out today");
         }
 
-        await docRef.set({'scanIn': timestamp}, SetOptions(merge: true));
+        await docRef.set({'scanIn': Timestamp.fromDate(timestamp)}, SetOptions(merge: true));
       } else {
         if (data['scanIn'] == null) {
           throw Exception("❌ $userId must scan in before scanning out");
@@ -54,7 +53,7 @@ class AttendanceService {
           throw Exception("❌ $userId already scanned out today");
         }
 
-        await docRef.set({'scanOut': timestamp}, SetOptions(merge: true));
+        await docRef.set({'scanOut': Timestamp.fromDate(timestamp)}, SetOptions(merge: true));
       }
     }
   }
