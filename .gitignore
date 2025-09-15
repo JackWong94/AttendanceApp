@@ -30,3 +30,8 @@ bin/
 
 # Firebase service account or secret files (never commit)
 *.json
+
+# Flutter generated files
+**/flutter/generated_plugin_registrant.*
+**/flutter/generated_plugins.cmake
+**/Flutter/GeneratedPluginRegistrant.swift
