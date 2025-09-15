@@ -215,104 +215,120 @@ class _RegisterUserPageState extends State<RegisterUserPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text("Register New User")),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
+      body: _modelsLoaded
+          ? _buildForm() // your current form + camera preview
+          : Center(
         child: Column(
-          children: [
-            SizedBox(
-              height: 250,
-              child: _cameraService.controller == null
-                  ? const CameraPlaceholder(
-                message: "Camera not available on this platform",
-              )
-                  : FutureBuilder<void>(
-                future: _cameraService.initializeFuture,
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.done) {
-                    return AspectRatio(
-                      aspectRatio: _cameraService.controller!.value.aspectRatio,
-                      child: CameraPreview(_cameraService.controller!),
-                    );
-                  } else {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-                },
-              ),
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: const [
+            CircularProgressIndicator(),
+            SizedBox(height: 16),
+            Text("Loading Face Models... Please wait"),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Extract your current Column + Form into a separate method for clarity
+  Widget _buildForm() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        children: [
+          SizedBox(
+            height: 250,
+            child: _cameraService.controller == null
+                ? const CameraPlaceholder(
+              message: "Camera not available on this platform",
+            )
+                : FutureBuilder<void>(
+              future: _cameraService.initializeFuture,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.done) {
+                  return AspectRatio(
+                    aspectRatio: _cameraService.controller!.value.aspectRatio,
+                    child: CameraPreview(_cameraService.controller!),
+                  );
+                } else {
+                  return const Center(child: CircularProgressIndicator());
+                }
+              },
             ),
-            const SizedBox(height: 24),
-            Form(
-              key: _formKey,
-              child: Column(
-                children: [
-                  TextFormField(
-                    controller: _nameController,
-                    decoration: const InputDecoration(
-                      labelText: "Full Name",
-                      border: OutlineInputBorder(),
-                    ),
-                    validator: (value) => value == null || value.isEmpty ? "Enter name" : null,
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _emailController,
-                    decoration: const InputDecoration(
-                      labelText: "Email",
-                      border: OutlineInputBorder(),
-                    ),
-                    validator: (value) => value == null || !value.contains("@") ? "Enter valid email" : null,
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _idController,
-                    decoration: const InputDecoration(
-                      labelText: "Employee ID",
-                      border: OutlineInputBorder(),
-                    ),
-                    validator: (value) => value == null || value.isEmpty ? "Enter ID" : null,
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 24),
-            ElevatedButton.icon(
-              onPressed: _captureFaceSequence,
-              icon: const Icon(Icons.videocam),
-              label: const Text("Record Face (3 Photos)"),
-            ),
-            const SizedBox(height: 16),
-            if (capturedPhotos.isNotEmpty)
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: capturedPhotos
-                    .map((bytes) => Padding(
-                  padding: const EdgeInsets.all(4.0),
-                  child: Image.memory(bytes, width: 80, height: 80, fit: BoxFit.cover),
-                ))
-                    .toList(),
-              ),
-            const SizedBox(height: 24),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          ),
+          const SizedBox(height: 24),
+          Form(
+            key: _formKey,
+            child: Column(
               children: [
-                ElevatedButton.icon(
-                  onPressed: _registerUser,
-                  icon: const Icon(Icons.save),
-                  label: const Text("Save User"),
-                ),
-                ElevatedButton.icon(
-                  onPressed: () {
-                    Navigator.pop(context);
-                  },
-                  icon: const Icon(Icons.cancel),
-                  label: const Text("Cancel"),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.grey,
+                TextFormField(
+                  controller: _nameController,
+                  decoration: const InputDecoration(
+                    labelText: "Full Name",
+                    border: OutlineInputBorder(),
                   ),
+                  validator: (value) => value == null || value.isEmpty ? "Enter name" : null,
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _emailController,
+                  decoration: const InputDecoration(
+                    labelText: "Email",
+                    border: OutlineInputBorder(),
+                  ),
+                  validator: (value) => value == null || !value.contains("@") ? "Enter valid email" : null,
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _idController,
+                  decoration: const InputDecoration(
+                    labelText: "Employee ID",
+                    border: OutlineInputBorder(),
+                  ),
+                  validator: (value) => value == null || value.isEmpty ? "Enter ID" : null,
                 ),
               ],
             ),
-          ],
-        ),
+          ),
+          const SizedBox(height: 24),
+          ElevatedButton.icon(
+            onPressed: _captureFaceSequence,
+            icon: const Icon(Icons.videocam),
+            label: const Text("Record Face (3 Photos)"),
+          ),
+          const SizedBox(height: 16),
+          if (capturedPhotos.isNotEmpty)
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: capturedPhotos
+                  .map((bytes) => Padding(
+                padding: const EdgeInsets.all(4.0),
+                child: Image.memory(bytes, width: 80, height: 80, fit: BoxFit.cover),
+              ))
+                  .toList(),
+            ),
+          const SizedBox(height: 24),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              ElevatedButton.icon(
+                onPressed: _registerUser,
+                icon: const Icon(Icons.save),
+                label: const Text("Save User"),
+              ),
+              ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.pop(context);
+                },
+                icon: const Icon(Icons.cancel),
+                label: const Text("Cancel"),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.grey,
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
