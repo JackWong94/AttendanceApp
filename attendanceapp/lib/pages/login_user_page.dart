@@ -20,7 +20,9 @@ class _LoginUserPageState extends State<LoginUserPage> {
   @override
   void initState() {
     super.initState();
-    _cameraService.initCamera(); // ✅ initialize camera once
+    CameraService().initCamera(forceReinitOnWeb: true).then((_) {
+      if (mounted) setState(() {});
+    });
   }
 
   @override

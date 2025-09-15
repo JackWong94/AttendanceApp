@@ -29,7 +29,9 @@ class _RegisterUserPageState extends State<RegisterUserPage> {
   @override
   void initState() {
     super.initState();
-    _cameraService.initCamera();
+    CameraService().initCamera(forceReinitOnWeb: true).then((_) {
+      if (mounted) setState(() {});
+    });
   }
 
   @override

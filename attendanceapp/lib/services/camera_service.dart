@@ -11,32 +11,25 @@ class CameraService {
   CameraController? controller;
   Future<void>? initializeFuture;
 
-  /// Initialize camera (mobile + web)
-  /// `forceReinitOnWeb` = true to reinitialize on web
+  /// Initialize or reinitialize camera
+  /// [forceReinitOnWeb] ensures web camera is disposed and recreated
   Future<void> initCamera({bool forceReinitOnWeb = false}) async {
-    // Skip if mobile and already initialized
-    if (!kIsWeb && controller != null && controller!.value.isInitialized) return;
-
-    // Dispose previous controller on web if needed
-    if (kIsWeb && controller != null && forceReinitOnWeb) {
-      try {
+    try {
+      // Dispose web camera if forced
+      if (kIsWeb && controller != null && forceReinitOnWeb) {
         await controller!.dispose();
         controller = null;
         initializeFuture = null;
-      } catch (e) {
-        debugPrint("Error disposing web camera: $e");
       }
-    }
 
-    try {
+      // Skip initialization if controller already exists on mobile
+      if (!kIsWeb && controller != null) return;
+
       // Get available cameras
       final cameras = await availableCameras();
-      if (cameras.isEmpty) {
-        debugPrint("No cameras found");
-        return;
-      }
+      if (cameras.isEmpty) return;
 
-      // Pick front camera if available
+      // Select front camera or fallback to first
       final frontCamera = cameras.firstWhere(
             (c) => c.lensDirection == CameraLensDirection.front,
         orElse: () => cameras.first,
@@ -46,9 +39,10 @@ class CameraService {
       controller = CameraController(
         frontCamera,
         ResolutionPreset.medium,
-        enableAudio: !kIsWeb, // disable audio on web
+        enableAudio: !kIsWeb, // disable audio for web
       );
 
+      // Initialize
       initializeFuture = controller!.initialize();
       await initializeFuture;
     } catch (e) {
@@ -58,20 +52,19 @@ class CameraService {
     }
   }
 
-  /// Helper: is camera ready
-  bool get isCameraAvailable => controller != null && controller!.value.isInitialized;
-
-  /// Dispose camera manually if needed
+  /// Dispose camera controller safely
   Future<void> disposeCamera() async {
-    if (controller != null) {
-      try {
-        await controller!.dispose();
-      } catch (e) {
-        debugPrint("Error disposing camera: $e");
-      } finally {
-        controller = null;
-        initializeFuture = null;
-      }
+    try {
+      await controller?.dispose();
+    } catch (e) {
+      debugPrint("Error disposing camera: $e");
+    } finally {
+      controller = null;
+      initializeFuture = null;
     }
   }
+
+  /// Helper to check if camera is available and initialized
+  bool get isCameraAvailable =>
+      controller != null && controller!.value.isInitialized;
 }
