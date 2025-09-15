@@ -6,6 +6,19 @@ import 'package:attendanceapp/services/face_model_service.dart';
 import 'package:attendanceapp/services/face_recognition_service.dart';
 import 'package:camera/camera.dart';
 
+/// Placeholder for AttendancePage (replace later with real page)
+class AttendancePage extends StatelessWidget {
+  const AttendancePage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text("Attendance")),
+      body: const Center(child: Text("Attendance Page")),
+    );
+  }
+}
+
 class LoginUserPage extends StatefulWidget {
   const LoginUserPage({super.key});
 
@@ -14,8 +27,7 @@ class LoginUserPage extends StatefulWidget {
 }
 
 class _LoginUserPageState extends State<LoginUserPage> {
-
-  final CameraService _cameraService = CameraService(); // ✅ use singleton
+  final CameraService _cameraService = CameraService();
 
   @override
   void initState() {
@@ -34,7 +46,59 @@ class _LoginUserPageState extends State<LoginUserPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Attendance App")),
+      appBar: AppBar(
+        title: const Text("Attendance App"),
+      ),
+
+      // ✅ Drawer menu
+      endDrawer: Drawer(
+        child: ListView(
+          padding: EdgeInsets.zero,
+          children: [
+            const DrawerHeader(
+              decoration: BoxDecoration(color: Colors.blue),
+              child: Text(
+                "Settings",
+                style: TextStyle(color: Colors.white, fontSize: 20),
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.person_add),
+              title: const Text("Register New User"),
+              onTap: () {
+                Navigator.pop(context); // close drawer
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const RegisterUserPage()),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.assignment),
+              title: const Text("Attendance"),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const AttendancePage()),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.logout),
+              title: const Text("Log out"),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(builder: (context) => const LoginUserPage()),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+
       body: Column(
         children: [
           // Title + button
@@ -50,18 +114,6 @@ class _LoginUserPageState extends State<LoginUserPage> {
                   ),
                 ),
                 const SizedBox(height: 12),
-                ElevatedButton(
-                  onPressed: () {
-                    Navigator.pushReplacement(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const RegisterUserPage(),
-                      ),
-                    );
-                  },
-                  child: const Text("Register New User"),
-                ),
-                const SizedBox(height: 12), // ✅ spacing between buttons
                 ElevatedButton.icon(
                   onPressed: () async {
                     try {
@@ -91,6 +143,7 @@ class _LoginUserPageState extends State<LoginUserPage> {
               ],
             ),
           ),
+
           // Camera Preview
           Expanded(
             child: Center(
