@@ -2,6 +2,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:attendanceapp/widgets/camera_placeholder.dart';
 import 'package:attendanceapp/services/camera_service.dart';
+import 'package:attendanceapp/pages/login_user_page.dart';
 import 'package:camera/camera.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:attendanceapp/services/web_face_api.dart' as webFaceApi;
@@ -181,7 +182,12 @@ class _RegisterUserPageState extends State<RegisterUserPage> {
         const SnackBar(content: Text("User registered successfully")),
       );
 
-      Navigator.pop(context);
+      Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const LoginUserPage()
+          ),
+      );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Error saving user: $e")),
@@ -285,7 +291,12 @@ class _RegisterUserPageState extends State<RegisterUserPage> {
               ),
               ElevatedButton.icon(
                 onPressed: () {
-                  Navigator.pop(context);
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const LoginUserPage(),
+                    ),
+                  );
                 },
                 icon: const Icon(Icons.cancel),
                 label: const Text("Cancel"),

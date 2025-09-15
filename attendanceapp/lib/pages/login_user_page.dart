@@ -50,7 +50,7 @@ class _LoginUserPageState extends State<LoginUserPage> {
                 const SizedBox(height: 12),
                 ElevatedButton(
                   onPressed: () {
-                    Navigator.push(
+                    Navigator.pushReplacement(
                       context,
                       MaterialPageRoute(
                         builder: (context) => const RegisterUserPage(),
@@ -105,11 +105,22 @@ class _LoginUserPageState extends State<LoginUserPage> {
                         horizontal: 24.0,
                         vertical: 24.0,
                       ),
-                      child: AspectRatio(
-                        aspectRatio:
-                        _cameraService.controller!.value.aspectRatio,
-                        child:
-                        CameraPreview(_cameraService.controller!), // ✅ use shared controller
+                      child: _cameraService.controller == null
+                          ? const CameraPlaceholder(
+                        message: "Camera not available on this platform",
+                      )
+                          : FutureBuilder<void>(
+                        future: _cameraService.initializeFuture,
+                        builder: (context, snapshot) {
+                          if (snapshot.connectionState == ConnectionState.done) {
+                            return AspectRatio(
+                              aspectRatio: _cameraService.controller!.value.aspectRatio,
+                              child: CameraPreview(_cameraService.controller!),
+                            );
+                          } else {
+                            return const Center(child: CircularProgressIndicator());
+                          }
+                        },
                       ),
                     ),
                   );
