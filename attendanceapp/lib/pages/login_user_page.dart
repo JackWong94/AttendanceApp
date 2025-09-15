@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:attendanceapp/widgets/camera_placeholder.dart';
 import 'package:attendanceapp/pages/register_user_page.dart';
 import 'package:attendanceapp/services/camera_service.dart';
+import 'package:attendanceapp/services/face_model_service.dart';
+import 'package:attendanceapp/services/face_recognition_service.dart';
 import 'package:camera/camera.dart';
 
 class LoginUserPage extends StatefulWidget {
@@ -56,6 +58,33 @@ class _LoginUserPageState extends State<LoginUserPage> {
                     );
                   },
                   child: const Text("Register New User"),
+                ),
+                const SizedBox(height: 12), // ✅ spacing between buttons
+                ElevatedButton.icon(
+                  onPressed: () async {
+                    try {
+                      final picture = await CameraService().controller!.takePicture();
+                      final bytes = await picture.readAsBytes();
+
+                      final user = await FaceRecognitionService.recognizeUser(bytes);
+
+                      if (user != null) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text("✅ Welcome back, $user!")),
+                        );
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text("❌ Face not recognized")),
+                        );
+                      }
+                    } catch (e) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text("Error: $e")),
+                      );
+                    }
+                  },
+                  icon: const Icon(Icons.face_retouching_natural),
+                  label: const Text("Scan Face"),
                 ),
               ],
             ),
