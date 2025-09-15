@@ -22,6 +22,12 @@ if ($LASTEXITCODE -ne 0) {
     exit $LASTEXITCODE
 }
 
+# 🔹 Step 1.5: Ensure face-api models are copied
+if (Test-Path ".\web\models") {
+    Write-Host "Copying models folder into build/web..." -ForegroundColor Green
+    Copy-Item -Path ".\web\models" -Destination ".\build\web\" -Recurse -Force
+}
+
 # Step 2: Save changes if any
 Write-Host "Stashing uncommitted changes..." -ForegroundColor Green
 git stash
@@ -48,7 +54,6 @@ git rm -rf *
 
 # Step 6: Copy web build directly to ROOT of gh-pages
 Write-Host "Copying new web build to '$BranchName' ROOT..." -ForegroundColor Green
-# Ensure only contents of build/web are copied to root, not a nested folder
 Get-ChildItem -Path $TempPath | ForEach-Object {
     Copy-Item -Path $_.FullName -Destination "." -Recurse
 }
