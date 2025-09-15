@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 class CameraService {
+  // Singleton
   static final CameraService _instance = CameraService._internal();
   factory CameraService() => _instance;
   CameraService._internal();
@@ -10,12 +11,13 @@ class CameraService {
   CameraController? controller;
   Future<void>? initializeFuture;
 
-  /// Initialize or reinitialize camera
+  /// Initialize camera (mobile + web)
+  /// `forceReinitOnWeb` = true to reinitialize on web
   Future<void> initCamera({bool forceReinitOnWeb = false}) async {
-    // If mobile and already initialized, skip
-    if (!kIsWeb && controller != null) return;
+    // Skip if mobile and already initialized
+    if (!kIsWeb && controller != null && controller!.value.isInitialized) return;
 
-    // If web and forceReinitOnWeb, dispose previous controller
+    // Dispose previous controller on web if needed
     if (kIsWeb && controller != null && forceReinitOnWeb) {
       try {
         await controller!.dispose();
@@ -26,48 +28,50 @@ class CameraService {
       }
     }
 
-    List<CameraDescription> cameras = [];
-
     try {
-      if (defaultTargetPlatform == TargetPlatform.android || defaultTargetPlatform == TargetPlatform.iOS) {
-        cameras = await availableCameras();
+      // Get available cameras
+      final cameras = await availableCameras();
+      if (cameras.isEmpty) {
+        debugPrint("No cameras found");
+        return;
       }
 
-      if (kIsWeb) {
-        final cameras = await availableCameras();
-        if (cameras.isNotEmpty) {
-          final frontCamera = cameras.firstWhere(
-                (c) => c.lensDirection == CameraLensDirection.front,
-            orElse: () => cameras.first,
-          );
+      // Pick front camera if available
+      final frontCamera = cameras.firstWhere(
+            (c) => c.lensDirection == CameraLensDirection.front,
+        orElse: () => cameras.first,
+      );
 
-          // Only request video (no audio)
-          controller = CameraController(
-            frontCamera,
-            ResolutionPreset.medium,
-            enableAudio: false, // 🔑 disable audio
-          );
+      // Create controller
+      controller = CameraController(
+        frontCamera,
+        ResolutionPreset.medium,
+        enableAudio: !kIsWeb, // disable audio on web
+      );
 
-          initializeFuture = controller!.initialize();
-          await initializeFuture;
-        }
-      }
-
-      if (cameras.isNotEmpty) {
-        final frontCamera = cameras.firstWhere(
-              (c) => c.lensDirection == CameraLensDirection.front,
-          orElse: () => cameras.first,
-        );
-
-        controller = CameraController(frontCamera, ResolutionPreset.medium);
-        initializeFuture = controller!.initialize();
-        await initializeFuture;
-      }
+      initializeFuture = controller!.initialize();
+      await initializeFuture;
     } catch (e) {
       debugPrint("Camera initialization error: $e");
+      controller = null;
+      initializeFuture = null;
     }
   }
 
-  /// Helper to check if camera is available
+  /// Helper: is camera ready
   bool get isCameraAvailable => controller != null && controller!.value.isInitialized;
+
+  /// Dispose camera manually if needed
+  Future<void> disposeCamera() async {
+    if (controller != null) {
+      try {
+        await controller!.dispose();
+      } catch (e) {
+        debugPrint("Error disposing camera: $e");
+      } finally {
+        controller = null;
+        initializeFuture = null;
+      }
+    }
+  }
 }
