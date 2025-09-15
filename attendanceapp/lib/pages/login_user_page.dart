@@ -4,8 +4,10 @@ import 'package:attendanceapp/pages/register_user_page.dart';
 import 'package:attendanceapp/services/camera_service.dart';
 import 'package:attendanceapp/services/face_model_service.dart';
 import 'package:attendanceapp/services/face_recognition_service.dart';
+import 'package:attendanceapp/services/attendance_service.dart';
 import 'package:attendanceapp/pages/attendance_page.dart';
 import 'package:camera/camera.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class LoginUserPage extends StatefulWidget {
   const LoginUserPage({super.key});
@@ -16,6 +18,8 @@ class LoginUserPage extends StatefulWidget {
 
 class _LoginUserPageState extends State<LoginUserPage> {
   final CameraService _cameraService = CameraService();
+  final AttendanceService _attendanceService = AttendanceService();
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   @override
   void initState() {
@@ -29,6 +33,41 @@ class _LoginUserPageState extends State<LoginUserPage> {
   void dispose() {
     // ✅ do NOT dispose controller here; managed by CameraService
     super.dispose();
+  }
+
+  Future<void> _handleScan({required bool isScanIn}) async {
+    try {
+      // 1️⃣ Take picture
+      final picture = await _cameraService.controller!.takePicture();
+      final bytes = await picture.readAsBytes();
+
+      // 2️⃣ Recognize user
+      final userId = await FaceRecognitionService.recognizeUser(bytes);
+
+      if (userId == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("❌ Face not recognized")),
+        );
+        return;
+      }
+
+      // 3️⃣ Get user reference from users collection
+      final userRef = _firestore.collection('users').doc(userId);
+
+      // 4️⃣ Scan with rules
+      await _attendanceService.scanUser(userRef: userRef, isScanIn: isScanIn);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+              "✅ $userId ${isScanIn ? 'scanned in' : 'scanned out'} successfully"),
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString())),
+      );
+    }
   }
 
   @override
@@ -101,36 +140,29 @@ class _LoginUserPageState extends State<LoginUserPage> {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                const SizedBox(height: 12),
-                ElevatedButton.icon(
-                  onPressed: () async {
-                    try {
-                      final picture = await CameraService().controller!.takePicture();
-                      final bytes = await picture.readAsBytes();
+                const SizedBox(height: 30),
 
-                      final user = await FaceRecognitionService.recognizeUser(bytes);
-
-                      if (user != null) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text("✅ Welcome back, $user!")),
-                        );
-                      } else {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text("❌ Face not recognized")),
-                        );
-                      }
-                    } catch (e) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text("Error: $e")),
-                      );
-                    }
-                  },
-                  icon: const Icon(Icons.face_retouching_natural),
-                  label: const Text("Scan Face"),
+                // ✅ Row of two buttons
+                Row(
+                  mainAxisSize: MainAxisSize.min, // makes the row wrap tightly around its children
+                  children: [
+                    ElevatedButton.icon(
+                      onPressed: () => _handleScan(isScanIn: true),
+                      icon: const Icon(Icons.login),
+                      label: const Text("Scan In"),
+                    ),
+                    const SizedBox(width: 88),
+                    ElevatedButton.icon(
+                      onPressed: () => _handleScan(isScanIn: false),
+                      icon: const Icon(Icons.logout),
+                      label: const Text("Scan Out"),
+                    ),
+                  ],
                 ),
               ],
             ),
           ),
+
 
           // Camera Preview
           Expanded(
