@@ -29,8 +29,28 @@ class CameraService {
     List<CameraDescription> cameras = [];
 
     try {
-      if (kIsWeb || defaultTargetPlatform == TargetPlatform.android || defaultTargetPlatform == TargetPlatform.iOS) {
+      if (defaultTargetPlatform == TargetPlatform.android || defaultTargetPlatform == TargetPlatform.iOS) {
         cameras = await availableCameras();
+      }
+
+      if (kIsWeb) {
+        final cameras = await availableCameras();
+        if (cameras.isNotEmpty) {
+          final frontCamera = cameras.firstWhere(
+                (c) => c.lensDirection == CameraLensDirection.front,
+            orElse: () => cameras.first,
+          );
+
+          // Only request video (no audio)
+          controller = CameraController(
+            frontCamera,
+            ResolutionPreset.medium,
+            enableAudio: false, // 🔑 disable audio
+          );
+
+          initializeFuture = controller!.initialize();
+          await initializeFuture;
+        }
       }
 
       if (cameras.isNotEmpty) {
