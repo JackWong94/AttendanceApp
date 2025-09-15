@@ -19,7 +19,7 @@ class FaceModelService {
   }
 
   // Load all user embeddings from Firestore (only once)
-  static Future<void> loadEmbeddings() async {
+  static Future<void> loadEmbeddings() async {c
     if (_embeddingsLoaded) return;
 
     final snapshot = await FirebaseFirestore.instance.collection('users').get();
@@ -39,7 +39,16 @@ class FaceModelService {
 
   // Combined initializer
   static Future<void> initialize() async {
+    print("Initializing");
     await loadModels();
     await loadEmbeddings();
+  }
+
+  static Future<void> reload() async {
+    print("Reloading");
+    _modelsLoaded = false;
+    _embeddingsLoaded = false;
+    _userEmbeddings.clear();
+    await initialize();
   }
 }

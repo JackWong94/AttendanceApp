@@ -35,6 +35,7 @@ class MyApp extends StatelessWidget {
       initialRoute: '/login',
       //Debugger for Firestore, remove during production START
       // 🔹 Global debug overlay
+
       builder: (context, child) {
         return Stack(
           children: [
@@ -42,7 +43,7 @@ class MyApp extends StatelessWidget {
 
             // Overlay FirestoreDemo at bottom center
             Positioned(
-              bottom: 16,
+              bottom: 25,
               left: 0,
               right: 0,
               child: Center(
