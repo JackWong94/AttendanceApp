@@ -19,7 +19,7 @@ class FaceModelService {
   }
 
   // Load all user embeddings from Firestore (only once)
-  static Future<void> loadEmbeddings() async {c
+  static Future<void> loadEmbeddings() async {
     if (_embeddingsLoaded) return;
 
     final snapshot = await FirebaseFirestore.instance.collection('users').get();
