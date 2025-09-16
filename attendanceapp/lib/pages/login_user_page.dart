@@ -151,21 +151,31 @@ class _LoginUserPageState extends State<LoginUserPage> {
           Expanded(
             child: Center(
               child: _cameraService.controller == null
-                  ? const CameraPlaceholder(message: "Camera not available on this platform")
+                  ? const CameraPlaceholder(
+                message: "Camera not available on this platform",
+              )
                   : FutureBuilder<void>(
                 future: _cameraService.initializeFuture,
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.done &&
+                      _cameraService.controller != null &&
                       _cameraService.controller!.value.isInitialized) {
                     return Padding(
                       padding: const EdgeInsets.all(24.0),
                       child: AspectRatio(
-                        aspectRatio: _cameraService.controller!.value.aspectRatio,
+                        aspectRatio:
+                        _cameraService.controller!.value.aspectRatio,
                         child: CameraPreview(_cameraService.controller!),
                       ),
                     );
+                  } else if (snapshot.hasError) {
+                    return CameraPlaceholder(
+                      message: "Camera error: ${snapshot.error}",
+                    );
                   } else {
-                    return const CircularProgressIndicator();
+                    return const Center(
+                      child: CircularProgressIndicator(),
+                    );
                   }
                 },
               ),

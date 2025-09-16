@@ -203,17 +203,28 @@ class _RegisterUserPageState extends State<RegisterUserPage> {
             SizedBox(
               height: 250,
               child: _cameraService.controller == null
-                  ? const CameraPlaceholder(message: "Camera not available on this platform")
+                  ? const CameraPlaceholder(
+                message: "Camera not available on this platform",
+              )
                   : FutureBuilder<void>(
                 future: _cameraService.initializeFuture,
                 builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.done) {
+                  if (snapshot.connectionState == ConnectionState.done &&
+                      _cameraService.controller != null &&
+                      _cameraService.controller!.value.isInitialized) {
                     return AspectRatio(
                       aspectRatio: _cameraService.controller!.value.aspectRatio,
                       child: CameraPreview(_cameraService.controller!),
                     );
+                  } else if (snapshot.hasError) {
+                    return CameraPlaceholder(
+                      message: "Camera error: ${snapshot.error}",
+                    );
+                  } else {
+                    return const Center(
+                      child: CircularProgressIndicator(),
+                    );
                   }
-                  return const Center(child: CircularProgressIndicator());
                 },
               ),
             ),
