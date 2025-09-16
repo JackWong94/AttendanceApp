@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:attendanceapp/widgets/camera_placeholder.dart';
+import 'package:attendanceapp/pages/web_login_page.dart';
 import 'package:attendanceapp/pages/register_user_page.dart';
 import 'package:attendanceapp/pages/attendance_page.dart';
 import 'package:attendanceapp/services/camera_service.dart';
@@ -7,6 +8,7 @@ import 'package:attendanceapp/services/face_model_service.dart';
 import 'package:attendanceapp/services/face_recognition_service.dart';
 import 'package:attendanceapp/services/attendance_service.dart';
 import 'package:attendanceapp/services/user_model_service.dart';
+import 'package:attendanceapp/services/authentication_service.dart';
 import 'package:attendanceapp/models/user_model.dart';
 import 'package:camera/camera.dart';
 
@@ -107,11 +109,23 @@ class _LoginUserPageState extends State<LoginUserPage> {
             ListTile(
               leading: const Icon(Icons.logout),
               title: const Text("Log out"),
-              onTap: () {
-                Navigator.pop(context);
+              onTap: () async {
+                Navigator.pop(context); // close drawer
+                final authService = AuthenticationService();
+
+                try {
+                  await authService.signOut(); // log out via your service
+                } catch (e) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text("Logout failed: $e")),
+                  );
+                  return;
+                }
+
+                // Navigate back to login page
                 Navigator.pushReplacement(
                   context,
-                  MaterialPageRoute(builder: (_) => const LoginUserPage()),
+                  MaterialPageRoute(builder: (_) => const WebLoginPage()),
                 );
               },
             ),

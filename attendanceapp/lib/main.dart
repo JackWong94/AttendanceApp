@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:attendanceapp/pages/login_user_page.dart';
 import 'package:attendanceapp/pages/register_user_page.dart';
+import 'package:attendanceapp/pages/web_login_page.dart';
 import 'package:attendanceapp/services/camera_service.dart';
 import 'package:attendanceapp/services/face_model_service.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -22,6 +23,7 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       home: const LoadingScreen(),
       routes: {
+        '/weblogin': (context) => const WebLoginPage(),
         '/register': (context) => const RegisterUserPage(),
         '/login': (context) => const LoginUserPage(),
       },
@@ -65,7 +67,7 @@ class _LoadingScreenState extends State<LoadingScreen> {
       if (mounted) {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => const LoginUserPage()),
+          MaterialPageRoute(builder: (_) => const WebLoginPage()),
         );
       }
     } catch (e) {
