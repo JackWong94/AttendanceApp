@@ -132,9 +132,9 @@ class _AttendancePageState extends State<AttendancePage> {
                 child: DataTable(
                   columnSpacing: 100, // increase spacing between columns
                   columns: const [
-                    DataColumn(label: Text("Name")),
-                    DataColumn(label: Text("Clock In")),
-                    DataColumn(label: Text("Clock Out")),
+                    DataColumn(label: Text("Name", style: TextStyle(fontWeight: FontWeight.bold))),
+                    DataColumn(label: Text("Clock In", style: TextStyle(fontWeight: FontWeight.bold))),
+                    DataColumn(label: Text("Clock Out", style: TextStyle(fontWeight: FontWeight.bold))),
                   ],
                   rows: attendanceMap.values.map((data) {
                     return DataRow(cells: [
