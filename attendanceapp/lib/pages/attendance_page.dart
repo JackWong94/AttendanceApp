@@ -124,29 +124,59 @@ class _AttendancePageState extends State<AttendancePage> {
               ],
             ),
           ),
+
           Expanded(
             child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal, // allow table to be wide
-              child: SizedBox(
-                width: MediaQuery.of(context).size.width * 0.8, // 90% of screen width
-                child: DataTable(
-                  columnSpacing: 100, // increase spacing between columns
-                  columns: const [
-                    DataColumn(label: Text("Name", style: TextStyle(fontWeight: FontWeight.bold))),
-                    DataColumn(label: Text("Clock In", style: TextStyle(fontWeight: FontWeight.bold))),
-                    DataColumn(label: Text("Clock Out", style: TextStyle(fontWeight: FontWeight.bold))),
-                  ],
-                  rows: attendanceMap.values.map((data) {
-                    return DataRow(cells: [
-                      DataCell(Text(data['name']!)),
-                      DataCell(Text(data['scanIn']!)),
-                      DataCell(Text(data['scanOut']!)),
-                    ]);
-                  }).toList(),
+              scrollDirection: Axis.vertical, // vertical scroll
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal, // horizontal scroll
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      minWidth: MediaQuery.of(context).size.width - 32, // minus padding
+                    ),
+                    child: DataTable(
+                      columnSpacing: 50, // adjust spacing
+                      dataRowHeight: null, // allow dynamic row height
+                      columns: const [
+                        DataColumn(
+                            label: Text("Name",
+                                style: TextStyle(fontWeight: FontWeight.bold))),
+                        DataColumn(
+                            label: Text("Clock In",
+                                style: TextStyle(fontWeight: FontWeight.bold))),
+                        DataColumn(
+                            label: Text("Clock Out",
+                                style: TextStyle(fontWeight: FontWeight.bold))),
+                      ],
+                      rows: attendanceMap.values.map((data) {
+                        return DataRow(cells: [
+                          DataCell(
+                            ConstrainedBox(
+                              constraints: BoxConstraints(maxWidth: 200), // adjust max width
+                              child: Text(
+                                data['name']!,
+                                softWrap: true,
+                                style: const TextStyle(fontSize: 14),
+                              ),
+                            ),
+                          ),
+                          DataCell(Text(data['scanIn']!)),
+                          DataCell(Text(data['scanOut']!)),
+                        ]);
+                      }).toList(),
+                    ),
+                  ),
                 ),
               ),
             ),
-          ),
+          )
+
+
+
+
+
         ],
       ),
     );
