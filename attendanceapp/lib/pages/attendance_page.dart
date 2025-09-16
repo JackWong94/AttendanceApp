@@ -60,16 +60,21 @@ class _AttendancePageState extends State<AttendancePage> {
 
     // Fetch attendance for each user for each day
     for (var day in daysToLoad) {
-      String dayStr = DateFormat('yyyy-MM-dd').format(day);
-
+      String dayStr = DateFormat('yyyy-M-d').format(day);
       for (var userId in usersToLoad) {
         final userRef = usersRef.doc(userId);
         final attQuery = await attendanceRef
-            //.where('date', isEqualTo: dayStr)
-            //.where('user', isEqualTo: userRef)
+            .where('date', isEqualTo: dayStr)
+            .where('user', isEqualTo: userRef)
             .limit(1)
             .get();
-
+        for (var doc in attQuery.docs) {
+          final data = doc.data();
+          print("Firestore document ID: ${doc.id}");
+          print("User: ${data['user']}");
+          print("Date stored in Firestore: ${data['date']}");
+          print("Scan In: ${data['scanIn']}, Scan Out: ${data['scanOut']}");
+        }
         String scanIn = '';
         String scanOut = '';
 
@@ -181,7 +186,7 @@ class _AttendancePageState extends State<AttendancePage> {
                 ElevatedButton(
                   onPressed: _pickDateOrMonth,
                   child: Text(DateFormat(
-                      selectedFilter == FilterType.day ? 'yyyy-MM-dd' : 'yyyy-MM')
+                      selectedFilter == FilterType.day ? 'yyyy-M-d' : 'yyyy-M')
                       .format(selectedDate)),
                 ),
                 FutureBuilder(
@@ -237,11 +242,11 @@ class _AttendancePageState extends State<AttendancePage> {
 
     List<String> days = [];
     if (selectedFilter == FilterType.day) {
-      days = [DateFormat('yyyy-MM-dd').format(selectedDate)];
+      days = [DateFormat('yyyy-M-d').format(selectedDate)];
     } else {
       int totalDays = DateUtils.getDaysInMonth(selectedDate.year, selectedDate.month);
       for (int i = 1; i <= totalDays; i++) {
-        days.add(DateFormat('yyyy-MM-dd')
+        days.add(DateFormat('yyyy-M-d')
             .format(DateTime(selectedDate.year, selectedDate.month, i)));
       }
     }
