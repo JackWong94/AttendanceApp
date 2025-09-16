@@ -21,6 +21,7 @@ class _RegisterUserPageState extends State<RegisterUserPage> {
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _idController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController(); // NEW
   final CameraService _cameraService = CameraService();
   final UserModelService _userService = UserModelService();
 
@@ -38,6 +39,7 @@ class _RegisterUserPageState extends State<RegisterUserPage> {
   void dispose() {
     _nameController.dispose();
     _idController.dispose();
+    _emailController.dispose(); // dispose email controller
     super.dispose();
   }
 
@@ -146,6 +148,7 @@ class _RegisterUserPageState extends State<RegisterUserPage> {
 
     final name = _nameController.text.trim();
     final id = _idController.text.trim();
+    final email = _emailController.text.trim(); // take from input
 
     if (capturedPhotos.length != 3) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -158,15 +161,12 @@ class _RegisterUserPageState extends State<RegisterUserPage> {
       List<List<double>> embeddings = await _computeEmbeddings();
       final primaryEmbedding = embeddings.first;
 
-      final name = _nameController.text.trim();
-      final id = _idController.text.trim();
-      final email = "$id@company.com"; // or add an email TextFormField
       final employeeId = id;
 
       final user = UserModel(
         id: id,
         name: name,
-        email: email,          // required
+        email: email,           // required
         employeeId: employeeId, // required
         faceEmbeddings: embeddings,
         embedding: primaryEmbedding,
@@ -229,6 +229,16 @@ class _RegisterUserPageState extends State<RegisterUserPage> {
                       border: OutlineInputBorder(),
                     ),
                     validator: (value) => value == null || value.isEmpty ? "Enter name" : null,
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: _emailController, // NEW
+                    decoration: const InputDecoration(
+                      labelText: "Email",
+                      border: OutlineInputBorder(),
+                    ),
+                    validator: (value) =>
+                    value == null || !value.contains("@") ? "Enter valid email" : null,
                   ),
                   const SizedBox(height: 12),
                   TextFormField(

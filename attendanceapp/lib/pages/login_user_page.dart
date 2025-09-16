@@ -171,22 +171,7 @@ class _LoginUserPageState extends State<LoginUserPage> {
               ),
             ),
           ),
-          ElevatedButton.icon(
-            onPressed: () async {
-              try {
-                await FaceModelService.reload();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text("✅ Face models reloaded successfully")),
-                );
-              } catch (e) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text("❌ Failed to reload models: $e")),
-                );
-              }
-            },
-            icon: const Icon(Icons.refresh),
-            label: const Text("Refresh Face Models"),
-          ),
+          const SizedBox(height: 30),
         ],
       ),
     );
