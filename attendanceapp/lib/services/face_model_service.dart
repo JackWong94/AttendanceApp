@@ -1,16 +1,17 @@
 import 'dart:convert';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:attendanceapp/services/user_model_service.dart';
 import 'web_face_api.dart' as webFaceApi;
+import 'package:attendanceapp/models/user_model.dart';
 
 class FaceModelService {
   static bool _modelsLoaded = false;
   static bool _embeddingsLoaded = false;
 
+  // Map of docId -> embeddings
   static final Map<String, List<double>> _userEmbeddings = {};
-
   static Map<String, List<double>> get embeddings => _userEmbeddings;
 
-  // Load face-api.js models (only once)
+  /// Load face-api.js models (only once)
   static Future<void> loadModels() async {
     if (_modelsLoaded) return;
     await webFaceApi.loadModels();
@@ -18,34 +19,32 @@ class FaceModelService {
     print("Face-api.js models loaded globally");
   }
 
-  // Load all user embeddings from Firestore (only once)
+  /// Load all user embeddings from UserModelService (only once)
   static Future<void> loadEmbeddings() async {
     if (_embeddingsLoaded) return;
 
-    final snapshot = await FirebaseFirestore.instance.collection('users').get();
-    for (var doc in snapshot.docs) {
-      final data = doc.data();
-      final name = data['name'] as String;
-      final embeddingsJson = data['faceEmbeddings'] as List<dynamic>;
-      final descriptor = (jsonDecode(embeddingsJson[0]) as List)
-          .map((e) => e as double)
-          .toList();
-      _userEmbeddings[name] = descriptor;
+    final userService = UserModelService();
+    final users = await userService.getAllUsers(); // returns List<UserModel>
+
+    for (var user in users) {
+      // user.id is Firestore docId, user.embedding is List<double>
+      _userEmbeddings[user.id] = user.embedding;
     }
 
     _embeddingsLoaded = true;
-    print("User embeddings loaded globally");
+    print("User embeddings loaded globally via UserModelService");
   }
 
-  // Combined initializer
+  /// Combined initializer
   static Future<void> initialize() async {
-    print("Initializing");
+    print("Initializing FaceModelService");
     await loadModels();
     await loadEmbeddings();
   }
 
+  /// Reload models and embeddings
   static Future<void> reload() async {
-    print("Reloading");
+    print("Reloading FaceModelService");
     _modelsLoaded = false;
     _embeddingsLoaded = false;
     _userEmbeddings.clear();

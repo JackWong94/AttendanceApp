@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:attendanceapp/widgets/camera_placeholder.dart';
 import 'package:attendanceapp/pages/register_user_page.dart';
+import 'package:attendanceapp/pages/attendance_page.dart';
 import 'package:attendanceapp/services/camera_service.dart';
 import 'package:attendanceapp/services/face_model_service.dart';
 import 'package:attendanceapp/services/face_recognition_service.dart';
 import 'package:attendanceapp/services/attendance_service.dart';
-import 'package:attendanceapp/pages/attendance_page.dart';
+import 'package:attendanceapp/services/user_model_service.dart';
+import 'package:attendanceapp/models/user_model.dart';
 import 'package:camera/camera.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 
 class LoginUserPage extends StatefulWidget {
   const LoginUserPage({super.key});
@@ -19,19 +20,18 @@ class LoginUserPage extends StatefulWidget {
 class _LoginUserPageState extends State<LoginUserPage> {
   final CameraService _cameraService = CameraService();
   final AttendanceService _attendanceService = AttendanceService();
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final UserModelService _userService = UserModelService();
 
   @override
   void initState() {
     super.initState();
-    CameraService().initCamera(forceReinitOnWeb: true).then((_) {
+    _cameraService.initCamera(forceReinitOnWeb: true).then((_) {
       if (mounted) setState(() {});
     });
   }
 
   @override
   void dispose() {
-    // ✅ do NOT dispose controller here; managed by CameraService
     super.dispose();
   }
 
@@ -41,31 +41,28 @@ class _LoginUserPageState extends State<LoginUserPage> {
       final picture = await _cameraService.controller!.takePicture();
       final bytes = await picture.readAsBytes();
 
-      // 2️⃣ Recognize user
-      final userId = await FaceRecognitionService.recognizeUser(bytes);
-
-      if (userId == null) {
+      // 2️⃣ Recognize user → returns UserModel directly
+      final UserModel? user = await FaceRecognitionService.recognizeUser(bytes);
+      if (user == null) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("❌ Face not recognized")),
         );
         return;
       }
 
-      // 3️⃣ Get user reference from users collection
-      final userRef = _firestore.collection('users').doc(userId);
-
-      // 4️⃣ Scan with rules
-      await _attendanceService.scanUser(userRef: userRef, isScanIn: isScanIn);
+      // 3️⃣ Scan attendance using UserModel
+      await _attendanceService.scanUser(user: user, isScanIn: isScanIn);
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-              "✅ $userId ${isScanIn ? 'scanned in' : 'scanned out'} successfully"),
+            "✅ ${user.name} ${isScanIn ? 'scanned in' : 'scanned out'} successfully",
+          ),
         ),
       );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString())),
+        SnackBar(content: Text("❌ Error: $e")),
       );
     }
   }
@@ -73,11 +70,7 @@ class _LoginUserPageState extends State<LoginUserPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Attendance App"),
-      ),
-
-      // ✅ Drawer menu
+      appBar: AppBar(title: const Text("Attendance App")),
       endDrawer: Drawer(
         child: ListView(
           padding: EdgeInsets.zero,
@@ -93,10 +86,10 @@ class _LoginUserPageState extends State<LoginUserPage> {
               leading: const Icon(Icons.person_add),
               title: const Text("Register New User"),
               onTap: () {
-                Navigator.pop(context); // close drawer
+                Navigator.pop(context);
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => const RegisterUserPage()),
+                  MaterialPageRoute(builder: (_) => const RegisterUserPage()),
                 );
               },
             ),
@@ -107,7 +100,7 @@ class _LoginUserPageState extends State<LoginUserPage> {
                 Navigator.pop(context);
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => const AttendancePage()),
+                  MaterialPageRoute(builder: (_) => const AttendancePage()),
                 );
               },
             ),
@@ -118,33 +111,26 @@ class _LoginUserPageState extends State<LoginUserPage> {
                 Navigator.pop(context);
                 Navigator.pushReplacement(
                   context,
-                  MaterialPageRoute(builder: (context) => const LoginUserPage()),
+                  MaterialPageRoute(builder: (_) => const LoginUserPage()),
                 );
               },
             ),
           ],
         ),
       ),
-
       body: Column(
         children: [
-          // Title + button
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: Column(
               children: [
                 const Text(
                   "Welcome! Please scan to login/logout",
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 30),
-
-                // ✅ Row of two buttons
                 Row(
-                  mainAxisSize: MainAxisSize.min, // makes the row wrap tightly around its children
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     ElevatedButton.icon(
                       onPressed: () => _handleScan(isScanIn: true),
@@ -162,15 +148,10 @@ class _LoginUserPageState extends State<LoginUserPage> {
               ],
             ),
           ),
-
-
-          // Camera Preview
           Expanded(
             child: Center(
               child: _cameraService.controller == null
-                  ? const CameraPlaceholder(
-                message: "Camera not available on this platform",
-              )
+                  ? const CameraPlaceholder(message: "Camera not available on this platform")
                   : FutureBuilder<void>(
                 future: _cameraService.initializeFuture,
                 builder: (context, snapshot) {
@@ -190,7 +171,6 @@ class _LoginUserPageState extends State<LoginUserPage> {
               ),
             ),
           ),
-
           ElevatedButton.icon(
             onPressed: () async {
               try {
