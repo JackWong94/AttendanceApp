@@ -2,30 +2,38 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/user_model.dart';
 
 class UserModelService {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final CollectionReference<Map<String, dynamic>> _usersRef =
+  final CollectionReference<Map<String, dynamic>> usersRef =
   FirebaseFirestore.instance.collection('users');
 
-  // Get user by docId
-  Future<UserModel> getUserById(String id) async {
-    final doc = await _usersRef.doc(id).get();
-    print("User data: ${doc.data()}");
+  /// Add new user
+  Future<void> addUser(UserModel user) async {
+    await usersRef.doc(user.id).set(user.toMap());
+  }
+
+  /// Get all users
+  Future<List<UserModel>> getAllUsers() async {
+    final snapshot = await usersRef.get();
+    return snapshot.docs
+        .map((doc) => UserModel.fromDocument(doc))
+        .toList();
+  }
+
+  /// Get user by Firestore document ID
+  Future<UserModel?> getUserById(String id) async {
+    final doc = await usersRef.doc(id).get();
+    if (!doc.exists) return null;
     return UserModel.fromDocument(doc);
   }
 
-  // Add a new user
-  Future<void> addUser(UserModel user) async {
-    await _usersRef.doc(user.id).set(user.toMap());
+  /// Check if a user name already exists
+  Future<bool> isNameExists(String name) async {
+    final query = await usersRef.where('name', isEqualTo: name).limit(1).get();
+    return query.docs.isNotEmpty;
   }
 
-  // List all users
-  Future<List<UserModel>> getAllUsers() async {
-    final snapshot = await _usersRef.get();
-    return snapshot.docs.map((doc) => UserModel.fromDocument(doc)).toList();
-  }
-
-  // Get DocumentReference for a user
-  DocumentReference<Map<String, dynamic>> ref(String id) {
-    return _usersRef.doc(id);
+  /// Check if an employee ID already exists
+  Future<bool> isEmployeeIdExists(String employeeId) async {
+    final doc = await usersRef.doc(employeeId).get();
+    return doc.exists;
   }
 }

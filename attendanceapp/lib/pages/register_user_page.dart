@@ -1,5 +1,4 @@
 import 'dart:typed_data';
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:attendanceapp/services/camera_service.dart';
@@ -20,12 +19,13 @@ class RegisterUserPage extends StatefulWidget {
 class _RegisterUserPageState extends State<RegisterUserPage> {
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _nameController = TextEditingController();
-  final TextEditingController _idController = TextEditingController();
-  final TextEditingController _emailController = TextEditingController(); // NEW
+  final TextEditingController _emailController = TextEditingController();
   final CameraService _cameraService = CameraService();
   final UserModelService _userService = UserModelService();
 
   List<Uint8List> capturedPhotos = [];
+  List<List<double>> capturedEmbeddings = [];
+  bool _isCreating = false;
 
   @override
   void initState() {
@@ -38,20 +38,36 @@ class _RegisterUserPageState extends State<RegisterUserPage> {
   @override
   void dispose() {
     _nameController.dispose();
-    _idController.dispose();
-    _emailController.dispose(); // dispose email controller
+    _emailController.dispose();
     super.dispose();
   }
 
+  Future<String> _generateUniqueEmployeeId() async {
+    int counter = 1;
+    String newId;
+    do {
+      newId = "EMP${counter.toString().padLeft(4, '0')}";
+      final exists = await _userService.isEmployeeIdExists(newId);
+      if (!exists) break;
+      counter++;
+    } while (true);
+    return newId;
+  }
+
   Future<void> _captureFaceSequence() async {
+    if (_isCreating) return;
+
     capturedPhotos.clear();
+    capturedEmbeddings.clear();
+
     final steps = [
       {"instruction": "Look straight ahead"},
       {"instruction": "Slightly turn your head to the LEFT"},
       {"instruction": "Slightly turn your head to the RIGHT"},
     ];
 
-    for (var step in steps) {
+    for (var i = 0; i < steps.length; i++) {
+      final step = steps[i];
       final confirmed = await showDialog<bool>(
         context: context,
         barrierDismissible: false,
@@ -73,9 +89,22 @@ class _RegisterUserPageState extends State<RegisterUserPage> {
 
       if (confirmed == true) {
         try {
-          final XFile picture = await _cameraService.controller!.takePicture();
+          final picture = await _cameraService.controller!.takePicture();
           final bytes = await picture.readAsBytes();
           capturedPhotos.add(bytes);
+
+          // Compute embedding immediately
+          final img = await webFaceApi.uint8ListToImage(bytes);
+          final resizedImg = await webFaceApi.resizeImage(img, 160, 160);
+          final descriptor = await webFaceApi.computeFaceDescriptorSafe(resizedImg);
+
+          if (descriptor.isEmpty) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text("No face detected in photo #${i + 1}")),
+            );
+          } else {
+            capturedEmbeddings.add(descriptor);
+          }
         } catch (e) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text("Error capturing photo: $e")),
@@ -84,97 +113,58 @@ class _RegisterUserPageState extends State<RegisterUserPage> {
       }
     }
 
-    if (capturedPhotos.length == 3) {
-      print("Face recording complete!");
-      await _computeEmbeddings();
+    if (capturedEmbeddings.length == 3) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("✅ Face successfully recorded!")),
+      );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Only ${capturedPhotos.length}/3 photos captured")),
+        SnackBar(
+            content:
+            Text("Only ${capturedEmbeddings.length}/3 valid photos recorded")),
       );
     }
 
     setState(() {});
   }
 
-  Future<List<List<double>>> _computeEmbeddings({
-    int retries = 3,
-    int delayMs = 500,
-  }) async {
-    List<List<double>> embeddings = [];
-    bool allSuccess = true;
-
-    for (var i = 0; i < capturedPhotos.length; i++) {
-      final bytes = capturedPhotos[i];
-      bool success = false;
-      List<double>? descriptor;
-
-      for (int attempt = 1; attempt <= retries; attempt++) {
-        try {
-          final img = await webFaceApi.uint8ListToImage(bytes);
-          final resizedImg = await webFaceApi.resizeImage(img, 160, 160);
-          descriptor = await webFaceApi.computeFaceDescriptorSafe(resizedImg);
-
-          if (descriptor.isEmpty) throw Exception("No face detected in photo #$i");
-          success = true;
-          break;
-        } catch (e) {
-          print("Attempt $attempt: Failed photo #$i: $e");
-          if (attempt < retries) await Future.delayed(Duration(milliseconds: delayMs));
-        }
-      }
-
-      if (success && descriptor != null) {
-        embeddings.add(descriptor);
-      } else {
-        allSuccess = false;
-      }
-    }
-
-    if (allSuccess) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("✅ Face successfully recorded!")),
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("❌ Failed to record face. Please retry!")),
-      );
-    }
-
-    return embeddings;
-  }
-
   Future<void> _registerUser() async {
+    if (_isCreating) return;
     if (!_formKey.currentState!.validate()) return;
 
     final name = _nameController.text.trim();
-    final id = _idController.text.trim();
-    final email = _emailController.text.trim(); // take from input
+    final email = _emailController.text.trim();
 
-    if (capturedPhotos.length != 3) {
+    if (capturedEmbeddings.length != 3) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please capture all 3 face photos.")),
+        const SnackBar(content: Text("Please record all 3 face photos.")),
       );
       return;
     }
 
-    try {
-      List<List<double>> embeddings = await _computeEmbeddings();
-      final primaryEmbedding = embeddings.first;
+    setState(() => _isCreating = true);
 
-      final employeeId = id;
+    try {
+      if (await _userService.isNameExists(name)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Name already exists. Please change it.")),
+        );
+        setState(() => _isCreating = false);
+        return;
+      }
+
+      final employeeId = await _generateUniqueEmployeeId();
 
       final user = UserModel(
-        id: id,
+        id: employeeId,
         name: name,
-        email: email,           // required
-        employeeId: employeeId, // required
-        faceEmbeddings: embeddings,
-        embedding: primaryEmbedding,
+        email: email,
+        employeeId: employeeId,
+        faceEmbeddings: capturedEmbeddings,
+        embedding: capturedEmbeddings.first,
       );
 
       await _userService.addUser(user);
-
-      // Reload global face embeddings
       await FaceModelService.reload();
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -189,120 +179,124 @@ class _RegisterUserPageState extends State<RegisterUserPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Error registering user: $e")),
       );
+    } finally {
+      setState(() => _isCreating = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text("Register New User")),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            SizedBox(
-              height: 250,
-              child: _cameraService.controller == null
-                  ? const CameraPlaceholder(
-                message: "Camera not available on this platform",
-              )
-                  : FutureBuilder<void>(
-                future: _cameraService.initializeFuture,
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.done &&
-                      _cameraService.controller != null &&
-                      _cameraService.controller!.value.isInitialized) {
-                    return AspectRatio(
-                      aspectRatio: _cameraService.controller!.value.aspectRatio,
-                      child: CameraPreview(_cameraService.controller!),
-                    );
-                  } else if (snapshot.hasError) {
-                    return CameraPlaceholder(
-                      message: "Camera error: ${snapshot.error}",
-                    );
-                  } else {
-                    return const Center(
-                      child: CircularProgressIndicator(),
-                    );
-                  }
-                },
-              ),
-            ),
-            const SizedBox(height: 24),
-            Form(
-              key: _formKey,
+    return Stack(
+      children: [
+        AbsorbPointer(
+          absorbing: _isCreating,
+          child: Scaffold(
+            appBar: AppBar(title: const Text("Register New User")),
+            body: SingleChildScrollView(
+              padding: const EdgeInsets.all(16.0),
               child: Column(
                 children: [
-                  TextFormField(
-                    controller: _nameController,
-                    decoration: const InputDecoration(
-                      labelText: "Full Name",
-                      border: OutlineInputBorder(),
+                  SizedBox(
+                    height: 250,
+                    child: _cameraService.controller == null
+                        ? const CameraPlaceholder(message: "Camera not available")
+                        : FutureBuilder<void>(
+                      future: _cameraService.initializeFuture,
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState == ConnectionState.done &&
+                            _cameraService.controller != null &&
+                            _cameraService.controller!.value.isInitialized) {
+                          return AspectRatio(
+                            aspectRatio: _cameraService.controller!.value.aspectRatio,
+                            child: CameraPreview(_cameraService.controller!),
+                          );
+                        } else if (snapshot.hasError) {
+                          return CameraPlaceholder(
+                            message: "Camera error: ${snapshot.error}",
+                          );
+                        } else {
+                          return const Center(child: CircularProgressIndicator());
+                        }
+                      },
                     ),
-                    validator: (value) => value == null || value.isEmpty ? "Enter name" : null,
                   ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _emailController, // NEW
-                    decoration: const InputDecoration(
-                      labelText: "Email",
-                      border: OutlineInputBorder(),
+                  const SizedBox(height: 24),
+                  Form(
+                    key: _formKey,
+                    child: Column(
+                      children: [
+                        TextFormField(
+                          controller: _nameController,
+                          decoration: const InputDecoration(
+                            labelText: "Full Name",
+                            border: OutlineInputBorder(),
+                          ),
+                          validator: (value) =>
+                          value == null || value.isEmpty ? "Enter name" : null,
+                        ),
+                        const SizedBox(height: 12),
+                        TextFormField(
+                          controller: _emailController,
+                          decoration: const InputDecoration(
+                            labelText: "Email",
+                            border: OutlineInputBorder(),
+                          ),
+                          validator: (value) =>
+                          value == null || !value.contains("@") ? "Enter valid email" : null,
+                        ),
+                      ],
                     ),
-                    validator: (value) =>
-                    value == null || !value.contains("@") ? "Enter valid email" : null,
                   ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _idController,
-                    decoration: const InputDecoration(
-                      labelText: "Employee ID",
-                      border: OutlineInputBorder(),
+                  const SizedBox(height: 24),
+                  ElevatedButton.icon(
+                    onPressed: _captureFaceSequence,
+                    icon: const Icon(Icons.videocam),
+                    label: const Text("Record Face (3 Photos)"),
+                  ),
+                  const SizedBox(height: 16),
+                  if (capturedPhotos.isNotEmpty)
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: capturedPhotos
+                          .map((bytes) => Padding(
+                        padding: const EdgeInsets.all(4.0),
+                        child: Image.memory(bytes, width: 80, height: 80, fit: BoxFit.cover),
+                      ))
+                          .toList(),
                     ),
-                    validator: (value) => value == null || value.isEmpty ? "Enter ID" : null,
+                  const SizedBox(height: 24),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      ElevatedButton.icon(
+                        onPressed: _registerUser,
+                        icon: const Icon(Icons.save),
+                        label: const Text("Save User"),
+                      ),
+                      ElevatedButton.icon(
+                        onPressed: () => Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute(builder: (_) => const LoginUserPage()),
+                        ),
+                        icon: const Icon(Icons.cancel),
+                        label: const Text("Cancel"),
+                        style: ElevatedButton.styleFrom(backgroundColor: Colors.grey),
+                      ),
+                    ],
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 24),
-            ElevatedButton.icon(
-              onPressed: _captureFaceSequence,
-              icon: const Icon(Icons.videocam),
-              label: const Text("Record Face (3 Photos)"),
-            ),
-            const SizedBox(height: 16),
-            if (capturedPhotos.isNotEmpty)
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: capturedPhotos
-                    .map((bytes) => Padding(
-                  padding: const EdgeInsets.all(4.0),
-                  child: Image.memory(bytes, width: 80, height: 80, fit: BoxFit.cover),
-                ))
-                    .toList(),
-              ),
-            const SizedBox(height: 24),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                ElevatedButton.icon(
-                  onPressed: _registerUser,
-                  icon: const Icon(Icons.save),
-                  label: const Text("Save User"),
-                ),
-                ElevatedButton.icon(
-                  onPressed: () => Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(builder: (_) => const LoginUserPage()),
-                  ),
-                  icon: const Icon(Icons.cancel),
-                  label: const Text("Cancel"),
-                  style: ElevatedButton.styleFrom(backgroundColor: Colors.grey),
-                ),
-              ],
-            ),
-          ],
+          ),
         ),
-      ),
+        if (_isCreating)
+          Container(
+            color: Colors.black.withOpacity(0.5),
+            child: const Center(
+              child: CircularProgressIndicator(),
+            ),
+          ),
+      ],
     );
   }
 }
