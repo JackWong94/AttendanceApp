@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart'; // for 24h formatting
-import 'dart:convert';
 import 'dart:html' as html; // for CSV download on web
 import 'package:csv/csv.dart';
 
@@ -17,7 +16,6 @@ class _AttendancePageState extends State<AttendancePage> {
   final attendanceRef = FirebaseFirestore.instance.collection('attendance');
 
   DateTime selectedDate = DateTime.now(); // default today
-
   Map<String, Map<String, String>> attendanceMap = {};
 
   @override
@@ -47,16 +45,20 @@ class _AttendancePageState extends State<AttendancePage> {
       if (attQuery.docs.isNotEmpty) {
         final data = attQuery.docs.first.data() as Map<String, dynamic>;
         if (data['scanIn'] != null) {
-          scanIn = DateFormat('HH:mm').format(
-              (data['scanIn'] as Timestamp).toDate().toLocal());
+          scanIn = DateFormat('HH:mm')
+              .format((data['scanIn'] as Timestamp).toDate().toLocal());
         }
         if (data['scanOut'] != null) {
-          scanOut = DateFormat('HH:mm').format(
-              (data['scanOut'] as Timestamp).toDate().toLocal());
+          scanOut = DateFormat('HH:mm')
+              .format((data['scanOut'] as Timestamp).toDate().toLocal());
         }
       }
 
-      tempMap[userDoc.id] = {'name': userDoc['name'] ?? userDoc.id, 'scanIn': scanIn, 'scanOut': scanOut};
+      tempMap[userDoc.id] = {
+        'name': userDoc['name'] ?? userDoc.id,
+        'scanIn': scanIn,
+        'scanOut': scanOut
+      };
     }
 
     setState(() {
@@ -67,16 +69,17 @@ class _AttendancePageState extends State<AttendancePage> {
   void _downloadCSV() {
     List<List<String>> csvData = [
       ['Name', 'Clock In', 'Clock Out'],
-      ...attendanceMap.values.map((data) =>
-      [data['name']!, data['scanIn']!, data['scanOut']!]),
+      ...attendanceMap.values.map(
+              (data) => [data['name']!, data['scanIn']!, data['scanOut']!]),
     ];
 
-    String csv = ListToCsvConverter().convert(csvData);
+    String csv = const ListToCsvConverter().convert(csvData);
 
     final blob = html.Blob([csv], 'text/csv');
     final url = html.Url.createObjectUrlFromBlob(blob);
     final anchor = html.AnchorElement(href: url)
-      ..setAttribute("download", "attendance_${selectedDate.toIso8601String()}.csv")
+      ..setAttribute("download",
+          "attendance_${selectedDate.toIso8601String().substring(0, 10)}.csv")
       ..click();
     html.Url.revokeObjectUrl(url);
   }
@@ -112,7 +115,8 @@ class _AttendancePageState extends State<AttendancePage> {
                     "Date: ${DateFormat('yyyy-MM-dd').format(selectedDate)}",
                   ),
                 ),
-                const SizedBox(width: 16),
+                SizedBox(width: 16 + MediaQuery.of(context).size.width * 0.1),
+                const SizedBox(height: 100),
                 ElevatedButton(
                   onPressed: _downloadCSV,
                   child: const Text("Download CSV"),
@@ -122,21 +126,24 @@ class _AttendancePageState extends State<AttendancePage> {
           ),
           Expanded(
             child: SingleChildScrollView(
-              scrollDirection: Axis.vertical,
-              child: DataTable(
-                columnSpacing: 50,
-                columns: const [
-                  DataColumn(label: Text("Name")),
-                  DataColumn(label: Text("Clock In")),
-                  DataColumn(label: Text("Clock Out")),
-                ],
-                rows: attendanceMap.values.map((data) {
-                  return DataRow(cells: [
-                    DataCell(Text(data['name']!)),
-                    DataCell(Text(data['scanIn']!)),
-                    DataCell(Text(data['scanOut']!)),
-                  ]);
-                }).toList(),
+              scrollDirection: Axis.horizontal, // allow table to be wide
+              child: SizedBox(
+                width: MediaQuery.of(context).size.width * 0.8, // 90% of screen width
+                child: DataTable(
+                  columnSpacing: 100, // increase spacing between columns
+                  columns: const [
+                    DataColumn(label: Text("Name")),
+                    DataColumn(label: Text("Clock In")),
+                    DataColumn(label: Text("Clock Out")),
+                  ],
+                  rows: attendanceMap.values.map((data) {
+                    return DataRow(cells: [
+                      DataCell(Text(data['name']!)),
+                      DataCell(Text(data['scanIn']!)),
+                      DataCell(Text(data['scanOut']!)),
+                    ]);
+                  }).toList(),
+                ),
               ),
             ),
           ),
