@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'package:excel/excel.dart';
 import 'dart:html' as html;
+import 'package:month_picker_dialog/month_picker_dialog.dart';
 
 class AttendancePage extends StatefulWidget {
   const AttendancePage({super.key});
@@ -45,51 +46,56 @@ class _AttendancePageState extends State<AttendancePage> {
       userNames[userDoc.id] = userDoc['name'] ?? userDoc.id;
     }
 
-    List<DateTime> daysToLoad = [];
-    if (selectedFilter == FilterType.day) {
-      daysToLoad = [selectedDate];
-    } else {
-      int totalDays = DateUtils.getDaysInMonth(selectedDate.year, selectedDate.month);
-      for (int i = 1; i <= totalDays; i++) {
-        daysToLoad.add(DateTime(selectedDate.year, selectedDate.month, i));
-      }
-    }
-
     final usersToLoad =
     selectedUserId != null ? [selectedUserId!] : userNames.keys.toList();
 
-    // Fetch attendance for each user for each day
-    for (var day in daysToLoad) {
-      String dayStr = DateFormat('yyyy-M-d').format(day);
-      for (var userId in usersToLoad) {
-        final userRef = usersRef.doc(userId);
-        final attQuery = await attendanceRef
-            .where('date', isEqualTo: dayStr)
+    // Fetch attendance for each user
+    for (var userId in usersToLoad) {
+      final userRef = usersRef.doc(userId);
+
+      QuerySnapshot<Map<String, dynamic>> snapshot;
+
+      if (selectedFilter == FilterType.day) {
+        // Day filter: exact date
+        String dayStr = DateFormat('yyyy-M-d').format(selectedDate);
+        snapshot = await attendanceRef
             .where('user', isEqualTo: userRef)
-            .limit(1)
+            .where('date', isEqualTo: dayStr)
             .get();
-        for (var doc in attQuery.docs) {
-          final data = doc.data();
-          print("Firestore document ID: ${doc.id}");
-          print("User: ${data['user']}");
-          print("Date stored in Firestore: ${data['date']}");
-          print("Scan In: ${data['scanIn']}, Scan Out: ${data['scanOut']}");
-        }
+      } else {
+        // Month filter: query whole month
+        final startOfMonth = DateTime(selectedDate.year, selectedDate.month, 1);
+        final endOfMonth =
+        DateTime(selectedDate.year, selectedDate.month + 1, 0);
+        snapshot = await attendanceRef
+            .where('user', isEqualTo: userRef)
+            .where('date',
+            isGreaterThanOrEqualTo:
+            DateFormat('yyyy-M-d').format(startOfMonth))
+            .where('date',
+            isLessThanOrEqualTo:
+            DateFormat('yyyy-M-d').format(endOfMonth))
+            .get();
+      }
+
+      // Map results to attendanceMap
+      for (var doc in snapshot.docs) {
+        final data = doc.data();
+        String dateStr = data['date'] ?? '';
         String scanIn = '';
         String scanOut = '';
 
-        if (attQuery.docs.isNotEmpty) {
-          final data = attQuery.docs.first.data() as Map<String, dynamic>;
-          if (data['scanIn'] != null) {
-            scanIn = DateFormat('HH:mm').format((data['scanIn'] as Timestamp).toDate());
-          }
-          if (data['scanOut'] != null) {
-            scanOut = DateFormat('HH:mm').format((data['scanOut'] as Timestamp).toDate());
-          }
+        if (data['scanIn'] != null) {
+          scanIn =
+              DateFormat('HH:mm').format((data['scanIn'] as Timestamp).toDate());
+        }
+        if (data['scanOut'] != null) {
+          scanOut = DateFormat('HH:mm')
+              .format((data['scanOut'] as Timestamp).toDate());
         }
 
         attendanceMap[userId] ??= {};
-        attendanceMap[userId]![dayStr] = {
+        attendanceMap[userId]![dateStr] = {
           'scanIn': scanIn,
           'scanOut': scanOut,
           'name': userNames[userId]!,
@@ -144,13 +150,12 @@ class _AttendancePageState extends State<AttendancePage> {
         setState(() => selectedDate = picked);
       }
     } else {
-      // Month picker workaround: pick first day of month
-      final picked = await showDatePicker(
+      // Proper month picker
+      final picked = await showMonthPicker(
         context: context,
         initialDate: selectedDate,
         firstDate: DateTime(2020),
         lastDate: DateTime.now(),
-        selectableDayPredicate: (day) => day.day == 1,
       );
       if (picked != null) {
         setState(() => selectedDate = picked);
@@ -176,23 +181,30 @@ class _AttendancePageState extends State<AttendancePage> {
                 DropdownButton<FilterType>(
                   value: selectedFilter,
                   items: const [
-                    DropdownMenuItem(value: FilterType.day, child: Text("Day")),
-                    DropdownMenuItem(value: FilterType.month, child: Text("Month")),
+                    DropdownMenuItem(
+                        value: FilterType.day, child: Text("Day")),
+                    DropdownMenuItem(
+                        value: FilterType.month, child: Text("Month")),
                   ],
                   onChanged: (val) {
-                    if (val != null) setState(() => selectedFilter = val);
+                    if (val != null) {
+                      setState(() => selectedFilter = val);
+                    }
                   },
                 ),
                 ElevatedButton(
                   onPressed: _pickDateOrMonth,
                   child: Text(DateFormat(
-                      selectedFilter == FilterType.day ? 'yyyy-M-d' : 'yyyy-M')
+                      selectedFilter == FilterType.day
+                          ? 'yyyy-M-d'
+                          : 'yyyy-M')
                       .format(selectedDate)),
                 ),
                 FutureBuilder(
                   future: usersRef.get(),
                   builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
+                    if (snapshot.connectionState ==
+                        ConnectionState.waiting) {
                       return const CircularProgressIndicator();
                     }
                     final docs = snapshot.data?.docs ?? [];
@@ -200,7 +212,8 @@ class _AttendancePageState extends State<AttendancePage> {
                       value: selectedUserId,
                       hint: const Text("All Users"),
                       items: [
-                        const DropdownMenuItem(value: null, child: Text("All Users")),
+                        const DropdownMenuItem(
+                            value: null, child: Text("All Users")),
                         ...docs.map((doc) => DropdownMenuItem(
                           value: doc.id,
                           child: Text(doc['name'] ?? doc.id),
@@ -212,8 +225,12 @@ class _AttendancePageState extends State<AttendancePage> {
                     );
                   },
                 ),
-                ElevatedButton(onPressed: _loadAttendance, child: const Text("Refresh")),
-                ElevatedButton(onPressed: _exportExcel, child: const Text("Export Excel")),
+                ElevatedButton(
+                    onPressed: _loadAttendance,
+                    child: const Text("Refresh")),
+                ElevatedButton(
+                    onPressed: _exportExcel,
+                    child: const Text("Export Excel")),
               ],
             ),
           ),
@@ -244,7 +261,8 @@ class _AttendancePageState extends State<AttendancePage> {
     if (selectedFilter == FilterType.day) {
       days = [DateFormat('yyyy-M-d').format(selectedDate)];
     } else {
-      int totalDays = DateUtils.getDaysInMonth(selectedDate.year, selectedDate.month);
+      int totalDays =
+      DateUtils.getDaysInMonth(selectedDate.year, selectedDate.month);
       for (int i = 1; i <= totalDays; i++) {
         days.add(DateFormat('yyyy-M-d')
             .format(DateTime(selectedDate.year, selectedDate.month, i)));
