@@ -46,60 +46,10 @@ class _AttendancePageState extends State<AttendancePage> {
       userNames[userDoc.id] = userDoc['name'] ?? userDoc.id;
     }
 
-    final usersToLoad =
-    selectedUserId != null ? [selectedUserId!] : userNames.keys.toList();
-
-    // Fetch attendance for each user
-    for (var userId in usersToLoad) {
-      final userRef = usersRef.doc(userId);
-
-      QuerySnapshot<Map<String, dynamic>> snapshot;
-
-      if (selectedFilter == FilterType.day) {
-        // Day filter: exact date
-        String dayStr = DateService.toStorageDate(selectedDate);
-        snapshot = await attendanceRef
-            .where('user', isEqualTo: userRef)
-            .where('date', isEqualTo: dayStr)
-            .get();
-      } else {
-        // Month filter: query whole month
-        final startOfMonth = DateTime(selectedDate.year, selectedDate.month, 1);
-        final endOfMonth =
-        DateTime(selectedDate.year, selectedDate.month + 1, 0);
-        snapshot = await attendanceRef
-            .where('user', isEqualTo: userRef)
-            .where('date',
-            isGreaterThanOrEqualTo:
-            DateService.toStorageDate(startOfMonth))
-            .where('date',
-            isLessThanOrEqualTo: DateService.toStorageDate(endOfMonth))
-            .get();
-      }
-
-      // Map results to attendanceMap
-      for (var doc in snapshot.docs) {
-        final data = doc.data();
-        String dateStr = data['date'] ?? '';
-        String scanIn = '';
-        String scanOut = '';
-
-        if (data['scanIn'] != null) {
-          scanIn = DateService.toDisplayTime(
-              (data['scanIn'] as Timestamp).toDate());
-        }
-        if (data['scanOut'] != null) {
-          scanOut = DateService.toDisplayTime(
-              (data['scanOut'] as Timestamp).toDate());
-        }
-
-        attendanceMap[userId] ??= {};
-        attendanceMap[userId]![dateStr] = {
-          'scanIn': scanIn,
-          'scanOut': scanOut,
-          'name': userNames[userId]!,
-        };
-      }
+    if (selectedFilter == FilterType.day) {
+      await _loadDayAttendance();
+    } else {
+      await _loadMonthAttendance();
     }
 
     setState(() {
@@ -107,35 +57,146 @@ class _AttendancePageState extends State<AttendancePage> {
     });
   }
 
+  Future<void> _loadDayAttendance() async {
+    final usersToLoad =
+    selectedUserId != null ? [selectedUserId!] : userNames.keys.toList();
+
+    final dayStr = DateService.toStorageDate(selectedDate);
+
+    for (var userId in usersToLoad) {
+      final userRef = usersRef.doc(userId);
+
+      final snapshot = await attendanceRef
+          .where('user', isEqualTo: userRef)
+          .where('date', isEqualTo: dayStr)
+          .get();
+
+      if (snapshot.docs.isEmpty) {
+        // ✅ No record for this day → put N/A
+        attendanceMap[userId] ??= {};
+        attendanceMap[userId]![dayStr] = {
+          'scanIn': 'N/A',
+          'scanOut': 'N/A',
+          'name': userNames[userId]!,
+        };
+      }
+
+      for (var doc in snapshot.docs) {
+        final data = doc.data();
+        String scanIn = data['scanIn'] != null
+            ? DateService.toDisplayTime((data['scanIn'] as Timestamp).toDate())
+            : 'N/A';
+        String scanOut = data['scanOut'] != null
+            ? DateService.toDisplayTime((data['scanOut'] as Timestamp).toDate())
+            : 'N/A';
+
+        attendanceMap[userId] ??= {};
+        attendanceMap[userId]![dayStr] = {
+          'scanIn': scanIn,
+          'scanOut': scanOut,
+          'name': userNames[userId]!,
+        };
+      }
+    }
+  }
+
+  Future<void> _loadMonthAttendance() async {
+    final usersToLoad =
+    selectedUserId != null ? [selectedUserId!] : userNames.keys.toList();
+
+    int totalDays =
+    DateUtils.getDaysInMonth(selectedDate.year, selectedDate.month);
+
+    for (int i = 1; i <= totalDays; i++) {
+      final date = DateTime(selectedDate.year, selectedDate.month, i);
+      final formatted = DateService.toStorageDate(date);
+
+      for (var userId in usersToLoad) {
+        final userRef = usersRef.doc(userId);
+
+        final snapshot = await attendanceRef
+            .where('user', isEqualTo: userRef)
+            .where('date', isEqualTo: formatted)
+            .get();
+
+        if (snapshot.docs.isEmpty) {
+          // ✅ No record for this day → put N/A
+          attendanceMap[userId] ??= {};
+          attendanceMap[userId]![formatted] = {
+            'scanIn': 'N/A',
+            'scanOut': 'N/A',
+            'name': userNames[userId]!,
+          };
+        }
+
+        for (var doc in snapshot.docs) {
+          final data = doc.data();
+          String scanIn = data['scanIn'] != null
+              ? DateService.toDisplayTime(
+              (data['scanIn'] as Timestamp).toDate())
+              : 'N/A';
+          String scanOut = data['scanOut'] != null
+              ? DateService.toDisplayTime(
+              (data['scanOut'] as Timestamp).toDate())
+              : 'N/A';
+
+          attendanceMap[userId] ??= {};
+          attendanceMap[userId]![formatted] = {
+            'scanIn': scanIn,
+            'scanOut': scanOut,
+            'name': userNames[userId]!,
+          };
+        }
+      }
+    }
+  }
+
   Future<void> _exportExcel() async {
+    setState(() => loading = true);
+    await _loadAttendance(); // ✅ fetch fresh data
+    setState(() => loading = false);
+
     final excel = Excel.createExcel();
     final usersToExport =
     selectedUserId != null ? [selectedUserId!] : attendanceMap.keys.toList();
 
-    // Remove default empty sheet
-    excel.delete('Sheet1');
+    excel.delete('Sheet1'); // remove default
 
     for (var uid in usersToExport) {
       final sheetName = userNames[uid] ?? uid;
       final sheet = excel[sheetName];
-
       sheet.appendRow(['Date', 'Clock In', 'Clock Out']);
 
-      final dates = attendanceMap[uid]?.keys.toList() ?? [];
-      dates.sort();
+      List<String> dates = [];
+      if (selectedFilter == FilterType.day) {
+        dates = [DateService.toStorageDate(selectedDate)];
+      } else {
+        int totalDays =
+        DateUtils.getDaysInMonth(selectedDate.year, selectedDate.month);
+        for (int i = 1; i <= totalDays; i++) {
+          dates.add(DateService.toStorageDate(
+              DateTime(selectedDate.year, selectedDate.month, i)));
+        }
+      }
 
       for (var date in dates) {
-        final scanIn = attendanceMap[uid]?[date]?['scanIn'] ?? '';
-        final scanOut = attendanceMap[uid]?[date]?['scanOut'] ?? '';
+        final scanIn = attendanceMap[uid]?[date]?['scanIn'] ?? 'N/A';
+        final scanOut = attendanceMap[uid]?[date]?['scanOut'] ?? 'N/A';
         sheet.appendRow([date, scanIn, scanOut]);
       }
     }
 
     final fileBytes = excel.encode();
+    if (fileBytes == null) return;
+
     final blob = html.Blob([fileBytes]);
     final url = html.Url.createObjectUrlFromBlob(blob);
     final anchor = html.AnchorElement(href: url)
-      ..setAttribute('download', 'attendance.xlsx')
+      ..setAttribute(
+          'download',
+          selectedFilter == FilterType.day
+              ? 'attendance-${DateService.toStorageDate(selectedDate)}.xlsx'
+              : 'attendance-${DateService.toMonthString(selectedDate)}.xlsx')
       ..click();
     html.Url.revokeObjectUrl(url);
   }
@@ -152,7 +213,6 @@ class _AttendancePageState extends State<AttendancePage> {
         setState(() => selectedDate = picked);
       }
     } else {
-      // Proper month picker
       final picked = await showMonthPicker(
         context: context,
         initialDate: selectedDate,
@@ -171,85 +231,87 @@ class _AttendancePageState extends State<AttendancePage> {
       appBar: AppBar(title: const Text("Attendance")),
       body: loading
           ? const Center(child: CircularProgressIndicator())
-          : Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Wrap(
-              spacing: 16,
-              runSpacing: 16,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                DropdownButton<FilterType>(
-                  value: selectedFilter,
-                  items: const [
-                    DropdownMenuItem(
-                        value: FilterType.day, child: Text("Day")),
-                    DropdownMenuItem(
-                        value: FilterType.month, child: Text("Month")),
-                  ],
-                  onChanged: (val) {
-                    if (val != null) {
-                      setState(() => selectedFilter = val);
-                    }
-                  },
-                ),
-                ElevatedButton(
-                  onPressed: _pickDateOrMonth,
-                  child: Text(selectedFilter == FilterType.day
-                      ? DateService.toStorageDate(selectedDate)
-                      : DateService.toMonthString(selectedDate)),
-                ),
-                FutureBuilder(
-                  future: usersRef.get(),
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState ==
-                        ConnectionState.waiting) {
-                      return const CircularProgressIndicator();
-                    }
-                    final docs = snapshot.data?.docs ?? [];
-                    return DropdownButton<String>(
-                      value: selectedUserId,
-                      hint: const Text("All Users"),
-                      items: [
-                        const DropdownMenuItem(
-                            value: null, child: Text("All Users")),
-                        ...docs.map((doc) => DropdownMenuItem(
-                          value: doc.id,
-                          child: Text(doc['name'] ?? doc.id),
-                        ))
-                      ],
-                      onChanged: (val) => setState(() {
-                        selectedUserId = val;
-                      }),
-                    );
-                  },
-                ),
-                ElevatedButton(
-                    onPressed: _loadAttendance,
-                    child: const Text("Refresh")),
-                ElevatedButton(
-                    onPressed: _exportExcel,
-                    child: const Text("Export Excel")),
-              ],
+          : Center( // ✅ center the whole page
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Wrap(
+                spacing: 16,
+                runSpacing: 16,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  DropdownButton<FilterType>(
+                    value: selectedFilter,
+                    items: const [
+                      DropdownMenuItem(
+                          value: FilterType.day, child: Text("Day")),
+                      DropdownMenuItem(
+                          value: FilterType.month, child: Text("Month")),
+                    ],
+                    onChanged: (val) {
+                      if (val != null) {
+                        setState(() => selectedFilter = val);
+                      }
+                    },
+                  ),
+                  ElevatedButton(
+                    onPressed: _pickDateOrMonth,
+                    child: Text(selectedFilter == FilterType.day
+                        ? DateService.toStorageDate(selectedDate)
+                        : DateService.toMonthString(selectedDate)),
+                  ),
+                  FutureBuilder(
+                    future: usersRef.get(),
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState ==
+                          ConnectionState.waiting) {
+                        return const CircularProgressIndicator();
+                      }
+                      final docs = snapshot.data?.docs ?? [];
+                      return DropdownButton<String>(
+                        value: selectedUserId,
+                        hint: const Text("All Users"),
+                        items: [
+                          const DropdownMenuItem(
+                              value: null, child: Text("All Users")),
+                          ...docs.map((doc) => DropdownMenuItem(
+                            value: doc.id,
+                            child: Text(doc['name'] ?? doc.id),
+                          ))
+                        ],
+                        onChanged: (val) =>
+                            setState(() => selectedUserId = val),
+                      );
+                    },
+                  ),
+                  ElevatedButton(
+                      onPressed: _loadAttendance,
+                      child: const Text("Update")),
+                  ElevatedButton(
+                      onPressed: _exportExcel,
+                      child: const Text("Export Excel")),
+                ],
+              ),
             ),
-          ),
-          Expanded(
-            child: SingleChildScrollView(
-              scrollDirection: Axis.vertical,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: _buildTableWidgets(),
+            Expanded(
+              child: SingleChildScrollView(
+                scrollDirection: Axis.vertical,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: _buildTableWidgets(),
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -282,8 +344,8 @@ class _AttendancePageState extends State<AttendancePage> {
       ));
 
       for (var uid in usersToShow) {
-        final scanIn = attendanceMap[uid]?[day]?['scanIn'] ?? '';
-        final scanOut = attendanceMap[uid]?[day]?['scanOut'] ?? '';
+        final scanIn = attendanceMap[uid]?[day]?['scanIn'] ?? 'N/A';
+        final scanOut = attendanceMap[uid]?[day]?['scanOut'] ?? 'N/A';
         widgets.add(Row(
           children: [
             SizedBox(
