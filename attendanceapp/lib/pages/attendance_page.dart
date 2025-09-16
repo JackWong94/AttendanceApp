@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:intl/intl.dart';
 import 'package:excel/excel.dart';
 import 'dart:html' as html;
 import 'package:month_picker_dialog/month_picker_dialog.dart';
+import '../services/date_service.dart'; // ✅ use DateService
 
 class AttendancePage extends StatefulWidget {
   const AttendancePage({super.key});
@@ -57,7 +57,7 @@ class _AttendancePageState extends State<AttendancePage> {
 
       if (selectedFilter == FilterType.day) {
         // Day filter: exact date
-        String dayStr = DateFormat('yyyy-M-d').format(selectedDate);
+        String dayStr = DateService.toStorageDate(selectedDate);
         snapshot = await attendanceRef
             .where('user', isEqualTo: userRef)
             .where('date', isEqualTo: dayStr)
@@ -71,10 +71,9 @@ class _AttendancePageState extends State<AttendancePage> {
             .where('user', isEqualTo: userRef)
             .where('date',
             isGreaterThanOrEqualTo:
-            DateFormat('yyyy-M-d').format(startOfMonth))
+            DateService.toStorageDate(startOfMonth))
             .where('date',
-            isLessThanOrEqualTo:
-            DateFormat('yyyy-M-d').format(endOfMonth))
+            isLessThanOrEqualTo: DateService.toStorageDate(endOfMonth))
             .get();
       }
 
@@ -86,12 +85,12 @@ class _AttendancePageState extends State<AttendancePage> {
         String scanOut = '';
 
         if (data['scanIn'] != null) {
-          scanIn =
-              DateFormat('HH:mm').format((data['scanIn'] as Timestamp).toDate());
+          scanIn = DateService.toDisplayTime(
+              (data['scanIn'] as Timestamp).toDate());
         }
         if (data['scanOut'] != null) {
-          scanOut = DateFormat('HH:mm')
-              .format((data['scanOut'] as Timestamp).toDate());
+          scanOut = DateService.toDisplayTime(
+              (data['scanOut'] as Timestamp).toDate());
         }
 
         attendanceMap[userId] ??= {};
@@ -112,6 +111,9 @@ class _AttendancePageState extends State<AttendancePage> {
     final excel = Excel.createExcel();
     final usersToExport =
     selectedUserId != null ? [selectedUserId!] : attendanceMap.keys.toList();
+
+    // Remove default empty sheet
+    excel.delete('Sheet1');
 
     for (var uid in usersToExport) {
       final sheetName = userNames[uid] ?? uid;
@@ -194,11 +196,9 @@ class _AttendancePageState extends State<AttendancePage> {
                 ),
                 ElevatedButton(
                   onPressed: _pickDateOrMonth,
-                  child: Text(DateFormat(
-                      selectedFilter == FilterType.day
-                          ? 'yyyy-M-d'
-                          : 'yyyy-M')
-                      .format(selectedDate)),
+                  child: Text(selectedFilter == FilterType.day
+                      ? DateService.toStorageDate(selectedDate)
+                      : DateService.toMonthString(selectedDate)),
                 ),
                 FutureBuilder(
                   future: usersRef.get(),
@@ -259,13 +259,13 @@ class _AttendancePageState extends State<AttendancePage> {
 
     List<String> days = [];
     if (selectedFilter == FilterType.day) {
-      days = [DateFormat('yyyy-M-d').format(selectedDate)];
+      days = [DateService.toStorageDate(selectedDate)];
     } else {
       int totalDays =
       DateUtils.getDaysInMonth(selectedDate.year, selectedDate.month);
       for (int i = 1; i <= totalDays; i++) {
-        days.add(DateFormat('yyyy-M-d')
-            .format(DateTime(selectedDate.year, selectedDate.month, i)));
+        days.add(DateService.toStorageDate(
+            DateTime(selectedDate.year, selectedDate.month, i)));
       }
     }
 
