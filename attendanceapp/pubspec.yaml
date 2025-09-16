@@ -35,8 +35,10 @@ dependencies:
   tflite_flutter: ^0.11.0
   firebase_core: ^4.1.0
   cloud_firestore: ^6.0.1
-  intl: ^0.18.1
   csv: ^6.0.0
+  excel: ^2.0.1
+  flutter_month_picker: ^0.0.1
+  intl: ^0.17.0  # align with flutter_month_picker
   js: ^0.6.5
 
   # The following adds the Cupertino Icons font to your application.
