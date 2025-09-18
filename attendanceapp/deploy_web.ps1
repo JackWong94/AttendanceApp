@@ -1,6 +1,5 @@
 # deploy_web.ps1
 # Safe Flutter Web GitHub Pages Deployment Script with multiple clients
-
 Write-Host "=== Flutter Web Deploy Script ===" -ForegroundColor Cyan
 
 # ---------------------------
@@ -95,14 +94,9 @@ if (-not (Test-Path $IndexFile)) {
 }
 
 # ---------------------------
-# Wipe everything except .git and README.md
+# Replace ONLY the target folder
 # ---------------------------
-Write-Host "Cleaning branch before copying new files..." -ForegroundColor Green
-Get-ChildItem -Force | Where-Object { $_.Name -notin @(".git", "README.md") } | Remove-Item -Recurse -Force
-
-# ---------------------------
-# Create target folder and copy build
-# ---------------------------
+if (Test-Path $choice) { Remove-Item $choice -Recurse -Force }
 New-Item -ItemType Directory -Path $choice | Out-Null
 Copy-Item -Path "$BuildPath\*" -Destination $choice -Recurse -Force
 
@@ -113,22 +107,8 @@ Write-Host "Cleaning up Flutter build cache (.dart_tool)..." -ForegroundColor Gr
 if (Test-Path ".dart_tool") { Remove-Item ".dart_tool" -Recurse -Force }
 
 # ---------------------------
-# Show git status BEFORE add
+# Show git status for review
 # ---------------------------
 git status
-
-$proceed = Read-Host "Proceed with commit & push? (yes/no)"
-if ($proceed -ne "yes") {
-    Write-Host "❌ Deployment aborted after git status check." -ForegroundColor Red
-    exit 0
-}
-
-# ---------------------------
-# Commit and Push
-# ---------------------------
-git add $choice
-git commit -m "🚀 Deploy Flutter web app to $TargetName ($choice)"
-git push origin $BranchName
-
-Write-Host "✅ Deployment to $TargetName complete!" -ForegroundColor Cyan
-Write-Host "Visit: $Url" -ForegroundColor Yellow
+Write-Host "`n✅ All files under '$choice' are ready for review."
+Write-Host "You can inspect the changes and then manually add/commit/push as needed." -ForegroundColor Cyan
