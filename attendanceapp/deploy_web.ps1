@@ -90,6 +90,14 @@ New-Item -ItemType Directory -Path $choice | Out-Null
 Copy-Item -Path "$ProjectPath\build\web\*" -Destination $choice -Recurse -Force
 
 # ---------------------------
+# Clean up Flutter build cache before git status
+# ---------------------------
+Write-Host "Cleaning up Flutter build cache (.dart_tool)..." -ForegroundColor Green
+if (Test-Path ".dart_tool") {
+    Remove-Item ".dart_tool" -Recurse -Force
+}
+
+# ---------------------------
 # Show git status BEFORE add
 # ---------------------------
 git status
