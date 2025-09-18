@@ -1,19 +1,26 @@
+### OS Specific ###
+.DS_Store
+
+### Editors / IDEs ###
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+.atom/
+.history/
+
 ### IntelliJ IDEA ###
 out/
-!**/src/main/**/out/
-!**/src/test/**/out/
 
 ### Eclipse ###
 .apt_generated
 .classpath
 .factorypath
 .project
-.settings
+.settings/
 .springBeans
 .sts4-cache
-bin/
-!**/src/main/**/bin/
-!**/src/test/**/bin/
 
 ### NetBeans ###
 /nbproject/private/
@@ -22,16 +29,46 @@ bin/
 /nbdist/
 /.nb-gradle/
 
-### VS Code ###
-.vscode/
+### Miscellaneous ###
+*.class
+*.log
+*.pyc
+*.swp
+.build/
+.buildlog/
+.svn/
+.swiftpm/
+migrate_working_dir/
 
-### Mac OS ###
-.DS_Store
+### Flutter / Dart / Pub ###
+.dart_tool/
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+/build/
+/coverage/
+**/doc/api/
+**/ios/Flutter/.last_build_id
 
-# Firebase service account or secret files (never commit)
-*.json
-
-# Flutter generated files
+### Flutter Generated ###
 **/flutter/generated_plugin_registrant.*
 **/flutter/generated_plugins.cmake
 **/Flutter/GeneratedPluginRegistrant.swift
+**/linux/flutter/generated_*
+**/windows/flutter/generated_*
+**/macos/Flutter/GeneratedPluginRegistrant.*
+
+### Android ###
+/android/app/debug
+/android/app/profile
+/android/app/release
+
+### iOS ###
+# (Handled above with Flutter, but you can add more if needed)
+
+### Firebase / Secrets ###
+*.json
+
+### Symbolication / Obfuscation ###
+app.*.symbols
+app.*.map.json

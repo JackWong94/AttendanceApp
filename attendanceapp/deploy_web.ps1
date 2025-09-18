@@ -105,7 +105,7 @@ git status
 $proceed = Read-Host "Proceed with commit & push? (yes/no)"
 if ($proceed -ne "yes") {
     Write-Host "❌ Deployment aborted after git status check." -ForegroundColor Red
-    git checkout main
+    #git checkout main
     exit 0
 }
 
