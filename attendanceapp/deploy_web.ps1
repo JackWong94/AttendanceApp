@@ -5,7 +5,7 @@ Write-Host "=== Flutter Web Deploy Script ===" -ForegroundColor Cyan
 # ---------------------------
 $ProjectPath = "C:\Users\User\AndroidStudioProjects\AttendanceApp\attendanceapp"
 $RepoName    = "AttendanceApp"
-$BranchName  = "gh-pages"
+$BranchName  = "gh-pages-new"
 
 $targets = @{
     "dev"        = "Development"
@@ -119,7 +119,7 @@ git push origin $BranchName
 # ---------------------------
 # Switch back to main
 # ---------------------------
-git checkout main
+#git checkout main
 
 Write-Host "✅ Deployment to $TargetName complete!" -ForegroundColor Cyan
 Write-Host "Visit: $Url" -ForegroundColor Yellow
