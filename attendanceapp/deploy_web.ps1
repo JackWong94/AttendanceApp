@@ -1,8 +1,12 @@
 Write-Host "=== Flutter Web Deploy Script ===" -ForegroundColor Cyan
 
 # ---------------------------
-# Allowed deployment targets
+# Config
 # ---------------------------
+$ProjectPath = "C:\Users\User\AndroidStudioProjects\AttendanceApp\attendanceapp"
+$RepoName    = "AttendanceApp"
+$BranchName  = "gh-pages"
+
 $targets = @{
     "dev"        = "Development"
     "ckhardware" = "CKHardware"
@@ -24,26 +28,14 @@ if (-not $targets.ContainsKey($choice)) {
     exit 1
 }
 
-$RepoName   = "AttendanceApp"
-$BranchName = "gh-pages-new"
 $BaseHref   = "/$choice/"
 $TargetName = $targets[$choice]
 $Url        = "https://jackwong94.github.io/$RepoName/$choice/"
 
 # ---------------------------
-# Fast clean: remove only flutter_build cache
+# Confirmation (skip for dev)
 # ---------------------------
-if (Test-Path ".dart_tool/flutter_build") {
-    Write-Host "🧹 Clearing incremental build cache (.dart_tool/flutter_build)..." -ForegroundColor Yellow
-    Remove-Item ".dart_tool/flutter_build" -Recurse -Force
-}
-
-# ---------------------------
-# Confirmation
-# ---------------------------
-if ($choice -eq "dev") {
-    Write-Host "⚡ Skipping confirmation for dev build." -ForegroundColor DarkGray
-} else {
+if ($choice -ne "dev") {
     $confirmation = Read-Host "⚠️ Deploy to $TargetName ($choice)? (yes/no)"
     if ($confirmation -ne "yes") {
         Write-Host "❌ Deployment cancelled." -ForegroundColor Red
@@ -52,7 +44,12 @@ if ($choice -eq "dev") {
 }
 
 # ---------------------------
-# Build Flutter Web (with retry)
+# Move into Flutter project
+# ---------------------------
+Set-Location $ProjectPath
+
+# ---------------------------
+# Build Flutter Web FIRST (on main)
 # ---------------------------
 Write-Host "Building Flutter web app for $TargetName..." -ForegroundColor Green
 flutter build web --base-href $BaseHref
@@ -66,17 +63,20 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 # ---------------------------
-# Checkout gh-pages branch
+# Go back to repo root
+# ---------------------------
+Set-Location (Split-Path $ProjectPath -Parent)
+
+# ---------------------------
+# Checkout/Create gh-pages
 # ---------------------------
 Write-Host "Switching to branch $BranchName..." -ForegroundColor Green
 git fetch origin
 git checkout $BranchName 2>$null
 if ($LASTEXITCODE -ne 0) {
-    Write-Host "❌ Failed to checkout $BranchName." -ForegroundColor Red
-    Write-Host "👉 Possible reasons:" -ForegroundColor Yellow
-    Write-Host "   - Branch '$BranchName' does not exist" -ForegroundColor Yellow
-    Write-Host "   - You have uncommitted changes (stash or commit first)" -ForegroundColor Yellow
-    exit 1
+    Write-Host "⚠️ Branch '$BranchName' not found. Creating orphan branch..." -ForegroundColor Yellow
+    git checkout --orphan $BranchName
+    git reset --hard
 }
 
 # ---------------------------
@@ -87,17 +87,14 @@ if (Test-Path $choice) {
 }
 New-Item -ItemType Directory -Path $choice | Out-Null
 
-Copy-Item -Path "build\web\*" -Destination $choice -Recurse -Force
+Copy-Item -Path "$ProjectPath\build\web\*" -Destination $choice -Recurse -Force
 
 # ---------------------------
 # Show git status BEFORE add
 # ---------------------------
 git status
 
-$proceed = "yes"
-if ($choice -ne "dev") {
-    $proceed = Read-Host "Proceed with commit & push? (yes/no)"
-}
+$proceed = Read-Host "Proceed with commit & push? (yes/no)"
 if ($proceed -ne "yes") {
     Write-Host "❌ Deployment aborted after git status check." -ForegroundColor Red
     git checkout main
