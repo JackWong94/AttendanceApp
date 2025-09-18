@@ -1,12 +1,16 @@
+# deploy_web.ps1
+# Safe Flutter Web GitHub Pages Deployment Script with multiple clients
+
 Write-Host "=== Flutter Web Deploy Script ===" -ForegroundColor Cyan
 
 # ---------------------------
-# Config
+# Configuration
 # ---------------------------
 $ProjectPath = "C:\Users\User\AndroidStudioProjects\AttendanceApp\attendanceapp"
 $RepoName    = "AttendanceApp"
 $BranchName  = "gh-pages-new"
 
+# Allowed deployment targets
 $targets = @{
     "dev"        = "Development"
     "ckhardware" = "CKHardware"
@@ -19,9 +23,7 @@ Write-Host "Available deployment targets:" -ForegroundColor Yellow
 $targets.Keys | ForEach-Object { Write-Host " - $_" -ForegroundColor Green }
 
 $choice = Read-Host "Enter target name (default = dev)"
-if ([string]::IsNullOrWhiteSpace($choice)) {
-    $choice = "dev"
-}
+if ([string]::IsNullOrWhiteSpace($choice)) { $choice = "dev" }
 
 if (-not $targets.ContainsKey($choice)) {
     Write-Host "❌ Invalid choice. Allowed: $($targets.Keys -join ', ')" -ForegroundColor Red
@@ -49,7 +51,7 @@ if ($choice -ne "dev") {
 Set-Location $ProjectPath
 
 # ---------------------------
-# Build Flutter Web FIRST (on main)
+# Build Flutter Web (with retry)
 # ---------------------------
 Write-Host "Building Flutter web app for $TargetName..." -ForegroundColor Green
 flutter build web --base-href $BaseHref
@@ -65,7 +67,8 @@ if ($LASTEXITCODE -ne 0) {
 # ---------------------------
 # Go back to repo root
 # ---------------------------
-Set-Location (Split-Path $ProjectPath -Parent)
+$RepoRoot = (Split-Path $ProjectPath -Parent)
+Set-Location $RepoRoot
 
 # ---------------------------
 # Checkout/Create gh-pages
@@ -80,6 +83,18 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 # ---------------------------
+# Validate Flutter build exists
+# ---------------------------
+$BuildPath = Join-Path $ProjectPath "build\web"
+$IndexFile = Join-Path $BuildPath "index.html"
+
+if (-not (Test-Path $IndexFile)) {
+    Write-Host "❌ Flutter build output not found at $IndexFile" -ForegroundColor Red
+    Write-Host "👉 Make sure 'flutter build web' completed successfully." -ForegroundColor Yellow
+    exit 1
+}
+
+# ---------------------------
 # Wipe everything except .git and README.md
 # ---------------------------
 Write-Host "Cleaning branch before copying new files..." -ForegroundColor Green
@@ -89,7 +104,13 @@ Get-ChildItem -Force | Where-Object { $_.Name -notin @(".git", "README.md") } | 
 # Create target folder and copy build
 # ---------------------------
 New-Item -ItemType Directory -Path $choice | Out-Null
-Copy-Item -Path "$ProjectPath\build\web\*" -Destination $choice -Recurse -Force
+Copy-Item -Path "$BuildPath\*" -Destination $choice -Recurse -Force
+
+# ---------------------------
+# Clean up Flutter build cache before git status
+# ---------------------------
+Write-Host "Cleaning up Flutter build cache (.dart_tool)..." -ForegroundColor Green
+if (Test-Path ".dart_tool") { Remove-Item ".dart_tool" -Recurse -Force }
 
 # ---------------------------
 # Show git status BEFORE add
@@ -105,14 +126,9 @@ if ($proceed -ne "yes") {
 # ---------------------------
 # Commit and Push
 # ---------------------------
-git add .
-git commit -m "Deploy Flutter web app to $TargetName ($choice)"
+git add $choice
+git commit -m "🚀 Deploy Flutter web app to $TargetName ($choice)"
 git push origin $BranchName
-
-# ---------------------------
-# Switch back to main (optional)
-# ---------------------------
-#git checkout main
 
 Write-Host "✅ Deployment to $TargetName complete!" -ForegroundColor Cyan
 Write-Host "Visit: $Url" -ForegroundColor Yellow
