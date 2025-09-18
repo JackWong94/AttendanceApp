@@ -107,8 +107,30 @@ Write-Host "Cleaning up Flutter build cache (.dart_tool)..." -ForegroundColor Gr
 if (Test-Path ".dart_tool") { Remove-Item ".dart_tool" -Recurse -Force }
 
 # ---------------------------
+# Stage ONLY the target folder
+# ---------------------------
+git add $choice
+
+# ---------------------------
 # Show git status for review
 # ---------------------------
 git status
-Write-Host "`n✅ All files under '$choice' are ready for review."
-Write-Host "You can inspect the changes and then manually add/commit/push as needed." -ForegroundColor Cyan
+Write-Host "`n✅ Staged '$choice'. Review changes above."
+
+# ---------------------------
+# Confirm commit & push
+# ---------------------------
+$proceed = Read-Host "Proceed with commit & push? (yes/no)"
+if ($proceed -ne "yes") {
+    Write-Host "❌ Deployment aborted after review." -ForegroundColor Red
+    exit 0
+}
+
+# ---------------------------
+# Commit and Push
+# ---------------------------
+git commit -m "Deploy Flutter web app to $TargetName ($choice)"
+git push origin $BranchName
+
+Write-Host "✅ Deployment to $TargetName complete!" -ForegroundColor Cyan
+Write-Host "Visit: $Url" -ForegroundColor Yellow
