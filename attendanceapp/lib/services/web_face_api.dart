@@ -3,14 +3,15 @@ import 'dart:html' as html;
 import 'dart:js_util' as js_util;
 import 'dart:async';
 
-String getModelPath() {
-  final path = html.window.location.pathname ?? "";
-  // If served under GitHub Pages (/AttendanceApp/), use that
-  if (path.startsWith('/AttendanceApp/')) {
-    return '/AttendanceApp/models/';
-  } else {
-    return '/models/';
-  }
+/// Determine the model path dynamically
+String getModelPath({String modelsFolder = "models"}) {
+  final path = html.window.location.pathname ?? "/";
+  final normalizedPath = path.endsWith("/") ? path : "$path/";
+
+  // If the path already ends with models folder, return as-is
+  if (normalizedPath.endsWith("$modelsFolder/")) return normalizedPath;
+
+  return "$normalizedPath$modelsFolder/";
 }
 
 /// Load face-api.js models
