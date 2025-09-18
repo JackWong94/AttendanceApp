@@ -25,7 +25,7 @@ if (-not $targets.ContainsKey($choice)) {
 }
 
 $RepoName   = "AttendanceApp"
-$BranchName = "gh-pages"
+$BranchName = "gh-pages-new"
 $BaseHref   = "/$choice/"
 $TargetName = $targets[$choice]
 $Url        = "https://jackwong94.github.io/$RepoName/$choice/"
@@ -108,7 +108,7 @@ if ($proceed -ne "yes") {
 # Commit and Push
 # ---------------------------
 git add $choice
-git commit -m "🚀 Deploy Flutter web app to $TargetName ($choice)"
+git commit -m "Deploy Flutter web app to $TargetName ($choice)"
 git push origin $BranchName
 
 # ---------------------------
