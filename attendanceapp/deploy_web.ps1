@@ -80,22 +80,16 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 # ---------------------------
-# Replace only the target folder
+# Wipe everything except .git and README.md
 # ---------------------------
-if (Test-Path $choice) {
-    Remove-Item $choice -Recurse -Force
-}
+Write-Host "Cleaning branch before copying new files..." -ForegroundColor Green
+Get-ChildItem -Force | Where-Object { $_.Name -notin @(".git", "README.md") } | Remove-Item -Recurse -Force
+
+# ---------------------------
+# Create target folder and copy build
+# ---------------------------
 New-Item -ItemType Directory -Path $choice | Out-Null
-
 Copy-Item -Path "$ProjectPath\build\web\*" -Destination $choice -Recurse -Force
-
-# ---------------------------
-# Clean up Flutter build cache before git status
-# ---------------------------
-Write-Host "Cleaning up Flutter build cache (.dart_tool)..." -ForegroundColor Green
-if (Test-Path ".dart_tool") {
-    Remove-Item ".dart_tool" -Recurse -Force
-}
 
 # ---------------------------
 # Show git status BEFORE add
@@ -105,19 +99,18 @@ git status
 $proceed = Read-Host "Proceed with commit & push? (yes/no)"
 if ($proceed -ne "yes") {
     Write-Host "❌ Deployment aborted after git status check." -ForegroundColor Red
-    #git checkout main
     exit 0
 }
 
 # ---------------------------
 # Commit and Push
 # ---------------------------
-git add $choice
+git add .
 git commit -m "Deploy Flutter web app to $TargetName ($choice)"
 git push origin $BranchName
 
 # ---------------------------
-# Switch back to main
+# Switch back to main (optional)
 # ---------------------------
 #git checkout main
 
