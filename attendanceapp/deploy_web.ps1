@@ -1,80 +1,120 @@
-# deploy_web.ps1
-# Usage: Run from the root of your Flutter project
-
-# ---------------------------
-# Configuration
-# ---------------------------
-$RepoName = "AttendanceApp"           # Name of your GitHub repo
-$BranchName = "gh-pages"             # GitHub Pages branch
-$TempPath = "$env:TEMP\AttendanceAppWeb"  # Temporary folder for web build
-$BaseHref = "/$RepoName/"            # Base href for Flutter web build
-
 Write-Host "=== Flutter Web Deploy Script ===" -ForegroundColor Cyan
 
-git branch -D $BranchName
-
-# Step 1: Build Flutter web app
-Write-Host "Building Flutter web app..." -ForegroundColor Green
-flutter build web --base-href $BaseHref
-
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "❌ Flutter web build failed. Aborting deployment. Please try rerun the script" -ForegroundColor Red
-    exit $LASTEXITCODE
+# ---------------------------
+# Allowed deployment targets
+# ---------------------------
+$targets = @{
+    "dev"        = "Development"
+    "ckhardware" = "CKHardware"
 }
 
-# 🔹 Step 1.5: Ensure face-api models are copied
-if (Test-Path ".\web\models") {
-    Write-Host "Copying models folder into build/web..." -ForegroundColor Green
-    Copy-Item -Path ".\web\models" -Destination ".\build\web\" -Recurse -Force
+# ---------------------------
+# Prompt for target
+# ---------------------------
+Write-Host "Available deployment targets:" -ForegroundColor Yellow
+$targets.Keys | ForEach-Object { Write-Host " - $_" -ForegroundColor Green }
+
+$choice = Read-Host "Enter target name (default = dev)"
+if ([string]::IsNullOrWhiteSpace($choice)) {
+    $choice = "dev"
 }
 
-# Step 2: Save changes if any
-Write-Host "Stashing uncommitted changes..." -ForegroundColor Green
-git stash
-
-# Step 3: Switch or create gh-pages branch
-Write-Host "Creating orphan branch '$BranchName'..." -ForegroundColor Green
-git checkout --orphan $BranchName
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "Failed to create orphan branch '$BranchName'. Exiting script." -ForegroundColor Red
+if (-not $targets.ContainsKey($choice)) {
+    Write-Host "❌ Invalid choice. Allowed: $($targets.Keys -join ', ')" -ForegroundColor Red
     exit 1
 }
 
-# Step 4: Backup web build (will only run if branch checkout succeeded)
-Write-Host "Backing up web build to temporary folder..." -ForegroundColor Green
-if (Test-Path $TempPath) { Remove-Item $TempPath -Recurse -Force }
-New-Item -ItemType Directory -Path $TempPath -Force
-Copy-Item -Path ".\build\web\*" -Destination $TempPath -Recurse
+$RepoName   = "AttendanceApp"
+$BranchName = "gh-pages"
+$BaseHref   = "/$choice/"
+$TargetName = $targets[$choice]
+$Url        = "https://jackwong94.github.io/$RepoName/$choice/"
 
-cd ..
-
-# Step 5: Clear old files in gh-pages
-Write-Host "Clearing old files in '$BranchName' branch..." -ForegroundColor Green
-git rm -rf *
-
-# Step 6: Copy web build directly to ROOT of gh-pages
-Write-Host "Copying new web build to '$BranchName' ROOT..." -ForegroundColor Green
-Get-ChildItem -Path $TempPath | ForEach-Object {
-    Copy-Item -Path $_.FullName -Destination "." -Recurse
+# ---------------------------
+# Fast clean: remove only flutter_build cache
+# ---------------------------
+if (Test-Path ".dart_tool/flutter_build") {
+    Write-Host "🧹 Clearing incremental build cache (.dart_tool/flutter_build)..." -ForegroundColor Yellow
+    Remove-Item ".dart_tool/flutter_build" -Recurse -Force
 }
 
-# Step 7: Delete temporary folder
-Write-Host "Deleting temporary folder..." -ForegroundColor Green
-Remove-Item -Path $TempPath -Recurse -Force
+# ---------------------------
+# Confirmation
+# ---------------------------
+if ($choice -eq "dev") {
+    Write-Host "⚡ Skipping confirmation for dev build." -ForegroundColor DarkGray
+} else {
+    $confirmation = Read-Host "⚠️ Deploy to $TargetName ($choice)? (yes/no)"
+    if ($confirmation -ne "yes") {
+        Write-Host "❌ Deployment cancelled." -ForegroundColor Red
+        exit 0
+    }
+}
 
+# ---------------------------
+# Build Flutter Web (with retry)
+# ---------------------------
+Write-Host "Building Flutter web app for $TargetName..." -ForegroundColor Green
+flutter build web --base-href $BaseHref
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "⚠️ First build failed, retrying..." -ForegroundColor Yellow
+    flutter build web --base-href $BaseHref
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "❌ Flutter web build failed twice. Aborting." -ForegroundColor Red
+        exit $LASTEXITCODE
+    }
+}
+
+# ---------------------------
+# Checkout gh-pages branch
+# ---------------------------
+Write-Host "Switching to branch $BranchName..." -ForegroundColor Green
+git fetch origin
+git checkout $BranchName 2>$null
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "❌ Failed to checkout $BranchName." -ForegroundColor Red
+    Write-Host "👉 Possible reasons:" -ForegroundColor Yellow
+    Write-Host "   - Branch '$BranchName' does not exist" -ForegroundColor Yellow
+    Write-Host "   - You have uncommitted changes (stash or commit first)" -ForegroundColor Yellow
+    exit 1
+}
+
+# ---------------------------
+# Replace only the target folder
+# ---------------------------
+if (Test-Path $choice) {
+    Remove-Item $choice -Recurse -Force
+}
+New-Item -ItemType Directory -Path $choice | Out-Null
+
+Copy-Item -Path "build\web\*" -Destination $choice -Recurse -Force
+
+# ---------------------------
+# Show git status BEFORE add
+# ---------------------------
 git status
 
-# Step 8: Commit and push to GitHub
-Write-Host "Committing and pushing to '$BranchName'..." -ForegroundColor Green
-git add .
-git commit -m "Deploy Flutter web app"
-git push origin $BranchName --force
+$proceed = "yes"
+if ($choice -ne "dev") {
+    $proceed = Read-Host "Proceed with commit & push? (yes/no)"
+}
+if ($proceed -ne "yes") {
+    Write-Host "❌ Deployment aborted after git status check." -ForegroundColor Red
+    git checkout main
+    exit 0
+}
 
-git stash
-git switch main -f
-git clean -f
+# ---------------------------
+# Commit and Push
+# ---------------------------
+git add $choice
+git commit -m "🚀 Deploy Flutter web app to $TargetName ($choice)"
+git push origin $BranchName
 
-cd attendanceapp
+# ---------------------------
+# Switch back to main
+# ---------------------------
+git checkout main
 
-Write-Host "✅ Deployment complete!" -ForegroundColor Cyan
-Write-Host "Visit: https://jackwong94.github.io/AttendanceApp/" -ForegroundColor Cyan
+Write-Host "✅ Deployment to $TargetName complete!" -ForegroundColor Cyan
+Write-Host "Visit: $Url" -ForegroundColor Yellow
