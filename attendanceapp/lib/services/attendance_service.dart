@@ -9,10 +9,11 @@ class AttendanceService {
   /// Scan user attendance
   Future<void> scanUser({required UserModel user, required bool isScanIn}) async {
     final tenantId = UserModelService.instance.tenantId;
-    final usersCollection = _firestore.collection('${tenantId}_Users');
     final attendanceCollection = _firestore.collection('${tenantId}_Attendance');
 
-    final userRef = usersCollection.doc(user.id);
+    // Get Firestore DocumentReference from UserModelService
+    final userRef = UserModelService.instance.getUserDocRef(user.id);
+
     final today = DateTime.now();
     final dateStr = DateService.toStorageDate(today);
 
@@ -54,10 +55,9 @@ class AttendanceService {
     required String date,
   }) async {
     final tenantId = UserModelService.instance.tenantId;
-    final usersCollection = _firestore.collection('${tenantId}_Users');
     final attendanceCollection = _firestore.collection('${tenantId}_Attendance');
 
-    final userRef = usersCollection.doc(user.id);
+    final userRef = UserModelService.instance.getUserDocRef(user.id);
     final snapshot = await attendanceCollection
         .where('user', isEqualTo: userRef)
         .where('date', isEqualTo: date)
@@ -83,36 +83,41 @@ class AttendanceService {
     required DateTime month,
   }) async {
     final tenantId = UserModelService.instance.tenantId;
-    final usersCollection = _firestore.collection('${tenantId}_Users');
     final attendanceCollection = _firestore.collection('${tenantId}_Attendance');
 
-    final userRef = usersCollection.doc(user.id);
+    final userRef = UserModelService.instance.getUserDocRef(user.id);
 
     final int totalDays = DateService.getDaysInMonth(month.year, month.month);
+    final startOfMonth = DateTime(month.year, month.month, 1);
+    final endOfMonth = DateTime(month.year, month.month, totalDays);
+
+    // Fetch all attendance docs for the month in a single query
+    final snapshots = await attendanceCollection
+        .where('user', isEqualTo: userRef)
+        .where('date', isGreaterThanOrEqualTo: DateService.toStorageDate(startOfMonth))
+        .where('date', isLessThanOrEqualTo: DateService.toStorageDate(endOfMonth))
+        .get();
+
     Map<String, Map<String, String>> result = {};
 
+    // Pre-fill all dates with N/A
     for (int i = 1; i <= totalDays; i++) {
       final date = DateTime(month.year, month.month, i);
-      final dateStr = DateService.toStorageDate(date);
+      result[DateService.toStorageDate(date)] = {'scanIn': 'N/A', 'scanOut': 'N/A'};
+    }
 
-      final snapshot = await attendanceCollection
-          .where('user', isEqualTo: userRef)
-          .where('date', isEqualTo: dateStr)
-          .limit(1)
-          .get();
+    // Fill in the actual attendance
+    for (var doc in snapshots.docs) {
+      final data = doc.data();
+      final dateStr = data['date'] as String;
+      final scanIn = data['scanIn'] != null
+          ? DateService.toDisplayTime((data['scanIn'] as Timestamp).toDate())
+          : 'N/A';
+      final scanOut = data['scanOut'] != null
+          ? DateService.toDisplayTime((data['scanOut'] as Timestamp).toDate())
+          : 'N/A';
 
-      if (snapshot.docs.isEmpty) {
-        result[dateStr] = {'scanIn': 'N/A', 'scanOut': 'N/A'};
-      } else {
-        final data = snapshot.docs.first.data();
-        final scanIn = data['scanIn'] != null
-            ? DateService.toDisplayTime((data['scanIn'] as Timestamp).toDate())
-            : 'N/A';
-        final scanOut = data['scanOut'] != null
-            ? DateService.toDisplayTime((data['scanOut'] as Timestamp).toDate())
-            : 'N/A';
-        result[dateStr] = {'scanIn': scanIn, 'scanOut': scanOut};
-      }
+      result[dateStr] = {'scanIn': scanIn, 'scanOut': scanOut};
     }
 
     return result;

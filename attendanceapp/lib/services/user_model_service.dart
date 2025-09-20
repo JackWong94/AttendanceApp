@@ -9,6 +9,9 @@ class UserModelService {
   UserModelService._internal(this.tenantId)
       : _usersRef = FirebaseFirestore.instance.collection('${tenantId}_Users');
 
+  // Public getter for users collection
+  CollectionReference<Map<String, dynamic>> get usersCollection => _usersRef;
+
   /// Initialize singleton with tenantId
   static void init({required String tenantId}) {
     _instance ??= UserModelService._internal(tenantId);
@@ -50,5 +53,8 @@ class UserModelService {
   Future<bool> isEmployeeIdExists(String employeeId) async {
     final doc = await _usersRef.doc(employeeId).get();
     return doc.exists;
+  }
+  DocumentReference<Map<String, dynamic>> getUserDocRef(String userId) {
+    return _usersRef.doc(userId);
   }
 }
