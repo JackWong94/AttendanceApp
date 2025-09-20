@@ -28,7 +28,7 @@ class AttendanceModelService {
   Future<String> generateId(String date) async {
     final snapshot = await _attendanceRef
         .where('date', isEqualTo: date)
-        .orderBy('id', descending: true)
+        .orderBy(FieldPath.documentId, descending: true)
         .limit(1)
         .get();
 
@@ -45,7 +45,7 @@ class AttendanceModelService {
     return '${date}_$nextNumber';
   }
 
-  /// Add new attendance with auto-generated ID
+  /// Add new attendance
   Future<void> addAttendance(Attendance attendance) async {
     final generatedId = await generateId(attendance.date);
     await _attendanceRef.doc(generatedId).set(attendance.toMap());
@@ -53,7 +53,10 @@ class AttendanceModelService {
 
   /// Update existing attendance
   Future<void> updateAttendance(Attendance attendance) async {
-    await _attendanceRef.doc(attendance.id).set(attendance.toMap(), SetOptions(merge: true));
+    await _attendanceRef.doc(attendance.id).set(
+      attendance.toMap(),
+      SetOptions(merge: true),
+    );
   }
 
   /// Fetch attendance for a user for a specific date
@@ -74,32 +77,23 @@ class AttendanceModelService {
     return Attendance.fromDoc(snapshot.docs.first);
   }
 
-  /// Fetch all attendance for a user for a month (loop per day)
+  /// Fetch all attendance for a user for a month (single query)
   Future<List<Attendance>> fetchMonthlyAttendance({
     required String userId,
     required DateTime month,
   }) async {
     final userRef = UserModelService.instance.getUserDocRef(userId);
+    final startOfMonth = DateTime(month.year, month.month, 1);
+    final endOfMonth = DateTime(month.year, month.month + 1, 0);
 
-    final int totalDays = DateTime(month.year, month.month + 1, 0).day;
-    List<Attendance> results = [];
+    final snapshots = await _attendanceRef
+        .where('user', isEqualTo: userRef)
+        .where('date', isGreaterThanOrEqualTo: DateService.toStorageDate(startOfMonth))
+        .where('date', isLessThanOrEqualTo: DateService.toStorageDate(endOfMonth))
+        .orderBy('date')
+        .get();
 
-    for (int i = 1; i <= totalDays; i++) {
-      final date = DateTime(month.year, month.month, i);
-      final dateStr = "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
-
-      final snapshot = await _attendanceRef
-          .where('user', isEqualTo: userRef)
-          .where('date', isEqualTo: dateStr)
-          .limit(1)
-          .get();
-
-      if (snapshot.docs.isNotEmpty) {
-        results.add(Attendance.fromDoc(snapshot.docs.first));
-      }
-    }
-
-    return results;
+    return snapshots.docs.map((doc) => Attendance.fromDoc(doc)).toList();
   }
 
   /// Fetch all attendance for a user between startDate and endDate
@@ -112,11 +106,13 @@ class AttendanceModelService {
         .where('user', isEqualTo: userRef)
         .where('date', isGreaterThanOrEqualTo: DateService.toStorageDate(startDate))
         .where('date', isLessThanOrEqualTo: DateService.toStorageDate(endDate))
+        .orderBy('date')
         .get();
 
     return snapshots.docs.map((doc) => Attendance.fromDoc(doc)).toList();
   }
 
+  /// Fetch attendance for all users in a date range
   Future<List<Attendance>> fetchAttendanceForMonthAllUsers({
     required DateTime startDate,
     required DateTime endDate,
@@ -124,6 +120,7 @@ class AttendanceModelService {
     final snapshots = await _attendanceRef
         .where('date', isGreaterThanOrEqualTo: DateService.toStorageDate(startDate))
         .where('date', isLessThanOrEqualTo: DateService.toStorageDate(endDate))
+        .orderBy('date')
         .get();
 
     return snapshots.docs.map((doc) => Attendance.fromDoc(doc)).toList();
