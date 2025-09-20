@@ -4,6 +4,7 @@ import 'package:attendanceapp/services/authentication_service.dart';
 import 'package:attendanceapp/services/user_model_service.dart';
 import 'package:attendanceapp/services/camera_service.dart';
 import 'package:attendanceapp/services/face_model_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class WebLoginPage extends StatefulWidget {
   const WebLoginPage({super.key});
@@ -33,8 +34,19 @@ class _WebLoginPageState extends State<WebLoginPage> {
         password: _passwordController.text.trim(),
       );
 
-      // 2️⃣ Initialize all services after login
-      final tenantId = _selectedTenant ?? "defaultTenant";
+      // 2️⃣ Determine tenant ID from Firestore
+      final email = _emailController.text.trim();
+      final query = await FirebaseFirestore.instance
+          .collection('clients')
+          .where('email', isEqualTo: email)
+          .limit(1)
+          .get();
+
+      if (query.docs.isEmpty) {
+        throw Exception("No tenant found for this user");
+      }
+
+      final tenantId = query.docs.first.data()['tenantId'] ?? "defaultTenant";
       UserModelService.init(tenantId: tenantId);
 
       await CameraService().initCamera(forceReinitOnWeb: true);

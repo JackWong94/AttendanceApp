@@ -19,9 +19,8 @@ class RegisterUserPage extends StatefulWidget {
 class _RegisterUserPageState extends State<RegisterUserPage> {
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _nameController = TextEditingController();
-  final TextEditingController _emailController = TextEditingController();
   final CameraService _cameraService = CameraService();
-  final UserModelService _userService = UserModelService.instance; // singleton
+  final UserModelService _userService = UserModelService.instance;
 
   List<Uint8List> capturedPhotos = [];
   List<List<double>> capturedEmbeddings = [];
@@ -38,7 +37,6 @@ class _RegisterUserPageState extends State<RegisterUserPage> {
   @override
   void dispose() {
     _nameController.dispose();
-    _emailController.dispose();
     super.dispose();
   }
 
@@ -132,7 +130,6 @@ class _RegisterUserPageState extends State<RegisterUserPage> {
     if (!_formKey.currentState!.validate()) return;
 
     final name = _nameController.text.trim();
-    final email = _emailController.text.trim();
 
     if (capturedEmbeddings.length != 3) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -157,7 +154,6 @@ class _RegisterUserPageState extends State<RegisterUserPage> {
       final user = UserModel(
         id: employeeId,
         name: name,
-        email: email,
         employeeId: employeeId,
         faceEmbeddings: capturedEmbeddings,
         embedding: capturedEmbeddings.first,
@@ -222,28 +218,14 @@ class _RegisterUserPageState extends State<RegisterUserPage> {
                   const SizedBox(height: 24),
                   Form(
                     key: _formKey,
-                    child: Column(
-                      children: [
-                        TextFormField(
-                          controller: _nameController,
-                          decoration: const InputDecoration(
-                            labelText: "Full Name",
-                            border: OutlineInputBorder(),
-                          ),
-                          validator: (value) =>
-                          value == null || value.isEmpty ? "Enter name" : null,
-                        ),
-                        const SizedBox(height: 12),
-                        TextFormField(
-                          controller: _emailController,
-                          decoration: const InputDecoration(
-                            labelText: "Email",
-                            border: OutlineInputBorder(),
-                          ),
-                          validator: (value) =>
-                          value == null || !value.contains("@") ? "Enter valid email" : null,
-                        ),
-                      ],
+                    child: TextFormField(
+                      controller: _nameController,
+                      decoration: const InputDecoration(
+                        labelText: "Full Name",
+                        border: OutlineInputBorder(),
+                      ),
+                      validator: (value) =>
+                      value == null || value.isEmpty ? "Enter name" : null,
                     ),
                   ),
                   const SizedBox(height: 24),

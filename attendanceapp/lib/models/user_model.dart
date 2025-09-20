@@ -3,7 +3,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class UserModel {
   final String id;
   final String name;
-  final String email;
   final String employeeId;
   final List<List<double>> faceEmbeddings; // multiple embeddings per user
   final List<double> embedding; // optional primary embedding for recognition
@@ -11,7 +10,6 @@ class UserModel {
   UserModel({
     required this.id,
     required this.name,
-    required this.email,
     required this.employeeId,
     this.faceEmbeddings = const [],
     this.embedding = const [],
@@ -21,7 +19,6 @@ class UserModel {
   Map<String, dynamic> toMap() {
     return {
       'name': name,
-      'email': email,
       'employeeId': employeeId,
       'faceEmbeddings': faceEmbeddings
           .map((e) => e.join(',')) // store each embedding as CSV string
@@ -49,7 +46,6 @@ class UserModel {
     return UserModel(
       id: doc.id,
       name: data['name'] ?? doc.id,
-      email: data['email'] ?? '',
       employeeId: data['employeeId'] ?? '',
       faceEmbeddings: embeddings,
       embedding: primaryEmbedding,
