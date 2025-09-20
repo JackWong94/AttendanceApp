@@ -72,3 +72,6 @@ migrate_working_dir/
 ### Symbolication / Obfuscation ###
 app.*.symbols
 app.*.map.json
+
+/firebase_config.json
+attendanceapp/build/
