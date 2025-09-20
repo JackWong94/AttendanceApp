@@ -30,11 +30,11 @@ class DefaultFirebaseOptions {
   /// ✅ Web configuration using Env
   static final FirebaseOptions web = FirebaseOptions(
     apiKey: Env.firebaseApiKey,
-    appId: Env.firebaseAppId,
-    messagingSenderId: Env.firebaseMessagingSenderId,
-    projectId: Env.firebaseProjectId,
     authDomain: Env.firebaseAuthDomain,
+    projectId: Env.firebaseProjectId,
     storageBucket: Env.firebaseStorageBucket,
+    messagingSenderId: Env.firebaseMessagingSenderId,
+    appId: Env.firebaseAppId,
     measurementId: Env.firebaseMeasurementId,
   );
 }
