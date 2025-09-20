@@ -7,7 +7,6 @@ import 'package:attendanceapp/services/camera_service.dart';
 import 'package:attendanceapp/services/face_model_service.dart';
 import 'package:attendanceapp/services/face_recognition_service.dart';
 import 'package:attendanceapp/services/attendance_service.dart';
-import 'package:attendanceapp/services/user_model_service.dart';
 import 'package:attendanceapp/services/authentication_service.dart';
 import 'package:attendanceapp/models/user_model.dart';
 import 'package:camera/camera.dart';
@@ -22,7 +21,6 @@ class LoginUserPage extends StatefulWidget {
 class _LoginUserPageState extends State<LoginUserPage> {
   final CameraService _cameraService = CameraService();
   final AttendanceService _attendanceService = AttendanceService();
-  final UserModelService _userService = UserModelService();
 
   @override
   void initState() {
@@ -43,7 +41,7 @@ class _LoginUserPageState extends State<LoginUserPage> {
       final picture = await _cameraService.controller!.takePicture();
       final bytes = await picture.readAsBytes();
 
-      // 2️⃣ Recognize user → returns UserModel directly
+      // 2️⃣ Recognize user → returns UserModel directly using singleton
       final UserModel? user = await FaceRecognitionService.recognizeUser(bytes);
       if (user == null) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -52,7 +50,7 @@ class _LoginUserPageState extends State<LoginUserPage> {
         return;
       }
 
-      // 3️⃣ Scan attendance using UserModel
+      // 3️⃣ Scan attendance
       await _attendanceService.scanUser(user: user, isScanIn: isScanIn);
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -64,7 +62,7 @@ class _LoginUserPageState extends State<LoginUserPage> {
       );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString())),
+        SnackBar(content: Text("Error during scan: $e")),
       );
     }
   }
@@ -112,9 +110,8 @@ class _LoginUserPageState extends State<LoginUserPage> {
               onTap: () async {
                 Navigator.pop(context); // close drawer
                 final authService = AuthenticationService();
-
                 try {
-                  await authService.signOut(); // log out via your service
+                  await authService.signOut();
                 } catch (e) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(content: Text("Logout failed: $e")),
@@ -122,7 +119,6 @@ class _LoginUserPageState extends State<LoginUserPage> {
                   return;
                 }
 
-                // Navigate back to login page
                 Navigator.pushReplacement(
                   context,
                   MaterialPageRoute(builder: (_) => const WebLoginPage()),

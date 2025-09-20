@@ -22,7 +22,7 @@ class FaceRecognitionService {
     if (userId == null) return null;
 
     // Step 4: Load full UserModel from UserModelService
-    final user = await UserModelService().getUserById(userId);
+    final user = await UserModelService.instance.getUserById(userId);
     return user;
   }
 

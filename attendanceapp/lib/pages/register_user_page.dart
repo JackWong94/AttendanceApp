@@ -21,7 +21,7 @@ class _RegisterUserPageState extends State<RegisterUserPage> {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final CameraService _cameraService = CameraService();
-  final UserModelService _userService = UserModelService();
+  final UserModelService _userService = UserModelService.instance; // singleton
 
   List<Uint8List> capturedPhotos = [];
   List<List<double>> capturedEmbeddings = [];
@@ -93,7 +93,6 @@ class _RegisterUserPageState extends State<RegisterUserPage> {
           final bytes = await picture.readAsBytes();
           capturedPhotos.add(bytes);
 
-          // Compute embedding immediately
           final img = await webFaceApi.uint8ListToImage(bytes);
           final resizedImg = await webFaceApi.resizeImage(img, 160, 160);
           final descriptor = await webFaceApi.computeFaceDescriptorSafe(resizedImg);

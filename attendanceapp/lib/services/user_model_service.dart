@@ -2,38 +2,53 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/user_model.dart';
 
 class UserModelService {
-  final CollectionReference<Map<String, dynamic>> usersRef =
-  FirebaseFirestore.instance.collection('users');
+  static UserModelService? _instance;
+  final String tenantId;
+  final CollectionReference<Map<String, dynamic>> _usersRef;
+
+  UserModelService._internal(this.tenantId)
+      : _usersRef = FirebaseFirestore.instance.collection('${tenantId}_Users');
+
+  /// Initialize singleton with tenantId
+  static void init({required String tenantId}) {
+    _instance ??= UserModelService._internal(tenantId);
+  }
+
+  /// Get singleton instance
+  static UserModelService get instance {
+    if (_instance == null) {
+      throw Exception("UserModelService not initialized yet!");
+    }
+    return _instance!;
+  }
 
   /// Add new user
   Future<void> addUser(UserModel user) async {
-    await usersRef.doc(user.id).set(user.toMap());
+    await _usersRef.doc(user.id).set(user.toMap());
   }
 
   /// Get all users
   Future<List<UserModel>> getAllUsers() async {
-    final snapshot = await usersRef.get();
-    return snapshot.docs
-        .map((doc) => UserModel.fromDocument(doc))
-        .toList();
+    final snapshot = await _usersRef.get();
+    return snapshot.docs.map((doc) => UserModel.fromDocument(doc)).toList();
   }
 
   /// Get user by Firestore document ID
   Future<UserModel?> getUserById(String id) async {
-    final doc = await usersRef.doc(id).get();
+    final doc = await _usersRef.doc(id).get();
     if (!doc.exists) return null;
     return UserModel.fromDocument(doc);
   }
 
   /// Check if a user name already exists
   Future<bool> isNameExists(String name) async {
-    final query = await usersRef.where('name', isEqualTo: name).limit(1).get();
+    final query = await _usersRef.where('name', isEqualTo: name).limit(1).get();
     return query.docs.isNotEmpty;
   }
 
   /// Check if an employee ID already exists
   Future<bool> isEmployeeIdExists(String employeeId) async {
-    final doc = await usersRef.doc(employeeId).get();
+    final doc = await _usersRef.doc(employeeId).get();
     return doc.exists;
   }
 }
