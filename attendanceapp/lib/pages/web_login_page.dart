@@ -36,6 +36,7 @@ class _WebLoginPageState extends State<WebLoginPage> {
       // 2️⃣ Initialize all services after login
       final tenantId = _selectedTenant ?? "defaultTenant";
       UserModelService.init(tenantId: tenantId);
+
       await CameraService().initCamera(forceReinitOnWeb: true);
       await FaceModelService.initialize();
       await FaceModelService.warmUp();

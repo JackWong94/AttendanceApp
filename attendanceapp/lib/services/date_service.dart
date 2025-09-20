@@ -22,4 +22,12 @@ class DateService {
   static String toDisplayTime(DateTime dateTime) {
     return _timeFormat.format(dateTime);
   }
+
+  /// Get number of days in a month
+  static int getDaysInMonth(int year, int month) {
+    final nextMonth = month < 12 ? month + 1 : 1;
+    final nextMonthYear = month < 12 ? year : year + 1;
+    final lastDayOfMonth = DateTime(nextMonthYear, nextMonth, 1).subtract(const Duration(days: 1));
+    return lastDayOfMonth.day;
+  }
 }
