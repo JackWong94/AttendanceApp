@@ -5,8 +5,8 @@ class Attendance {
   final DocumentReference userRef; // Firestore reference to the user
   final String userName;
   final String date; // "yyyy-MM-dd" format
-  final DateTime? scanIn;
-  final DateTime? scanOut;
+  DateTime? scanIn;   // <-- change from final
+  DateTime? scanOut;  // <-- change from final
 
   Attendance({
     required this.id,
