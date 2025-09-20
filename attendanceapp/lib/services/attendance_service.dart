@@ -1,6 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'user_model_service.dart';
+import 'attendance_model_service.dart';
 import '../models/user_model.dart';
+import '../models/attendance_model.dart';
 import 'date_service.dart';
 
 class AttendanceService {
@@ -82,21 +84,19 @@ class AttendanceService {
     required UserModel user,
     required DateTime month,
   }) async {
-    final tenantId = UserModelService.instance.tenantId;
-    final attendanceCollection = _firestore.collection('${tenantId}_Attendance');
-
     final userRef = UserModelService.instance.getUserDocRef(user.id);
 
     final int totalDays = DateService.getDaysInMonth(month.year, month.month);
     final startOfMonth = DateTime(month.year, month.month, 1);
     final endOfMonth = DateTime(month.year, month.month, totalDays);
 
-    // Fetch all attendance docs for the month in a single query
-    final snapshots = await attendanceCollection
-        .where('user', isEqualTo: userRef)
-        .where('date', isGreaterThanOrEqualTo: DateService.toStorageDate(startOfMonth))
-        .where('date', isLessThanOrEqualTo: DateService.toStorageDate(endOfMonth))
-        .get();
+    // Fetch all attendance for the month
+    final attendances = await AttendanceModelService.instance
+        .fetchStartToEndDateAttendanceForUser(
+      userRef: userRef,
+      startDate: startOfMonth,
+      endDate: endOfMonth,
+    );
 
     Map<String, Map<String, String>> result = {};
 
@@ -107,14 +107,13 @@ class AttendanceService {
     }
 
     // Fill in the actual attendance
-    for (var doc in snapshots.docs) {
-      final data = doc.data();
-      final dateStr = data['date'] as String;
-      final scanIn = data['scanIn'] != null
-          ? DateService.toDisplayTime((data['scanIn'] as Timestamp).toDate())
+    for (var attendance in attendances) {
+      final dateStr = attendance.date;
+      final scanIn = attendance.scanIn != null
+          ? DateService.toDisplayTime(attendance.scanIn!)
           : 'N/A';
-      final scanOut = data['scanOut'] != null
-          ? DateService.toDisplayTime((data['scanOut'] as Timestamp).toDate())
+      final scanOut = attendance.scanOut != null
+          ? DateService.toDisplayTime(attendance.scanOut!)
           : 'N/A';
 
       result[dateStr] = {'scanIn': scanIn, 'scanOut': scanOut};

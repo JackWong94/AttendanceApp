@@ -4,6 +4,7 @@ import 'dart:html' as html;
 import 'package:month_picker_dialog/month_picker_dialog.dart';
 import '../services/date_service.dart';
 import '../services/user_model_service.dart';
+import '../services/attendance_model_service.dart';
 import '../services/attendance_service.dart';
 import '../models/user_model.dart';
 
@@ -57,31 +58,50 @@ class _AttendancePageState extends State<AttendancePage> {
   Future<void> _loadAttendance() async {
     setState(() => loading = true);
 
-    final usersToLoad = selectedUserId != null
-        ? [selectedUserId!]
-        : userNames.keys.toList();
+    final startOfMonth = DateTime(selectedDate.year, selectedDate.month, 1);
+    final endOfMonth = DateTime(
+        selectedDate.year,
+        selectedDate.month,
+        DateService.getDaysInMonth(selectedDate.year, selectedDate.month));
 
     Map<String, Map<String, String>> newMap = {};
 
-    for (var userId in usersToLoad) {
-      final user = await UserModelService.instance.getUserById(userId);
-      if (user == null) continue;
+    if (selectedFilter == FilterType.day) {
+      final dateStr = DateService.toStorageDate(selectedDate);
 
-      if (selectedFilter == FilterType.day) {
-        final dateStr = DateService.toStorageDate(selectedDate);
-        final record =
-        await _attendanceService.fetchAttendance(user: user, date: dateStr);
+      for (var userId in userNames.keys) {
+        final user = await UserModelService.instance.getUserById(userId);
+        if (user == null) continue;
+
+        final record = await _attendanceService.fetchAttendance(user: user, date: dateStr);
         newMap[userId] = {
           dateStr: record.isNotEmpty ? record['scanIn']! + '|' + record['scanOut']! : 'N/A|N/A'
         };
-      } else {
-        final monthRecords =
-        await _attendanceService.fetchMonthlyAttendance(user: user, month: selectedDate);
-        for (var entry in monthRecords.entries) {
-          newMap[userId] ??= {};
-          newMap[userId]![entry.key] =
-              entry.value['scanIn']! + '|' + entry.value['scanOut']!;
+      }
+    } else {
+      // Month view: fetch all records for all users in one query
+      final allAttendances = await AttendanceModelService.instance
+          .fetchAttendanceForMonthAllUsers(
+        startDate: startOfMonth,
+        endDate: endOfMonth,
+      );
+
+      // Pre-fill all dates with N/A for each user
+      for (var uid in userNames.keys) {
+        newMap[uid] = {};
+        for (int i = 1; i <= DateService.getDaysInMonth(selectedDate.year, selectedDate.month); i++) {
+          final day = DateTime(selectedDate.year, selectedDate.month, i);
+          newMap[uid]![DateService.toStorageDate(day)] = 'N/A|N/A';
         }
+      }
+
+      // Fill actual attendance
+      for (var att in allAttendances) {
+        final uid = att.userRef.id;
+        if (!newMap.containsKey(uid)) continue;
+
+        newMap[uid]![att.date] =
+        '${att.scanIn != null ? DateService.toDisplayTime(att.scanIn!) : 'N/A'}|${att.scanOut != null ? DateService.toDisplayTime(att.scanOut!) : 'N/A'}';
       }
     }
 
