@@ -157,63 +157,69 @@ class _AttendancePageState extends State<AttendancePage> {
       appBar: AppBar(title: const Text("Attendance")),
       body: loading
           ? const Center(child: CircularProgressIndicator())
-          : Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Wrap(
-              spacing: 16,
-              runSpacing: 16,
-              children: [
-                DropdownButton<FilterType>(
-                  value: selectedFilter,
-                  items: const [
-                    DropdownMenuItem(value: FilterType.day, child: Text("Day")),
-                    DropdownMenuItem(value: FilterType.month, child: Text("Month")),
-                  ],
-                  onChanged: (val) {
-                    if (val != null) setState(() => selectedFilter = val);
-                  },
-                ),
-                ElevatedButton(
-                  onPressed: _pickDateOrMonth,
-                  child: Text(selectedFilter == FilterType.day
-                      ? DateService.toStorageDate(selectedDate)
-                      : DateService.toMonthString(selectedDate)),
-                ),
-                DropdownButton<String>(
-                  value: selectedUserId,
-                  hint: const Text("All Users"),
-                  items: [
-                    const DropdownMenuItem(value: null, child: Text("All Users")),
-                    ...userNames.entries.map((e) => DropdownMenuItem(
-                      value: e.key,
-                      child: Text(e.value),
-                    )),
-                  ],
-                  onChanged: (val) => setState(() => selectedUserId = val),
-                ),
-                ElevatedButton(onPressed: _loadAttendance, child: const Text("Update")),
-                ElevatedButton(onPressed: _exportExcel, child: const Text("Export Excel")),
-              ],
-            ),
-          ),
-          Expanded(
-            child: SingleChildScrollView(
-              scrollDirection: Axis.vertical,
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: _buildTable(),
-                ),
+          : SingleChildScrollView(
+        scrollDirection: Axis.vertical,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center, // ✅ Center horizontally
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Wrap(
+                      spacing: 16,
+                      runSpacing: 16,
+                      children: [
+                        DropdownButton<FilterType>(
+                          value: selectedFilter,
+                          items: const [
+                            DropdownMenuItem(value: FilterType.day, child: Text("Day")),
+                            DropdownMenuItem(value: FilterType.month, child: Text("Month")),
+                          ],
+                          onChanged: (val) {
+                            if (val != null) setState(() => selectedFilter = val);
+                          },
+                        ),
+                        ElevatedButton(
+                          onPressed: _pickDateOrMonth,
+                          child: Text(selectedFilter == FilterType.day
+                              ? DateService.toStorageDate(selectedDate)
+                              : DateService.toMonthString(selectedDate)),
+                        ),
+                        DropdownButton<String>(
+                          value: selectedUserId,
+                          hint: const Text("All Users"),
+                          items: [
+                            const DropdownMenuItem(value: null, child: Text("All Users")),
+                            ...userNames.entries.map((e) => DropdownMenuItem(
+                              value: e.key,
+                              child: Text(e.value),
+                            )),
+                          ],
+                          onChanged: (val) => setState(() => selectedUserId = val),
+                        ),
+                        ElevatedButton(onPressed: _loadAttendance, child: const Text("Update")),
+                        ElevatedButton(onPressed: _exportExcel, child: const Text("Export Excel")),
+                      ],
+                    ),
+                  ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: _buildTable(),
+                  ),
+                ],
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
+
 
   List<Widget> _buildTable() {
     List<Widget> widgets = [];
