@@ -10,6 +10,7 @@ import 'package:attendanceapp/services/attendance_service.dart';
 import 'package:attendanceapp/services/authentication_service.dart';
 import 'package:attendanceapp/models/user_model.dart';
 import 'package:camera/camera.dart';
+import '../main.dart'; // so _LoginUserPageState can access routeObserver
 
 class LoginUserPage extends StatefulWidget {
   const LoginUserPage({super.key});
@@ -18,7 +19,7 @@ class LoginUserPage extends StatefulWidget {
   State<LoginUserPage> createState() => _LoginUserPageState();
 }
 
-class _LoginUserPageState extends State<LoginUserPage> {
+class _LoginUserPageState extends State<LoginUserPage> with RouteAware {
   final CameraService _cameraService = CameraService();
   final AttendanceService _attendanceService = AttendanceService();
 
@@ -31,8 +32,30 @@ class _LoginUserPageState extends State<LoginUserPage> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Subscribe to route changes
+    routeObserver.subscribe(this, ModalRoute.of(context)!);
+  }
+
+  @override
   void dispose() {
+    routeObserver.unsubscribe(this);
     super.dispose();
+  }
+
+  // Called when this page comes back into view (after pop)
+  @override
+  void didPopNext() {
+    // Refresh the page by re-initializing camera or state
+    _initCamera();
+    setState(() {});
+  }
+
+  void _initCamera() {
+    _cameraService.initCamera(forceReinitOnWeb: true).then((_) {
+      if (mounted) setState(() {});
+    });
   }
 
   Future<void> _handleScan({required bool isScanIn}) async {
