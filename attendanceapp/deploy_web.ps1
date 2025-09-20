@@ -29,7 +29,7 @@ if (-not $targets.ContainsKey($choice)) {
     exit 1
 }
 
-$BaseHref   = "/$choice/"
+$BaseHref   = "/$RepoName/$choice/"
 $TargetName = $targets[$choice]
 $Url        = "https://jackwong94.github.io/$RepoName/$choice/"
 
