@@ -17,13 +17,11 @@ class CameraService {
     try {
       // Dispose web camera if forced
       if (kIsWeb && controller != null && forceReinitOnWeb) {
-        await controller!.dispose();
-        controller = null;
-        initializeFuture = null;
+        await disposeCamera();
       }
 
-      // Skip initialization if controller already exists on mobile
-      if (!kIsWeb && controller != null) return;
+      // Skip initialization if controller already exists and is initialized on mobile
+      if (!kIsWeb && isInitialized) return;
 
       // Get available cameras
       final cameras = await availableCameras();
@@ -65,6 +63,9 @@ class CameraService {
   }
 
   /// Helper to check if camera is available and initialized
-  bool get isCameraAvailable =>
+  bool get isInitialized =>
       controller != null && controller!.value.isInitialized;
+
+  /// Optional: check if controller exists even if not yet initialized
+  bool get hasController => controller != null;
 }

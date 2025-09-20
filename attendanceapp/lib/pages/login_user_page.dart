@@ -1,16 +1,16 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:attendanceapp/widgets/camera_placeholder.dart';
 import 'package:attendanceapp/pages/web_login_page.dart';
 import 'package:attendanceapp/pages/register_user_page.dart';
 import 'package:attendanceapp/pages/attendance_page.dart';
 import 'package:attendanceapp/services/camera_service.dart';
-import 'package:attendanceapp/services/face_model_service.dart';
 import 'package:attendanceapp/services/face_recognition_service.dart';
 import 'package:attendanceapp/services/attendance_service.dart';
 import 'package:attendanceapp/services/authentication_service.dart';
 import 'package:attendanceapp/models/user_model.dart';
+import '../main.dart'; // routeObserver
 import 'package:camera/camera.dart';
-import '../main.dart'; // so _LoginUserPageState can access routeObserver
 
 class LoginUserPage extends StatefulWidget {
   const LoginUserPage({super.key});
@@ -23,12 +23,13 @@ class _LoginUserPageState extends State<LoginUserPage> with RouteAware {
   final CameraService _cameraService = CameraService();
   final AttendanceService _attendanceService = AttendanceService();
 
+  bool _cameraTimedOut = false;
+  Timer? _cameraTimer;
+
   @override
   void initState() {
     super.initState();
-    _cameraService.initCamera(forceReinitOnWeb: true).then((_) {
-      if (mounted) setState(() {});
-    });
+    _initCamera();
   }
 
   @override
@@ -40,31 +41,49 @@ class _LoginUserPageState extends State<LoginUserPage> with RouteAware {
 
   @override
   void dispose() {
+    _cameraTimer?.cancel();
     routeObserver.unsubscribe(this);
     super.dispose();
   }
 
-  // Called when this page comes back into view (after pop)
+  /// Refresh camera when returning to this page
   @override
   void didPopNext() {
-    // Refresh the page by re-initializing camera or state
     _initCamera();
     setState(() {});
   }
 
+  /// Initialize camera with 1-minute fallback timer
   void _initCamera() {
+    _cameraTimedOut = false;
+
     _cameraService.initCamera(forceReinitOnWeb: true).then((_) {
       if (mounted) setState(() {});
+    });
+
+    // Cancel previous timer if any
+    _cameraTimer?.cancel();
+    _cameraTimer = Timer(const Duration(minutes: 1), () {
+      if (mounted && !_cameraService.isInitialized) {
+        setState(() {
+          _cameraTimedOut = true;
+        });
+      }
     });
   }
 
   Future<void> _handleScan({required bool isScanIn}) async {
     try {
-      // 1️⃣ Take picture
+      if (!_cameraService.isInitialized) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Camera not ready")),
+        );
+        return;
+      }
+
       final picture = await _cameraService.controller!.takePicture();
       final bytes = await picture.readAsBytes();
 
-      // 2️⃣ Recognize user → returns UserModel directly using singleton
       final UserModel? user = await FaceRecognitionService.recognizeUser(bytes);
       if (user == null) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -73,7 +92,6 @@ class _LoginUserPageState extends State<LoginUserPage> with RouteAware {
         return;
       }
 
-      // 3️⃣ Scan attendance
       await _attendanceService.scanUser(user: user, isScanIn: isScanIn);
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -131,7 +149,7 @@ class _LoginUserPageState extends State<LoginUserPage> with RouteAware {
               leading: const Icon(Icons.logout),
               title: const Text("Log out"),
               onTap: () async {
-                Navigator.pop(context); // close drawer
+                Navigator.pop(context);
                 final authService = AuthenticationService();
                 try {
                   await authService.signOut();
@@ -141,7 +159,6 @@ class _LoginUserPageState extends State<LoginUserPage> with RouteAware {
                   );
                   return;
                 }
-
                 Navigator.pushReplacement(
                   context,
                   MaterialPageRoute(builder: (_) => const WebLoginPage()),
@@ -183,32 +200,30 @@ class _LoginUserPageState extends State<LoginUserPage> with RouteAware {
           ),
           Expanded(
             child: Center(
-              child: _cameraService.controller == null
-                  ? const CameraPlaceholder(
-                message: "Camera not available on this platform",
-              )
-                  : FutureBuilder<void>(
+              child: FutureBuilder<void>(
                 future: _cameraService.initializeFuture,
                 builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.done &&
-                      _cameraService.controller != null &&
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    // Still initializing → show loading
+                    return const Center(child: CircularProgressIndicator());
+                  } else if (snapshot.hasError) {
+                    // Initialization failed → show placeholder
+                    return const CameraPlaceholder(
+                      message: "Camera error or not supported on this platform",
+                    );
+                  } else if (_cameraService.controller != null &&
                       _cameraService.controller!.value.isInitialized) {
+                    // Camera ready → show preview
                     return Padding(
                       padding: const EdgeInsets.all(24.0),
                       child: AspectRatio(
-                        aspectRatio:
-                        _cameraService.controller!.value.aspectRatio,
+                        aspectRatio: _cameraService.controller!.value.aspectRatio,
                         child: CameraPreview(_cameraService.controller!),
                       ),
                     );
-                  } else if (snapshot.hasError) {
-                    return CameraPlaceholder(
-                      message: "Camera error: ${snapshot.error}",
-                    );
                   } else {
-                    return const Center(
-                      child: CircularProgressIndicator(),
-                    );
+                    // Camera still null or unavailable → show loading
+                    return const Center(child: CircularProgressIndicator());
                   }
                 },
               ),

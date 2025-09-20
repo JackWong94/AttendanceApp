@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
@@ -26,18 +27,38 @@ class _RegisterUserPageState extends State<RegisterUserPage> {
   List<List<double>> capturedEmbeddings = [];
   bool _isCreating = false;
 
+  bool _cameraTimedOut = false;
+  Timer? _cameraTimer;
+
   @override
   void initState() {
     super.initState();
-    _cameraService.initCamera(forceReinitOnWeb: true).then((_) {
-      if (mounted) setState(() {});
-    });
+    _initCamera();
   }
 
   @override
   void dispose() {
+    _cameraTimer?.cancel();
     _nameController.dispose();
     super.dispose();
+  }
+
+  /// Initialize camera with 1-minute fallback
+  void _initCamera() {
+    _cameraTimedOut = false;
+
+    _cameraService.initCamera(forceReinitOnWeb: true).then((_) {
+      if (mounted) setState(() {});
+    });
+
+    _cameraTimer?.cancel();
+    _cameraTimer = Timer(const Duration(minutes: 1), () {
+      if (mounted && !_cameraService.isInitialized) {
+        setState(() {
+          _cameraTimedOut = true;
+        });
+      }
+    });
   }
 
   Future<String> _generateUniqueEmployeeId() async {
@@ -87,13 +108,21 @@ class _RegisterUserPageState extends State<RegisterUserPage> {
 
       if (confirmed == true) {
         try {
+          if (!_cameraService.isInitialized) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text("Camera not ready")),
+            );
+            return;
+          }
+
           final picture = await _cameraService.controller!.takePicture();
           final bytes = await picture.readAsBytes();
           capturedPhotos.add(bytes);
 
           final img = await webFaceApi.uint8ListToImage(bytes);
           final resizedImg = await webFaceApi.resizeImage(img, 160, 160);
-          final descriptor = await webFaceApi.computeFaceDescriptorSafe(resizedImg);
+          final descriptor =
+          await webFaceApi.computeFaceDescriptorSafe(resizedImg);
 
           if (descriptor.isEmpty) {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -117,8 +146,8 @@ class _RegisterUserPageState extends State<RegisterUserPage> {
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-            content:
-            Text("Only ${capturedEmbeddings.length}/3 valid photos recorded")),
+            content: Text(
+                "Only ${capturedEmbeddings.length}/3 valid photos recorded")),
       );
     }
 
@@ -193,24 +222,34 @@ class _RegisterUserPageState extends State<RegisterUserPage> {
                 children: [
                   SizedBox(
                     height: 250,
-                    child: _cameraService.controller == null
-                        ? const CameraPlaceholder(message: "Camera not available")
-                        : FutureBuilder<void>(
+                    child: FutureBuilder<void>(
                       future: _cameraService.initializeFuture,
                       builder: (context, snapshot) {
-                        if (snapshot.connectionState == ConnectionState.done &&
-                            _cameraService.controller != null &&
-                            _cameraService.controller!.value.isInitialized) {
-                          return AspectRatio(
-                            aspectRatio: _cameraService.controller!.value.aspectRatio,
-                            child: CameraPreview(_cameraService.controller!),
-                          );
+                        if (snapshot.connectionState == ConnectionState.waiting) {
+                          // Still initializing → show spinner
+                          return const Center(child: CircularProgressIndicator());
                         } else if (snapshot.hasError) {
-                          return CameraPlaceholder(
-                            message: "Camera error: ${snapshot.error}",
+                          // Initialization failed → show placeholder
+                          return const CameraPlaceholder(
+                            message: "Camera error or not supported on this platform",
+                          );
+                        } else if (_cameraService.controller != null &&
+                            _cameraService.controller!.value.isInitialized) {
+                          // Camera ready → show preview
+                          return Padding(
+                            padding: const EdgeInsets.all(24.0),
+                            child: AspectRatio(
+                              aspectRatio: _cameraService.controller!.value.aspectRatio,
+                              child: CameraPreview(_cameraService.controller!),
+                            ),
                           );
                         } else {
-                          return const Center(child: CircularProgressIndicator());
+                          // Camera still null/unavailable → show spinner unless timeout
+                          return !_cameraTimedOut
+                              ? const Center(child: CircularProgressIndicator())
+                              : const CameraPlaceholder(
+                            message: "Camera not available on this platform",
+                          );
                         }
                       },
                     ),
@@ -241,7 +280,8 @@ class _RegisterUserPageState extends State<RegisterUserPage> {
                       children: capturedPhotos
                           .map((bytes) => Padding(
                         padding: const EdgeInsets.all(4.0),
-                        child: Image.memory(bytes, width: 80, height: 80, fit: BoxFit.cover),
+                        child: Image.memory(bytes,
+                            width: 80, height: 80, fit: BoxFit.cover),
                       ))
                           .toList(),
                     ),
@@ -257,11 +297,13 @@ class _RegisterUserPageState extends State<RegisterUserPage> {
                       ElevatedButton.icon(
                         onPressed: () => Navigator.pushReplacement(
                           context,
-                          MaterialPageRoute(builder: (_) => const LoginUserPage()),
+                          MaterialPageRoute(
+                              builder: (_) => const LoginUserPage()),
                         ),
                         icon: const Icon(Icons.cancel),
                         label: const Text("Cancel"),
-                        style: ElevatedButton.styleFrom(backgroundColor: Colors.grey),
+                        style:
+                        ElevatedButton.styleFrom(backgroundColor: Colors.grey),
                       ),
                     ],
                   ),
