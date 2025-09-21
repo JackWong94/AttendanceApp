@@ -3,6 +3,30 @@ import 'dart:html' as html;
 import '../services/date_service.dart';
 
 class ExportExcelService {
+  /// Reusable header creator
+  static void createInfoHeader(Sheet sheet, {List<String>? lines}) {
+    final yellowStyle = CellStyle(
+      backgroundColorHex: "#FFFF00",
+      fontFamily: getFontFamily(FontFamily.Arial),
+    );
+
+    final infoLines = lines ??
+        [
+          'Thanks for using Attendance App!',
+          'Generated data located at next sheets.',
+          'Please download the data and save locally as the data will be deleted each year.'
+        ];
+
+    for (int i = 0; i < infoLines.length; i++) {
+      final cell = sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: i));
+      cell.value = infoLines[i];
+      cell.cellStyle = yellowStyle;
+    }
+
+    // Optional: set column width to make text visible
+    sheet.setColWidth(0, 100);
+  }
+
   /// Export single day attendance (all users in 1 sheet)
   static void exportDayAttendance({
     required Map<String, Map<String, String>> attendanceMap,
@@ -11,34 +35,12 @@ class ExportExcelService {
     String? selectedUserId,
   }) {
     final excel = Excel.createExcel();
-// Create a yellow style
-    final yellowStyle = CellStyle(
-      backgroundColorHex: "#FFFF00",
-      fontFamily: getFontFamily(FontFamily.Arial),
-    );
 
-// Get the default first sheet
-    final infoSheet = excel['Sheet1'];
+    // Reusable header
+    createInfoHeader(excel['Sheet1']);
 
-// Each sentence in a separate row
-    final infoLines = [
-      'Thanks for using Attendance App!',
-      'Generated data located at next sheets.',
-      'Please download the data and save locally as the data will be deleted each year.'
-    ];
-
-// Write each line in column A and apply yellow background
-    for (int i = 0; i < infoLines.length; i++) {
-      final cell = infoSheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: i));
-      cell.value = infoLines[i];
-      cell.cellStyle = yellowStyle;
-    }
-
-    // Optional: set column width to make text visible
-    infoSheet.setColWidth(0, 100);
     final sheet = excel['Attendance'];
 
-    // Add header
     sheet.appendRow([
       'User',
       'Normal In',
@@ -50,7 +52,6 @@ class ExportExcelService {
     ]);
 
     final usersToExport = selectedUserId != null ? [selectedUserId] : userNames.keys.toList();
-
     final dateStr = DateService.toStorageDate(selectedDate);
 
     for (var uid in usersToExport) {
@@ -81,7 +82,7 @@ class ExportExcelService {
     html.Url.revokeObjectUrl(url);
   }
 
-  /// Export monthly attendance (fallback original logic)
+  /// Export monthly attendance
   static void exportMonthAttendance({
     required Map<String, Map<String, String>> attendanceMap,
     required Map<String, String> userNames,
@@ -89,13 +90,14 @@ class ExportExcelService {
     String? selectedUserId,
   }) {
     final excel = Excel.createExcel();
-    excel.delete('Sheet1');
-
+    // Reusable header
+    createInfoHeader(excel['Sheet1']);
     final usersToExport = selectedUserId != null ? [selectedUserId] : attendanceMap.keys.toList();
 
     for (var uid in usersToExport) {
       final sheetName = userNames[uid] ?? uid;
       final sheet = excel[sheetName];
+
       sheet.appendRow([
         'Date',
         'Normal In',
