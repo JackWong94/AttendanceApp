@@ -12,18 +12,17 @@ import 'package:attendanceapp/models/user_model.dart';
 import '../main.dart'; // routeObserver
 import 'package:camera/camera.dart';
 import 'package:attendanceapp/services/tenant_model_service.dart';
-
-enum ScanType { normal, lunch, ot }
+import 'package:attendanceapp/services/attendance_service.dart' show ScanType;
 
 extension ScanTypeName on ScanType {
   String get displayName {
     switch (this) {
       case ScanType.normal:
-        return "";
+        return "Normal";
       case ScanType.lunch:
-        return " - Lunch";
+        return "Lunch";
       case ScanType.ot:
-        return " - OT";
+        return "OT";
     }
   }
 }
@@ -175,20 +174,32 @@ class _LoginUserPageState extends State<LoginUserPage> with RouteAware {
     required bool isScanIn,
     required ScanType scanType,
   }) async {
-    // TODO: call your attendance service
-    /*await _attendanceService.scanUser(
-      user: user,
-      isScanIn: isScanIn,
-      scanType: scanType,
-    );*/
+    try {
+      // Call your attendance service
+      final result = await _attendanceService.scanUser(
+        user: user,
+        isScanIn: isScanIn,
+        scanType: scanType,
+      );
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          "✅ ${user.name} ${isScanIn ? 'scanned in' : 'scanned out'} (${scanType.displayName}) successfully",
+      // Show message based on ScanResult
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(result.message),
+          backgroundColor: result.success ? Colors.green : Colors.red,
+          duration: const Duration(seconds: 2),
         ),
-      ),
-    );
+      );
+    } catch (e) {
+      // Catch unexpected errors
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("❌ Error scanning attendance: $e"),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
   }
 
   @override

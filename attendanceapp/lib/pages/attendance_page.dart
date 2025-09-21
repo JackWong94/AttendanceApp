@@ -16,7 +16,6 @@ class AttendancePage extends StatefulWidget {
   @override
   State<AttendancePage> createState() => _AttendancePageState();
 }
-
 class _AttendancePageState extends State<AttendancePage> {
   final AttendanceService _attendanceService = AttendanceService();
 
