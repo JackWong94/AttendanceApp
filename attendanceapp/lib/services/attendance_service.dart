@@ -14,7 +14,7 @@ class ScanResult {
 }
 enum ScanType { normal, lunch, ot }
 class AttendanceService {
-  /// Scan user attendance for a specific type
+  /// Scan user attendance (prevent repeated scan-in or scan-out)
   Future<ScanResult> scanUser({
     required UserModel user,
     required bool isScanIn,
@@ -24,7 +24,6 @@ class AttendanceService {
     final todayStr = DateService.toStorageDate(DateTime.now());
     final now = DateTime.now();
 
-    // Fetch today's attendance
     final existingAttendance = await AttendanceModelService.instance.fetchAttendanceForDate(
       userId: user.id,
       date: todayStr,
@@ -32,13 +31,6 @@ class AttendanceService {
 
     if (existingAttendance == null) {
       // No attendance yet
-      if (!isScanIn) {
-        return ScanResult(
-          success: false,
-          message: "❌ ${user.name} cannot scan out without scanning in today",
-        );
-      }
-
       final newAttendance = Attendance(
         id: "${todayStr}-${now.millisecondsSinceEpoch}",
         userRef: userRef,
@@ -46,55 +38,45 @@ class AttendanceService {
         date: todayStr,
       );
 
-      AttendanceModelService.instance.setScanInByType(newAttendance, scanType, now);
-
-      await AttendanceModelService.instance.addAttendance(newAttendance);
-
-      return ScanResult(
-        success: true,
-        message: "✅ ${user.name} scanned in (${scanType.name}) successfully",
-      );
+      if (isScanIn) {
+        AttendanceModelService.instance.setScanInByType(newAttendance, scanType, now);
+        await AttendanceModelService.instance.addAttendance(newAttendance);
+        return ScanResult(
+          success: true,
+          message: "✅ ${user.name} scanned in (${scanType.name}) successfully",
+        );
+      } else {
+        AttendanceModelService.instance.setScanOutByType(newAttendance, scanType, now);
+        await AttendanceModelService.instance.addAttendance(newAttendance);
+        return ScanResult(
+          success: true,
+          message: "✅ ${user.name} scanned out (${scanType.name}) successfully",
+        );
+      }
     } else {
       // Attendance exists
       if (isScanIn) {
         if (AttendanceModelService.instance.getScanInByType(existingAttendance, scanType) != null) {
           return ScanResult(
             success: false,
-            message: "❌ ${user.name} already scanned in for ${scanType.name} today",
+            message: "✖ ${user.name} already scanned in for ${scanType.name} today",
           );
         }
-        if (AttendanceModelService.instance.getScanOutByType(existingAttendance, scanType) != null) {
-          return ScanResult(
-            success: false,
-            message: "❌ ${user.name} cannot scan in after scanning out for ${scanType.name} today",
-          );
-        }
-
         AttendanceModelService.instance.setScanInByType(existingAttendance, scanType, now);
         await AttendanceModelService.instance.updateAttendance(existingAttendance);
-
         return ScanResult(
           success: true,
           message: "✅ ${user.name} scanned in (${scanType.name}) successfully",
         );
       } else {
-        // Scan out
-        if (AttendanceModelService.instance.getScanInByType(existingAttendance, scanType) == null) {
-          return ScanResult(
-            success: false,
-            message: "❌ ${user.name} must scan in before scanning out for ${scanType.name}",
-          );
-        }
         if (AttendanceModelService.instance.getScanOutByType(existingAttendance, scanType) != null) {
           return ScanResult(
             success: false,
-            message: "❌ ${user.name} already scanned out for ${scanType.name} today",
+            message: "✖ ${user.name} already scanned out for ${scanType.name} today",
           );
         }
-
         AttendanceModelService.instance.setScanOutByType(existingAttendance, scanType, now);
         await AttendanceModelService.instance.updateAttendance(existingAttendance);
-
         return ScanResult(
           success: true,
           message: "✅ ${user.name} scanned out (${scanType.name}) successfully",
