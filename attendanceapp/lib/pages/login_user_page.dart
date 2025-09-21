@@ -154,6 +154,7 @@ class _LoginUserPageState extends State<LoginUserPage> with RouteAware {
                 final authService = AuthenticationService();
                 try {
                   await authService.signOut();
+                  TenantModelService.instance.clearCurrentTenant();
                 } catch (e) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(content: Text("Logout failed: $e")),

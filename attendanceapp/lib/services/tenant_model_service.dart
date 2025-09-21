@@ -52,4 +52,12 @@ class TenantModelService {
 
   /// ✅ Getter for current tenant name
   String get currentTenantName => _currentTenant?.name ?? "Unknown Tenant";
+
+  /// ✅ Getter for current tenant ID
+  String? get currentTenantId => _currentTenant?.tenantId;
+
+  /// ✅ Clear current tenant (e.g., on logout)
+  void clearCurrentTenant() {
+    _currentTenant = null;
+  }
 }

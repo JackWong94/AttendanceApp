@@ -35,14 +35,17 @@ class _WebLoginPageState extends State<WebLoginPage> {
 
       final email = _emailController.text.trim();
 
-      // 2️⃣ Fetch tenantId from TenantModelService
-      final tenantId = await TenantModelService.instance.getTenantIdByEmail(email);
-      if (tenantId == null) {
+      // 2️⃣ Fetch tenant object from TenantModelService
+      final tenant = await TenantModelService.instance.getTenantByEmail(email);
+      if (tenant == null) {
         throw Exception("No tenant found for this user");
       }
 
+      // ✅ Save current tenant globally
+      TenantModelService.instance.setCurrentTenant(tenant);
+
       // 3️⃣ Initialize UserModelService with tenantId
-      UserModelService.init(tenantId: tenantId);
+      UserModelService.init(tenantId: tenant.tenantId);
 
       // 4️⃣ Initialize camera & face recognition
       await CameraService().initCamera(forceReinitOnWeb: true);
@@ -53,7 +56,7 @@ class _WebLoginPageState extends State<WebLoginPage> {
       if (mounted) {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => LoginUserPage()),
+          MaterialPageRoute(builder: (_) => const LoginUserPage()),
         );
       }
     } catch (e) {
