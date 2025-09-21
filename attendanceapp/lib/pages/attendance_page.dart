@@ -42,7 +42,6 @@ class _AttendancePageState extends State<AttendancePage> {
       userNames.clear();
     });
 
-    // Load all users via UserModelService
     final users = await UserModelService.instance.getAllUsers();
     for (var user in users) {
       userNames[user.id] = user.name;
@@ -60,9 +59,10 @@ class _AttendancePageState extends State<AttendancePage> {
 
     final startOfMonth = DateTime(selectedDate.year, selectedDate.month, 1);
     final endOfMonth = DateTime(
-        selectedDate.year,
-        selectedDate.month,
-        DateService.getDaysInMonth(selectedDate.year, selectedDate.month));
+      selectedDate.year,
+      selectedDate.month,
+      DateService.getDaysInMonth(selectedDate.year, selectedDate.month),
+    );
 
     Map<String, Map<String, String>> newMap = {};
 
@@ -79,14 +79,12 @@ class _AttendancePageState extends State<AttendancePage> {
         };
       }
     } else {
-      // Month view: fetch all records for all users in one query
       final allAttendances = await AttendanceModelService.instance
           .fetchAttendanceForMonthAllUsers(
         startDate: startOfMonth,
         endDate: endOfMonth,
       );
 
-      // Pre-fill all dates with N/A for each user
       for (var uid in userNames.keys) {
         newMap[uid] = {};
         for (int i = 1; i <= DateService.getDaysInMonth(selectedDate.year, selectedDate.month); i++) {
@@ -95,7 +93,6 @@ class _AttendancePageState extends State<AttendancePage> {
         }
       }
 
-      // Fill actual attendance
       for (var att in allAttendances) {
         final uid = att.userRef.id;
         if (!newMap.containsKey(uid)) continue;
@@ -142,10 +139,11 @@ class _AttendancePageState extends State<AttendancePage> {
     final url = html.Url.createObjectUrlFromBlob(blob);
     final anchor = html.AnchorElement(href: url)
       ..setAttribute(
-          'download',
-          selectedFilter == FilterType.day
-              ? 'attendance-${DateService.toStorageDate(selectedDate)}.xlsx'
-              : 'attendance-${DateService.toMonthString(selectedDate)}.xlsx')
+        'download',
+        selectedFilter == FilterType.day
+            ? 'attendance-${DateService.toStorageDate(selectedDate)}.xlsx'
+            : 'attendance-${DateService.toMonthString(selectedDate)}.xlsx',
+      )
       ..click();
     html.Url.revokeObjectUrl(url);
   }
@@ -173,105 +171,142 @@ class _AttendancePageState extends State<AttendancePage> {
 
   @override
   Widget build(BuildContext context) {
+    final sortedDates = attendanceMap.values
+        .expand((map) => map.keys)
+        .toSet()
+        .toList()
+      ..sort();
+
     return Scaffold(
       appBar: AppBar(title: const Text("Attendance")),
       body: loading
           ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-        scrollDirection: Axis.vertical,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center, // ✅ Center horizontally
+          : Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1000),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              // Filters
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Wrap(
+                  spacing: 16,
+                  runSpacing: 16,
+                  alignment: WrapAlignment.center,
+                  children: [
+                    DropdownButton<FilterType>(
+                      value: selectedFilter,
+                      items: const [
+                        DropdownMenuItem(value: FilterType.day, child: Text("Day")),
+                        DropdownMenuItem(value: FilterType.month, child: Text("Month")),
+                      ],
+                      onChanged: (val) {
+                        if (val != null) setState(() => selectedFilter = val);
+                      },
+                    ),
+                    ElevatedButton(
+                      onPressed: _pickDateOrMonth,
+                      child: Text(selectedFilter == FilterType.day
+                          ? DateService.toStorageDate(selectedDate)
+                          : DateService.toMonthString(selectedDate)),
+                    ),
+                    DropdownButton<String>(
+                      value: selectedUserId,
+                      hint: const Text("All Users"),
+                      items: [
+                        const DropdownMenuItem(value: null, child: Text("All Users")),
+                        ...userNames.entries.map((e) => DropdownMenuItem(
+                          value: e.key,
+                          child: Text(e.value),
+                        )),
+                      ],
+                      onChanged: (val) => setState(() => selectedUserId = val),
+                    ),
+                    ElevatedButton(onPressed: _loadAttendance, child: const Text("Update")),
+                    ElevatedButton(onPressed: _exportExcel, child: const Text("Export Excel")),
+                  ],
+                ),
+              ),
+
+              // Table
+              Expanded(
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.vertical,
+                  child: Column(
+                    children: selectedFilter == FilterType.day
+                        ? [_buildDayTable()]
+                        : sortedDates.map((d) => _buildMonthTable(d)).toList(),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDayTable() {
+    final date = DateService.toStorageDate(selectedDate);
+    final usersToShow = selectedUserId != null ? [selectedUserId!] : userNames.keys.toList();
+
+    return Card(
+      margin: const EdgeInsets.all(16),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: DataTable(
+          columns: const [
+            DataColumn(label: Text('User', style: TextStyle(fontWeight: FontWeight.bold))),
+            DataColumn(label: Text('Scan In', style: TextStyle(fontWeight: FontWeight.bold))),
+            DataColumn(label: Text('Scan Out', style: TextStyle(fontWeight: FontWeight.bold))),
+          ],
+          rows: usersToShow.map((uid) {
+            final record = attendanceMap[uid]?[date]?.split('|') ?? ['N/A', 'N/A'];
+            return DataRow(cells: [
+              DataCell(Text(userNames[uid]!)),
+              DataCell(Text(record[0])),
+              DataCell(Text(record[1])),
+            ]);
+          }).toList(),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMonthTable(String date) {
+    final usersToShow = selectedUserId != null ? [selectedUserId!] : userNames.keys.toList();
+
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+      child: Padding(
+        padding: const EdgeInsets.all(8),
+        child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            Text(date, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            const SizedBox(height: 8),
             SingleChildScrollView(
               scrollDirection: Axis.horizontal,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Wrap(
-                      spacing: 16,
-                      runSpacing: 16,
-                      children: [
-                        DropdownButton<FilterType>(
-                          value: selectedFilter,
-                          items: const [
-                            DropdownMenuItem(value: FilterType.day, child: Text("Day")),
-                            DropdownMenuItem(value: FilterType.month, child: Text("Month")),
-                          ],
-                          onChanged: (val) {
-                            if (val != null) setState(() => selectedFilter = val);
-                          },
-                        ),
-                        ElevatedButton(
-                          onPressed: _pickDateOrMonth,
-                          child: Text(selectedFilter == FilterType.day
-                              ? DateService.toStorageDate(selectedDate)
-                              : DateService.toMonthString(selectedDate)),
-                        ),
-                        DropdownButton<String>(
-                          value: selectedUserId,
-                          hint: const Text("All Users"),
-                          items: [
-                            const DropdownMenuItem(value: null, child: Text("All Users")),
-                            ...userNames.entries.map((e) => DropdownMenuItem(
-                              value: e.key,
-                              child: Text(e.value),
-                            )),
-                          ],
-                          onChanged: (val) => setState(() => selectedUserId = val),
-                        ),
-                        ElevatedButton(onPressed: _loadAttendance, child: const Text("Update")),
-                        ElevatedButton(onPressed: _exportExcel, child: const Text("Export Excel")),
-                      ],
-                    ),
-                  ),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: _buildTable(),
-                  ),
+              child: DataTable(
+                columns: const [
+                  DataColumn(label: Text('User', style: TextStyle(fontWeight: FontWeight.bold))),
+                  DataColumn(label: Text('Scan In', style: TextStyle(fontWeight: FontWeight.bold))),
+                  DataColumn(label: Text('Scan Out', style: TextStyle(fontWeight: FontWeight.bold))),
                 ],
+                rows: usersToShow.map((uid) {
+                  final record = attendanceMap[uid]?[date]?.split('|') ?? ['N/A', 'N/A'];
+                  return DataRow(cells: [
+                    DataCell(Text(userNames[uid]!)),
+                    DataCell(Text(record[0])),
+                    DataCell(Text(record[1])),
+                  ]);
+                }).toList(),
               ),
             ),
           ],
         ),
       ),
     );
-  }
-
-
-  List<Widget> _buildTable() {
-    List<Widget> widgets = [];
-    final days = selectedFilter == FilterType.day
-        ? [DateService.toStorageDate(selectedDate)]
-        : attendanceMap.values
-        .expand((map) => map.keys)
-        .toSet()
-        .toList()
-      ..sort();
-
-    final usersToShow = selectedUserId != null ? [selectedUserId!] : userNames.keys.toList();
-
-    for (var day in days) {
-      widgets.add(Padding(
-        padding: const EdgeInsets.only(top: 16, bottom: 4),
-        child: Text(day, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-      ));
-
-      for (var uid in usersToShow) {
-        final record = attendanceMap[uid]?[day]?.split('|') ?? ['N/A', 'N/A'];
-        widgets.add(Row(
-          children: [
-            SizedBox(width: 200, child: Text(userNames[uid] ?? uid)),
-            const SizedBox(width: 16),
-            SizedBox(width: 80, child: Text(record[0])),
-            SizedBox(width: 80, child: Text(record[1])),
-          ],
-        ));
-      }
-    }
-
-    return widgets;
   }
 }
