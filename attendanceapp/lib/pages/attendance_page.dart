@@ -7,6 +7,7 @@ import '../services/user_model_service.dart';
 import '../services/attendance_model_service.dart';
 import '../services/attendance_service.dart';
 import '../models/attendance_model.dart';
+import '../services/export_excel_service.dart';
 
 enum FilterType { day, month }
 
@@ -119,53 +120,13 @@ class _AttendancePageState extends State<AttendancePage> {
     await _loadAttendance();
     setState(() => loading = false);
 
-    final excel = Excel.createExcel();
-    excel.delete('Sheet1');
-
-    final usersToExport = selectedUserId != null ? [selectedUserId!] : attendanceMap.keys.toList();
-
-    for (var uid in usersToExport) {
-      final sheetName = userNames[uid] ?? uid;
-      final sheet = excel[sheetName];
-      sheet.appendRow([
-        'Date',
-        'Normal In',
-        'Lunch Out',
-        'Lunch In',
-        'Normal Out',
-        'OT In',
-        'OT Out'
-      ]);
-
-      final days = attendanceMap[uid]?.keys.toList() ?? [];
-      for (var day in days) {
-        final split = attendanceMap[uid]![day]!.split('|');
-        sheet.appendRow([
-          day,
-          split[0],
-          split[1],
-          split[2],
-          split[3],
-          split[4],
-          split[5],
-        ]);
-      }
-    }
-
-    final fileBytes = excel.encode();
-    if (fileBytes == null) return;
-
-    final blob = html.Blob([fileBytes]);
-    final url = html.Url.createObjectUrlFromBlob(blob);
-    final anchor = html.AnchorElement(href: url)
-      ..setAttribute(
-        'download',
-        selectedFilter == FilterType.day
-            ? 'attendance-${DateService.toStorageDate(selectedDate)}.xlsx'
-            : 'attendance-${DateService.toMonthString(selectedDate)}.xlsx',
-      )
-      ..click();
-    html.Url.revokeObjectUrl(url);
+    ExportExcelService.exportAttendance(
+      attendanceMap: attendanceMap,
+      userNames: userNames,
+      selectedUserId: selectedUserId,
+      selectedDate: selectedDate,
+      isDay: selectedFilter == FilterType.day,
+    );
   }
 
   Future<void> _pickDateOrMonth() async {
