@@ -5,7 +5,6 @@ import 'package:attendanceapp/services/user_model_service.dart';
 import 'package:attendanceapp/services/camera_service.dart';
 import 'package:attendanceapp/services/face_model_service.dart';
 import 'package:attendanceapp/services/tenant_model_service.dart';
-import '../models/tenant_model.dart';
 
 class WebLoginPage extends StatefulWidget {
   const WebLoginPage({super.key});
@@ -35,8 +34,7 @@ class _WebLoginPageState extends State<WebLoginPage> {
       );
 
       final email = _emailController.text.trim();
-      await TenantModelService.instance.setTenant(TenantModel.devTenant);
-      await TenantModelService.instance.setTenant(TenantModel.proTenant);
+
       // 2️⃣ Fetch tenantId from TenantModelService
       final tenantId = await TenantModelService.instance.getTenantIdByEmail(email);
       if (tenantId == null) {

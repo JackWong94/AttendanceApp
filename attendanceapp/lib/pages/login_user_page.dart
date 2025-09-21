@@ -11,6 +11,7 @@ import 'package:attendanceapp/services/authentication_service.dart';
 import 'package:attendanceapp/models/user_model.dart';
 import '../main.dart'; // routeObserver
 import 'package:camera/camera.dart';
+import 'package:attendanceapp/services/tenant_model_service.dart';
 
 class LoginUserPage extends StatefulWidget {
   const LoginUserPage({super.key});
@@ -111,7 +112,7 @@ class _LoginUserPageState extends State<LoginUserPage> with RouteAware {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Welcome To ")),
+      appBar: AppBar(title: Text(TenantModelService.instance.currentTenantName)),
       endDrawer: Drawer(
         child: ListView(
           padding: EdgeInsets.zero,
