@@ -16,6 +16,7 @@ class AttendancePage extends StatefulWidget {
   @override
   State<AttendancePage> createState() => _AttendancePageState();
 }
+
 class _AttendancePageState extends State<AttendancePage> {
   final AttendanceService _attendanceService = AttendanceService();
 
@@ -23,7 +24,7 @@ class _AttendancePageState extends State<AttendancePage> {
   FilterType selectedFilter = FilterType.day;
   String? selectedUserId;
 
-  Map<String, Map<String, String>> attendanceMap = {}; // {userId: {date: {scanIn/scanOut}}}
+  Map<String, Map<String, String>> attendanceMap = {}; // {userId: {date: "normalIn|lunchOut|lunchIn|normalOut|otIn|otOut"}}
   Map<String, String> userNames = {}; // {userId: userName}
 
   bool loading = false;
@@ -74,21 +75,19 @@ class _AttendancePageState extends State<AttendancePage> {
 
         final record = await _attendanceService.fetchAttendance(user: user, date: dateStr);
         newMap[userId] = {
-          dateStr: record.isNotEmpty ? record['scanIn']! + '|' + record['scanOut']! : 'N/A|N/A'
+          dateStr:
+          '${record['normalIn'] ?? 'N/A'}|${record['lunchOut'] ?? 'N/A'}|${record['lunchIn'] ?? 'N/A'}|${record['normalOut'] ?? 'N/A'}|${record['otIn'] ?? 'N/A'}|${record['otOut'] ?? 'N/A'}',
         };
       }
     } else {
       final allAttendances = await AttendanceModelService.instance
-          .fetchAttendanceForMonthAllUsers(
-        startDate: startOfMonth,
-        endDate: endOfMonth,
-      );
+          .fetchAttendanceForMonthAllUsers(startDate: startOfMonth, endDate: endOfMonth);
 
       for (var uid in userNames.keys) {
         newMap[uid] = {};
         for (int i = 1; i <= DateService.getDaysInMonth(selectedDate.year, selectedDate.month); i++) {
           final day = DateTime(selectedDate.year, selectedDate.month, i);
-          newMap[uid]![DateService.toStorageDate(day)] = 'N/A|N/A';
+          newMap[uid]![DateService.toStorageDate(day)] = 'N/A|N/A|N/A|N/A|N/A|N/A';
         }
       }
 
@@ -96,8 +95,15 @@ class _AttendancePageState extends State<AttendancePage> {
         final uid = att.userRef.id;
         if (!newMap.containsKey(uid)) continue;
 
+        final ams = AttendanceModelService.instance;
+
         newMap[uid]![att.date] =
-        '${att.scanIn != null ? DateService.toDisplayTime(att.scanIn!) : 'N/A'}|${att.scanOut != null ? DateService.toDisplayTime(att.scanOut!) : 'N/A'}';
+        '${ams.getScanInByType(att, ScanType.normal) != null ? DateService.toDisplayTime(ams.getScanInByType(att, ScanType.normal)!) : 'N/A'}|'
+            '${ams.getScanOutByType(att, ScanType.lunch) != null ? DateService.toDisplayTime(ams.getScanOutByType(att, ScanType.lunch)!) : 'N/A'}|'
+            '${ams.getScanInByType(att, ScanType.lunch) != null ? DateService.toDisplayTime(ams.getScanInByType(att, ScanType.lunch)!) : 'N/A'}|'
+            '${ams.getScanOutByType(att, ScanType.normal) != null ? DateService.toDisplayTime(ams.getScanOutByType(att, ScanType.normal)!) : 'N/A'}|'
+            '${ams.getScanInByType(att, ScanType.ot) != null ? DateService.toDisplayTime(ams.getScanInByType(att, ScanType.ot)!) : 'N/A'}|'
+            '${ams.getScanOutByType(att, ScanType.ot) != null ? DateService.toDisplayTime(ams.getScanOutByType(att, ScanType.ot)!) : 'N/A'}';
       }
     }
 
@@ -115,19 +121,33 @@ class _AttendancePageState extends State<AttendancePage> {
     final excel = Excel.createExcel();
     excel.delete('Sheet1');
 
-    final usersToExport = selectedUserId != null
-        ? [selectedUserId!]
-        : attendanceMap.keys.toList();
+    final usersToExport = selectedUserId != null ? [selectedUserId!] : attendanceMap.keys.toList();
 
     for (var uid in usersToExport) {
       final sheetName = userNames[uid] ?? uid;
       final sheet = excel[sheetName];
-      sheet.appendRow(['Date', 'Clock In', 'Clock Out']);
+      sheet.appendRow([
+        'Date',
+        'Normal In',
+        'Lunch Out',
+        'Lunch In',
+        'Normal Out',
+        'OT In',
+        'OT Out'
+      ]);
 
       final days = attendanceMap[uid]?.keys.toList() ?? [];
       for (var day in days) {
         final split = attendanceMap[uid]![day]!.split('|');
-        sheet.appendRow([day, split[0], split[1]]);
+        sheet.appendRow([
+          day,
+          split[0],
+          split[1],
+          split[2],
+          split[3],
+          split[4],
+          split[5],
+        ]);
       }
     }
 
@@ -202,7 +222,7 @@ class _AttendancePageState extends State<AttendancePage> {
                       ],
                       onChanged: (val) async {
                         if (val != null) setState(() => selectedFilter = val);
-                        await _loadAttendance(); // <-- reload immediately
+                        await _loadAttendance();
                       },
                     ),
                     ElevatedButton(
@@ -258,15 +278,24 @@ class _AttendancePageState extends State<AttendancePage> {
         child: DataTable(
           columns: const [
             DataColumn(label: Text('User', style: TextStyle(fontWeight: FontWeight.bold))),
-            DataColumn(label: Text('Scan In', style: TextStyle(fontWeight: FontWeight.bold))),
-            DataColumn(label: Text('Scan Out', style: TextStyle(fontWeight: FontWeight.bold))),
+            DataColumn(label: Text('Normal In', style: TextStyle(fontWeight: FontWeight.bold))),
+            DataColumn(label: Text('Lunch Out', style: TextStyle(fontWeight: FontWeight.bold))),
+            DataColumn(label: Text('Lunch In', style: TextStyle(fontWeight: FontWeight.bold))),
+            DataColumn(label: Text('Normal Out', style: TextStyle(fontWeight: FontWeight.bold))),
+            DataColumn(label: Text('OT In', style: TextStyle(fontWeight: FontWeight.bold))),
+            DataColumn(label: Text('OT Out', style: TextStyle(fontWeight: FontWeight.bold))),
           ],
           rows: usersToShow.map((uid) {
-            final record = attendanceMap[uid]?[date]?.split('|') ?? ['N/A', 'N/A'];
+            final record = attendanceMap[uid]?[date]?.split('|') ??
+                ['N/A', 'N/A', 'N/A', 'N/A', 'N/A', 'N/A'];
             return DataRow(cells: [
               DataCell(Text(userNames[uid]!)),
               DataCell(Text(record[0])),
               DataCell(Text(record[1])),
+              DataCell(Text(record[2])),
+              DataCell(Text(record[3])),
+              DataCell(Text(record[4])),
+              DataCell(Text(record[5])),
             ]);
           }).toList(),
         ),
@@ -291,15 +320,24 @@ class _AttendancePageState extends State<AttendancePage> {
               child: DataTable(
                 columns: const [
                   DataColumn(label: Text('User', style: TextStyle(fontWeight: FontWeight.bold))),
-                  DataColumn(label: Text('Scan In', style: TextStyle(fontWeight: FontWeight.bold))),
-                  DataColumn(label: Text('Scan Out', style: TextStyle(fontWeight: FontWeight.bold))),
+                  DataColumn(label: Text('Normal In', style: TextStyle(fontWeight: FontWeight.bold))),
+                  DataColumn(label: Text('Lunch Out', style: TextStyle(fontWeight: FontWeight.bold))),
+                  DataColumn(label: Text('Lunch In', style: TextStyle(fontWeight: FontWeight.bold))),
+                  DataColumn(label: Text('Normal Out', style: TextStyle(fontWeight: FontWeight.bold))),
+                  DataColumn(label: Text('OT In', style: TextStyle(fontWeight: FontWeight.bold))),
+                  DataColumn(label: Text('OT Out', style: TextStyle(fontWeight: FontWeight.bold))),
                 ],
                 rows: usersToShow.map((uid) {
-                  final record = attendanceMap[uid]?[date]?.split('|') ?? ['N/A', 'N/A'];
+                  final record = attendanceMap[uid]?[date]?.split('|') ??
+                      ['N/A', 'N/A', 'N/A', 'N/A', 'N/A', 'N/A'];
                   return DataRow(cells: [
                     DataCell(Text(userNames[uid]!)),
                     DataCell(Text(record[0])),
                     DataCell(Text(record[1])),
+                    DataCell(Text(record[2])),
+                    DataCell(Text(record[3])),
+                    DataCell(Text(record[4])),
+                    DataCell(Text(record[5])),
                   ]);
                 }).toList(),
               ),
