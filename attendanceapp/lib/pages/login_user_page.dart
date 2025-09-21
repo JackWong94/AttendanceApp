@@ -111,7 +111,7 @@ class _LoginUserPageState extends State<LoginUserPage> with RouteAware {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Attendance App")),
+      appBar: AppBar(title: const Text("Welcome To ")),
       endDrawer: Drawer(
         child: ListView(
           padding: EdgeInsets.zero,
