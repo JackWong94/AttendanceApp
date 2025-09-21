@@ -6,7 +6,7 @@ import '../services/date_service.dart';
 import '../services/user_model_service.dart';
 import '../services/attendance_model_service.dart';
 import '../services/attendance_service.dart';
-import '../models/user_model.dart';
+import '../models/attendance_model.dart';
 
 enum FilterType { day, month }
 
@@ -66,45 +66,46 @@ class _AttendancePageState extends State<AttendancePage> {
 
     Map<String, Map<String, String>> newMap = {};
 
+    // Initialize map for all users
+    for (var uid in userNames.keys) {
+      newMap[uid] = {};
+      int days = DateService.getDaysInMonth(selectedDate.year, selectedDate.month);
+      for (int i = 1; i <= days; i++) {
+        final day = DateTime(selectedDate.year, selectedDate.month, i);
+        newMap[uid]![DateService.toStorageDate(day)] = 'N/A|N/A|N/A|N/A|N/A|N/A';
+      }
+    }
+
+    // Fetch attendances
+    List<Attendance> allAttendances;
     if (selectedFilter == FilterType.day) {
+      allAttendances = [];
       final dateStr = DateService.toStorageDate(selectedDate);
-
-      for (var userId in userNames.keys) {
-        final user = await UserModelService.instance.getUserById(userId);
-        if (user == null) continue;
-
-        final record = await _attendanceService.fetchAttendance(user: user, date: dateStr);
-        newMap[userId] = {
-          dateStr:
-          '${record['normalIn'] ?? 'N/A'}|${record['lunchOut'] ?? 'N/A'}|${record['lunchIn'] ?? 'N/A'}|${record['normalOut'] ?? 'N/A'}|${record['otIn'] ?? 'N/A'}|${record['otOut'] ?? 'N/A'}',
-        };
+      for (var uid in userNames.keys) {
+        final record = await AttendanceModelService.instance.fetchAttendanceForDate(
+          userId: uid,
+          date: dateStr,
+        );
+        if (record != null) allAttendances.add(record);
       }
     } else {
-      final allAttendances = await AttendanceModelService.instance
+      allAttendances = await AttendanceModelService.instance
           .fetchAttendanceForMonthAllUsers(startDate: startOfMonth, endDate: endOfMonth);
+    }
 
-      for (var uid in userNames.keys) {
-        newMap[uid] = {};
-        for (int i = 1; i <= DateService.getDaysInMonth(selectedDate.year, selectedDate.month); i++) {
-          final day = DateTime(selectedDate.year, selectedDate.month, i);
-          newMap[uid]![DateService.toStorageDate(day)] = 'N/A|N/A|N/A|N/A|N/A|N/A';
-        }
-      }
+    // Fill in actual data
+    final ams = AttendanceModelService.instance;
+    for (var att in allAttendances) {
+      final uid = att.userRef.id;
+      if (!newMap.containsKey(uid)) continue;
 
-      for (var att in allAttendances) {
-        final uid = att.userRef.id;
-        if (!newMap.containsKey(uid)) continue;
-
-        final ams = AttendanceModelService.instance;
-
-        newMap[uid]![att.date] =
-        '${ams.getScanInByType(att, ScanType.normal) != null ? DateService.toDisplayTime(ams.getScanInByType(att, ScanType.normal)!) : 'N/A'}|'
-            '${ams.getScanOutByType(att, ScanType.lunch) != null ? DateService.toDisplayTime(ams.getScanOutByType(att, ScanType.lunch)!) : 'N/A'}|'
-            '${ams.getScanInByType(att, ScanType.lunch) != null ? DateService.toDisplayTime(ams.getScanInByType(att, ScanType.lunch)!) : 'N/A'}|'
-            '${ams.getScanOutByType(att, ScanType.normal) != null ? DateService.toDisplayTime(ams.getScanOutByType(att, ScanType.normal)!) : 'N/A'}|'
-            '${ams.getScanInByType(att, ScanType.ot) != null ? DateService.toDisplayTime(ams.getScanInByType(att, ScanType.ot)!) : 'N/A'}|'
-            '${ams.getScanOutByType(att, ScanType.ot) != null ? DateService.toDisplayTime(ams.getScanOutByType(att, ScanType.ot)!) : 'N/A'}';
-      }
+      newMap[uid]![att.date] =
+      '${ams.getScanInByType(att, ScanType.normal) != null ? DateService.toDisplayTime(ams.getScanInByType(att, ScanType.normal)!) : 'N/A'}|'
+          '${ams.getScanOutByType(att, ScanType.lunch) != null ? DateService.toDisplayTime(ams.getScanOutByType(att, ScanType.lunch)!) : 'N/A'}|'
+          '${ams.getScanInByType(att, ScanType.lunch) != null ? DateService.toDisplayTime(ams.getScanInByType(att, ScanType.lunch)!) : 'N/A'}|'
+          '${ams.getScanOutByType(att, ScanType.normal) != null ? DateService.toDisplayTime(ams.getScanOutByType(att, ScanType.normal)!) : 'N/A'}|'
+          '${ams.getScanInByType(att, ScanType.ot) != null ? DateService.toDisplayTime(ams.getScanInByType(att, ScanType.ot)!) : 'N/A'}|'
+          '${ams.getScanOutByType(att, ScanType.ot) != null ? DateService.toDisplayTime(ams.getScanOutByType(att, ScanType.ot)!) : 'N/A'}';
     }
 
     setState(() {
