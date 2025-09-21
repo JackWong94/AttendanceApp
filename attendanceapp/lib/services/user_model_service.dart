@@ -14,7 +14,12 @@ class UserModelService {
 
   /// Initialize singleton with tenantId
   static void init({required String tenantId}) {
-    _instance ??= UserModelService._internal(tenantId);
+    _instance = UserModelService._internal(tenantId); // overwrite old instance
+  }
+
+  /// Clear instance (call on logout)
+  static void clear() {
+    _instance = null;
   }
 
   /// Get singleton instance
@@ -54,6 +59,7 @@ class UserModelService {
     final doc = await _usersRef.doc(employeeId).get();
     return doc.exists;
   }
+
   DocumentReference<Map<String, dynamic>> getUserDocRef(String userId) {
     return _usersRef.doc(userId);
   }
