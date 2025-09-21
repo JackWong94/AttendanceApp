@@ -3,18 +3,66 @@ import 'dart:html' as html;
 import '../services/date_service.dart';
 
 class ExportExcelService {
-  /// Export attendance map to Excel
-  /// [attendanceMap] format: {userId: {date: "normalIn|lunchOut|lunchIn|normalOut|otIn|otOut"}}
-  /// [userNames] format: {userId: userName}
-  /// [selectedUserId] optional: if provided, only export that user
-  /// [selectedDate] for naming the file
-  /// [isDay] determines whether the export is for a day or a month
-  static void exportAttendance({
+  /// Export single day attendance (all users in 1 sheet)
+  static void exportDayAttendance({
     required Map<String, Map<String, String>> attendanceMap,
     required Map<String, String> userNames,
-    String? selectedUserId,
     required DateTime selectedDate,
-    required bool isDay,
+    String? selectedUserId,
+  }) {
+    final excel = Excel.createExcel();
+    excel.delete('Sheet1');
+    final sheet = excel['Attendance'];
+
+    // Add header
+    sheet.appendRow([
+      'User',
+      'Normal In',
+      'Lunch Out',
+      'Lunch In',
+      'Normal Out',
+      'OT In',
+      'OT Out'
+    ]);
+
+    final usersToExport = selectedUserId != null ? [selectedUserId] : userNames.keys.toList();
+
+    final dateStr = DateService.toStorageDate(selectedDate);
+
+    for (var uid in usersToExport) {
+      final record = attendanceMap[uid]?[dateStr]?.split('|') ??
+          ['N/A', 'N/A', 'N/A', 'N/A', 'N/A', 'N/A'];
+      sheet.appendRow([
+        userNames[uid] ?? uid,
+        record[0],
+        record[1],
+        record[2],
+        record[3],
+        record[4],
+        record[5],
+      ]);
+    }
+
+    final fileBytes = excel.encode();
+    if (fileBytes == null) return;
+
+    final blob = html.Blob([fileBytes]);
+    final url = html.Url.createObjectUrlFromBlob(blob);
+    final anchor = html.AnchorElement(href: url)
+      ..setAttribute(
+        'download',
+        'attendance-${DateService.toStorageDate(selectedDate)}.xlsx',
+      )
+      ..click();
+    html.Url.revokeObjectUrl(url);
+  }
+
+  /// Export monthly attendance (fallback original logic)
+  static void exportMonthAttendance({
+    required Map<String, Map<String, String>> attendanceMap,
+    required Map<String, String> userNames,
+    DateTime? selectedDate,
+    String? selectedUserId,
   }) {
     final excel = Excel.createExcel();
     excel.delete('Sheet1');
@@ -24,8 +72,6 @@ class ExportExcelService {
     for (var uid in usersToExport) {
       final sheetName = userNames[uid] ?? uid;
       final sheet = excel[sheetName];
-
-      // Header row
       sheet.appendRow([
         'Date',
         'Normal In',
@@ -51,7 +97,6 @@ class ExportExcelService {
       }
     }
 
-    // Encode and trigger download
     final fileBytes = excel.encode();
     if (fileBytes == null) return;
 
@@ -60,9 +105,9 @@ class ExportExcelService {
     final anchor = html.AnchorElement(href: url)
       ..setAttribute(
         'download',
-        isDay
-            ? 'attendance-${DateService.toStorageDate(selectedDate)}.xlsx'
-            : 'attendance-${DateService.toMonthString(selectedDate)}.xlsx',
+        selectedDate != null
+            ? 'attendance-${DateService.toMonthString(selectedDate)}.xlsx'
+            : 'attendance.xlsx',
       )
       ..click();
     html.Url.revokeObjectUrl(url);

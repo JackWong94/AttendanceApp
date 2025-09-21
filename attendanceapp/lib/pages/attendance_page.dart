@@ -120,14 +120,23 @@ class _AttendancePageState extends State<AttendancePage> {
     await _loadAttendance();
     setState(() => loading = false);
 
-    ExportExcelService.exportAttendance(
-      attendanceMap: attendanceMap,
-      userNames: userNames,
-      selectedUserId: selectedUserId,
-      selectedDate: selectedDate,
-      isDay: selectedFilter == FilterType.day,
-    );
+    if (selectedFilter == FilterType.day) {
+      ExportExcelService.exportDayAttendance(
+        attendanceMap: attendanceMap,
+        userNames: userNames,
+        selectedDate: selectedDate,
+        selectedUserId: selectedUserId,
+      );
+    } else {
+      ExportExcelService.exportMonthAttendance(
+        attendanceMap: attendanceMap,
+        userNames: userNames,
+        selectedDate: selectedDate,
+        selectedUserId: selectedUserId,
+      );
+    }
   }
+
 
   Future<void> _pickDateOrMonth() async {
     if (selectedFilter == FilterType.day) {
