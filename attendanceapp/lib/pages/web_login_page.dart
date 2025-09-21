@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:attendanceapp/pages/login_user_page.dart';
 import 'package:attendanceapp/services/authentication_service.dart';
 import 'package:attendanceapp/services/user_model_service.dart';
@@ -20,6 +21,24 @@ class _WebLoginPageState extends State<WebLoginPage> {
   final AuthenticationService _authService = AuthenticationService();
 
   bool _isLoading = false;
+  bool _checkingSession = true; // ✅ show loading screen while checking saved login
+
+  @override
+  void initState() {
+    super.initState();
+    _checkRememberedLogin();
+  }
+
+  Future<void> _checkRememberedLogin() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      // Already logged in → continue setup flow
+      await _continueAfterLogin(user.email!);
+    } else {
+      // No remembered login → show login form
+      setState(() => _checkingSession = false);
+    }
+  }
 
   Future<void> _login() async {
     if (!_formKey.currentState!.validate()) return;
@@ -34,31 +53,7 @@ class _WebLoginPageState extends State<WebLoginPage> {
       );
 
       final email = _emailController.text.trim();
-
-      // 2️⃣ Fetch tenant object from TenantModelService
-      final tenant = await TenantModelService.instance.getTenantByEmail(email);
-      if (tenant == null) {
-        throw Exception("No tenant found for this user");
-      }
-
-      // ✅ Save current tenant globally
-      TenantModelService.instance.setCurrentTenant(tenant);
-
-      // 3️⃣ Initialize UserModelService with tenantId
-      UserModelService.init(tenantId: tenant.tenantId);
-
-      // 4️⃣ Initialize camera & face recognition
-      await CameraService().initCamera(forceReinitOnWeb: true);
-      await FaceModelService.initialize();
-      await FaceModelService.warmUp();
-
-      // 5️⃣ Navigate to main page
-      if (mounted) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const LoginUserPage()),
-        );
-      }
+      await _continueAfterLogin(email);
     } catch (e) {
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text("Login failed: $e")));
@@ -67,16 +62,55 @@ class _WebLoginPageState extends State<WebLoginPage> {
     }
   }
 
+  Future<void> _continueAfterLogin(String email) async {
+    try {
+      // 2️⃣ Fetch tenant object
+      final tenant = await TenantModelService.instance.getTenantByEmail(email);
+      if (tenant == null) throw Exception("No tenant found for this user");
+
+      TenantModelService.instance.setCurrentTenant(tenant);
+
+      // 3️⃣ Initialize user service
+      UserModelService.init(tenantId: tenant.tenantId);
+
+      // 4️⃣ Init camera & face recognition
+      await CameraService().initCamera(forceReinitOnWeb: true);
+      await FaceModelService.initialize();
+      await FaceModelService.warmUp();
+
+      // 5️⃣ Navigate
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const LoginUserPage()),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Setup failed after login: $e")),
+      );
+      setState(() => _checkingSession = false); // go back to login form
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
 
+    // ✅ 1. Show a full-screen loading spinner if still checking session
+    if (_checkingSession) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    // ✅ 2. Otherwise show login form
     return Scaffold(
       body: Center(
         child: SingleChildScrollView(
           child: Padding(
             padding: EdgeInsets.symmetric(
-              horizontal: screenWidth * 0.05, // 5% padding from left and right
+              horizontal: screenWidth * 0.05,
               vertical: 32,
             ),
             child: Container(
@@ -85,7 +119,9 @@ class _WebLoginPageState extends State<WebLoginPage> {
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(12),
-                boxShadow: const [BoxShadow(blurRadius: 10, color: Colors.black12)],
+                boxShadow: const [
+                  BoxShadow(blurRadius: 10, color: Colors.black12)
+                ],
               ),
               child: Form(
                 key: _formKey,
@@ -94,24 +130,32 @@ class _WebLoginPageState extends State<WebLoginPage> {
                   children: [
                     const Text(
                       "Admin Login",
-                      style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                      style:
+                      TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 24),
                     TextFormField(
                       controller: _emailController,
                       decoration: const InputDecoration(
-                          labelText: "Email", border: OutlineInputBorder()),
-                      validator: (val) =>
-                      val == null || !val.contains("@") ? "Enter a valid email" : null,
+                        labelText: "Email",
+                        border: OutlineInputBorder(),
+                      ),
+                      validator: (val) => val == null || !val.contains("@")
+                          ? "Enter a valid email"
+                          : null,
                     ),
                     const SizedBox(height: 16),
                     TextFormField(
                       controller: _passwordController,
                       obscureText: true,
                       decoration: const InputDecoration(
-                          labelText: "Password", border: OutlineInputBorder()),
+                        labelText: "Password",
+                        border: OutlineInputBorder(),
+                      ),
                       validator: (val) =>
-                      val == null || val.length < 6 ? "Password too short" : null,
+                      val == null || val.length < 6
+                          ? "Password too short"
+                          : null,
                     ),
                     const SizedBox(height: 24),
                     _isLoading
