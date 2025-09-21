@@ -13,6 +13,21 @@ import '../main.dart'; // routeObserver
 import 'package:camera/camera.dart';
 import 'package:attendanceapp/services/tenant_model_service.dart';
 
+enum ScanType { normal, lunch, ot }
+
+extension ScanTypeName on ScanType {
+  String get displayName {
+    switch (this) {
+      case ScanType.normal:
+        return "";
+      case ScanType.lunch:
+        return " - Lunch";
+      case ScanType.ot:
+        return " - OT";
+    }
+  }
+}
+
 class LoginUserPage extends StatefulWidget {
   const LoginUserPage({super.key});
 
@@ -26,6 +41,9 @@ class _LoginUserPageState extends State<LoginUserPage> with RouteAware {
 
   bool _cameraTimedOut = false;
   Timer? _cameraTimer;
+  OverlayEntry? _overlayEntry;
+
+  UserModel? _detectedUser;
 
   @override
   void initState() {
@@ -36,7 +54,6 @@ class _LoginUserPageState extends State<LoginUserPage> with RouteAware {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // Subscribe to route changes
     routeObserver.subscribe(this, ModalRoute.of(context)!);
   }
 
@@ -44,25 +61,22 @@ class _LoginUserPageState extends State<LoginUserPage> with RouteAware {
   void dispose() {
     _cameraTimer?.cancel();
     routeObserver.unsubscribe(this);
+    _removeOverlay();
     super.dispose();
   }
 
-  /// Refresh camera when returning to this page
   @override
   void didPopNext() {
     _initCamera();
     setState(() {});
   }
 
-  /// Initialize camera with 1-minute fallback timer
   void _initCamera() {
     _cameraTimedOut = false;
-
     _cameraService.initCamera(forceReinitOnWeb: true).then((_) {
       if (mounted) setState(() {});
     });
 
-    // Cancel previous timer if any
     _cameraTimer?.cancel();
     _cameraTimer = Timer(const Duration(minutes: 1), () {
       if (mounted && !_cameraService.isInitialized) {
@@ -73,40 +87,108 @@ class _LoginUserPageState extends State<LoginUserPage> with RouteAware {
     });
   }
 
-  Future<void> _handleScan({required bool isScanIn}) async {
+  Future<UserModel?> _detectPerson() async {
     try {
       if (!_cameraService.isInitialized) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Camera not ready")),
         );
-        return;
+        return null;
       }
 
       final picture = await _cameraService.controller!.takePicture();
       final bytes = await picture.readAsBytes();
 
-      final UserModel? user = await FaceRecognitionService.recognizeUser(bytes);
+      final user = await FaceRecognitionService.recognizeUser(bytes);
       if (user == null) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("❌ Face not recognized")),
         );
-        return;
+        return null;
       }
-
-      await _attendanceService.scanUser(user: user, isScanIn: isScanIn);
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            "✅ ${user.name} ${isScanIn ? 'scanned in' : 'scanned out'} successfully",
-          ),
-        ),
-      );
+      return user;
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error during scan: $e")),
+        SnackBar(content: Text("Error during detection: $e")),
       );
+      return null;
     }
+  }
+
+  void _showScanOptionsOverlay({required bool isScanIn, required UserModel user}) {
+    _overlayEntry = OverlayEntry(
+      builder: (context) => Positioned.fill(
+        child: Material(
+          color: Colors.black54,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                "Hello, ${user.name}",
+                style: const TextStyle(color: Colors.white, fontSize: 24),
+              ),
+              const SizedBox(height: 20),
+              ...ScanType.values.map((type) {
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      minimumSize: const Size(200, 60),
+                      textStyle: const TextStyle(fontSize: 18),
+                    ),
+                    onPressed: () async {
+                      _removeOverlay();
+                      await _handleScan(user: user, isScanIn: isScanIn, scanType: type);
+                    },
+                    child: Text("${isScanIn ? 'Scan In' : 'Scan Out'} ${type.displayName}"),
+                  ),
+                );
+              }).toList(),
+              const SizedBox(height: 20),
+              TextButton(
+                onPressed: _removeOverlay,
+                child: const Text("Cancel", style: TextStyle(color: Colors.white)),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    Overlay.of(context).insert(_overlayEntry!);
+  }
+
+  void _removeOverlay() {
+    _overlayEntry?.remove();
+    _overlayEntry = null;
+  }
+
+  Future<void> _handleScanFlow({required bool isScanIn}) async {
+    final user = await _detectPerson();
+    if (user == null) return;
+    _detectedUser = user;
+    _showScanOptionsOverlay(isScanIn: isScanIn, user: user);
+  }
+
+  Future<void> _handleScan({
+    required UserModel user,
+    required bool isScanIn,
+    required ScanType scanType,
+  }) async {
+    // TODO: call your attendance service
+    /*await _attendanceService.scanUser(
+      user: user,
+      isScanIn: isScanIn,
+      scanType: scanType,
+    );*/
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          "✅ ${user.name} ${isScanIn ? 'scanned in' : 'scanned out'} (${scanType.displayName}) successfully",
+        ),
+      ),
+    );
   }
 
   @override
@@ -185,13 +267,13 @@ class _LoginUserPageState extends State<LoginUserPage> with RouteAware {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     ElevatedButton.icon(
-                      onPressed: () => _handleScan(isScanIn: true),
+                      onPressed: () => _handleScanFlow(isScanIn: true),
                       icon: const Icon(Icons.login),
                       label: const Text("Scan In"),
                     ),
-                    const SizedBox(width: 88),
+                    const SizedBox(width: 20),
                     ElevatedButton.icon(
-                      onPressed: () => _handleScan(isScanIn: false),
+                      onPressed: () => _handleScanFlow(isScanIn: false),
                       icon: const Icon(Icons.logout),
                       label: const Text("Scan Out"),
                     ),
@@ -201,34 +283,34 @@ class _LoginUserPageState extends State<LoginUserPage> with RouteAware {
             ),
           ),
           Expanded(
-            child: Center(
-              child: FutureBuilder<void>(
-                future: _cameraService.initializeFuture,
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    // Still initializing → show loading
-                    return const Center(child: CircularProgressIndicator());
-                  } else if (snapshot.hasError) {
-                    // Initialization failed → show placeholder
-                    return const CameraPlaceholder(
-                      message: "Camera error or not supported on this platform",
-                    );
-                  } else if (_cameraService.controller != null &&
-                      _cameraService.controller!.value.isInitialized) {
-                    // Camera ready → show preview
-                    return Padding(
-                      padding: const EdgeInsets.all(24.0),
-                      child: AspectRatio(
-                        aspectRatio: _cameraService.controller!.value.aspectRatio,
-                        child: CameraPreview(_cameraService.controller!),
-                      ),
-                    );
-                  } else {
-                    // Camera still null or unavailable → show loading
-                    return const Center(child: CircularProgressIndicator());
-                  }
-                },
-              ),
+          child: Center(
+            child: FutureBuilder<void>(
+              future: _cameraService.initializeFuture,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  // Still initializing → show loading
+                  return const Center(child: CircularProgressIndicator());
+                } else if (snapshot.hasError) {
+                  // Initialization failed → show placeholder
+                  return const CameraPlaceholder(
+                    message: "Camera error or not supported on this platform",
+                  );
+                } else if (_cameraService.controller != null &&
+                    _cameraService.controller!.value.isInitialized) {
+                  // Camera ready → show preview
+                  return Padding(
+                    padding: const EdgeInsets.all(24.0),
+                    child: AspectRatio(
+                      aspectRatio: _cameraService.controller!.value.aspectRatio,
+                      child: CameraPreview(_cameraService.controller!),
+                    ),
+                  );
+                } else {
+                  // Camera still null or unavailable → show loading
+                  return const Center(child: CircularProgressIndicator());
+                }
+              },
+            ),
             ),
           ),
           const SizedBox(height: 30),
