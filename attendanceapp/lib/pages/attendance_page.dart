@@ -260,7 +260,17 @@ class _AttendancePageState extends State<AttendancePage> {
             final record = attendanceMap[uid]?[date]?.split('|') ??
                 ['N/A', 'N/A', 'N/A', 'N/A', 'N/A', 'N/A'];
             return DataRow(cells: [
-              DataCell(Text(userNames[uid]!)),
+              // User column with wrap
+              DataCell(
+                ConstrainedBox(
+                  constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.15),
+                  child: Text(
+                    userNames[uid]!,
+                    softWrap: true,
+                    overflow: TextOverflow.visible,
+                  ),
+                ),
+              ),
               DataCell(Text(record[0])),
               DataCell(Text(record[1])),
               DataCell(Text(record[2])),
@@ -302,7 +312,17 @@ class _AttendancePageState extends State<AttendancePage> {
                   final record = attendanceMap[uid]?[date]?.split('|') ??
                       ['N/A', 'N/A', 'N/A', 'N/A', 'N/A', 'N/A'];
                   return DataRow(cells: [
-                    DataCell(Text(userNames[uid]!)),
+                    // User column with wrap
+                    DataCell(
+                      ConstrainedBox(
+                        constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.15),
+                        child: Text(
+                          userNames[uid]!,
+                          softWrap: true,
+                          overflow: TextOverflow.visible,
+                        ),
+                      ),
+                    ),
                     DataCell(Text(record[0])),
                     DataCell(Text(record[1])),
                     DataCell(Text(record[2])),
