@@ -201,8 +201,9 @@ class _AttendancePageState extends State<AttendancePage> {
                         DropdownMenuItem(value: FilterType.day, child: Text("Day")),
                         DropdownMenuItem(value: FilterType.month, child: Text("Month")),
                       ],
-                      onChanged: (val) {
+                      onChanged: (val) async {
                         if (val != null) setState(() => selectedFilter = val);
+                        await _loadAttendance(); // <-- reload immediately
                       },
                     ),
                     ElevatedButton(
