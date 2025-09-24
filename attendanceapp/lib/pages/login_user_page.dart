@@ -105,6 +105,9 @@ class _LoginUserPageState extends State<LoginUserPage> with RouteAware {
     required UserModel user,
     required DateTime time,
   }) {
+    // Remove any previous overlay first
+    _removeOverlay();
+
     _overlayEntry = OverlayEntry(
       builder: (context) => Positioned.fill(
         child: GestureDetector(
@@ -113,7 +116,7 @@ class _LoginUserPageState extends State<LoginUserPage> with RouteAware {
             color: Colors.black54, // Full-screen semi-transparent background
             child: Center(
               child: FractionallySizedBox(
-                widthFactor: 0.6,  // Box width relative to screen
+                widthFactor: 0.6, // Box width relative to screen
                 child: Container(
                   padding: const EdgeInsets.all(24),
                   decoration: BoxDecoration(
@@ -152,6 +155,7 @@ class _LoginUserPageState extends State<LoginUserPage> with RouteAware {
 
     Overlay.of(context).insert(_overlayEntry!);
   }
+
 
 
 
