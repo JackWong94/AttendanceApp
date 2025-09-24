@@ -23,7 +23,7 @@ class LoginUserPage extends StatefulWidget {
 class _LoginUserPageState extends State<LoginUserPage> with RouteAware {
   final CameraService _cameraService = CameraService();
   final AttendanceService _attendanceService = AttendanceService();
-
+  bool _scanInProgress = false;
   bool _cameraTimedOut = false;
   Timer? _cameraTimer;
   OverlayEntry? _overlayEntry;
@@ -165,10 +165,16 @@ class _LoginUserPageState extends State<LoginUserPage> with RouteAware {
   }
 
   Future<void> _handleScanFlow({required bool isScanIn}) async {
-    final user = await _detectPerson();
-    if (user == null) return;
-    _detectedUser = user;
-    await _handleScan(user: user, isScanIn: isScanIn);
+    if (_scanInProgress) return; // Prevent concurrent scans
+    _scanInProgress = true;
+    try {
+      final user = await _detectPerson();
+      if (user == null) return;
+      _detectedUser = user;
+      await _handleScan(user: user, isScanIn: isScanIn);
+    } finally {
+      _scanInProgress = false; // Always reset
+    }
   }
 
   Future<void> _handleScan({
