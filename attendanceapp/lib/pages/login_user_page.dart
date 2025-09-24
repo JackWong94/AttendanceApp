@@ -110,26 +110,39 @@ class _LoginUserPageState extends State<LoginUserPage> with RouteAware {
         child: GestureDetector(
           onTap: _removeOverlay,
           child: Material(
-            color: Colors.black54,
+            color: Colors.black54, // Full-screen semi-transparent background
             child: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    "Hello, ${user.name}",
-                    style: const TextStyle(color: Colors.white, fontSize: 24),
+              child: FractionallySizedBox(
+                widthFactor: 0.6,  // Box width relative to screen
+                child: Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: Colors.black87, // Slightly darker box
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                  const SizedBox(height: 20),
-                  Text(
-                    "${isScanIn ? 'Signed In' : 'Signed Out'} at ${time.toLocal()}",
-                    style: const TextStyle(color: Colors.white, fontSize: 20),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        "Hello, ${user.name}",
+                        style: const TextStyle(color: Colors.white, fontSize: 24),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 20),
+                      Text(
+                        "${isScanIn ? 'Signed In' : 'Signed Out'} at ${time.toLocal()}",
+                        style: const TextStyle(color: Colors.white, fontSize: 20),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 20),
+                      const Text(
+                        "Tap anywhere to close",
+                        style: TextStyle(color: Colors.white70, fontSize: 16),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 20),
-                  const Text(
-                    "Tap anywhere to close",
-                    style: TextStyle(color: Colors.white70, fontSize: 16),
-                  ),
-                ],
+                ),
               ),
             ),
           ),
@@ -139,6 +152,8 @@ class _LoginUserPageState extends State<LoginUserPage> with RouteAware {
 
     Overlay.of(context).insert(_overlayEntry!);
   }
+
+
 
   void _removeOverlay() {
     _overlayEntry?.remove();
