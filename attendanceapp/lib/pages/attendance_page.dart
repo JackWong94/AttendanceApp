@@ -125,8 +125,6 @@ class _AttendancePageState extends State<AttendancePage> {
     });
   }
 
-
-
   Future<void> _exportExcel() async {
     setState(() => loading = true);
     await _loadAttendance();
@@ -148,7 +146,6 @@ class _AttendancePageState extends State<AttendancePage> {
       );
     }
   }
-
 
   Future<void> _pickDateOrMonth() async {
     if (selectedFilter == FilterType.day) {
@@ -200,8 +197,10 @@ class _AttendancePageState extends State<AttendancePage> {
                     DropdownButton<FilterType>(
                       value: selectedFilter,
                       items: const [
-                        DropdownMenuItem(value: FilterType.day, child: Text("Day")),
-                        DropdownMenuItem(value: FilterType.month, child: Text("Month")),
+                        DropdownMenuItem(
+                            value: FilterType.day, child: Text("Day")),
+                        DropdownMenuItem(
+                            value: FilterType.month, child: Text("Month")),
                       ],
                       onChanged: (val) async {
                         if (val != null) setState(() => selectedFilter = val);
@@ -214,20 +213,26 @@ class _AttendancePageState extends State<AttendancePage> {
                           ? DateService.toStorageDate(selectedDate)
                           : DateService.toMonthString(selectedDate)),
                     ),
-                    DropdownButton<String>(
+                    DropdownButton<String?>(
                       value: selectedUserId,
                       hint: const Text("All Users"),
                       items: [
-                        const DropdownMenuItem(value: null, child: Text("All Users")),
+                        const DropdownMenuItem<String?>(
+                            value: null, child: Text("All Users")),
                         ...userNames.entries.map((e) => DropdownMenuItem(
                           value: e.key,
                           child: Text(e.value),
                         )),
                       ],
-                      onChanged: (val) => setState(() => selectedUserId = val),
+                      onChanged: (val) =>
+                          setState(() => selectedUserId = val),
                     ),
-                    ElevatedButton(onPressed: _loadAttendance, child: const Text("Update")),
-                    ElevatedButton(onPressed: _exportExcel, child: const Text("Export Excel")),
+                    ElevatedButton(
+                        onPressed: _loadAttendance,
+                        child: const Text("Update")),
+                    ElevatedButton(
+                        onPressed: _exportExcel,
+                        child: const Text("Export Excel")),
                   ],
                 ),
               ),
@@ -239,7 +244,9 @@ class _AttendancePageState extends State<AttendancePage> {
                   child: Column(
                     children: selectedFilter == FilterType.day
                         ? [_buildDayTable()]
-                        : sortedDates.map((d) => _buildMonthTable(d)).toList(),
+                        : sortedDates
+                        .map((d) => _buildMonthTable(d))
+                        .toList(),
                   ),
                 ),
               ),
@@ -252,7 +259,8 @@ class _AttendancePageState extends State<AttendancePage> {
 
   Widget _buildDayTable() {
     final date = DateService.toStorageDate(selectedDate);
-    final usersToShow = selectedUserId != null ? [selectedUserId!] : userNames.keys.toList();
+    final usersToShow =
+    selectedUserId != null ? [selectedUserId!] : userNames.keys.toList();
 
     return Card(
       margin: const EdgeInsets.all(16),
@@ -260,13 +268,27 @@ class _AttendancePageState extends State<AttendancePage> {
         scrollDirection: Axis.horizontal,
         child: DataTable(
           columns: const [
-            DataColumn(label: Text('User', style: TextStyle(fontWeight: FontWeight.bold))),
-            DataColumn(label: Text('Normal In', style: TextStyle(fontWeight: FontWeight.bold))),
-            DataColumn(label: Text('Lunch Out', style: TextStyle(fontWeight: FontWeight.bold))),
-            DataColumn(label: Text('Lunch In', style: TextStyle(fontWeight: FontWeight.bold))),
-            DataColumn(label: Text('Normal Out', style: TextStyle(fontWeight: FontWeight.bold))),
-            DataColumn(label: Text('OT In', style: TextStyle(fontWeight: FontWeight.bold))),
-            DataColumn(label: Text('OT Out', style: TextStyle(fontWeight: FontWeight.bold))),
+            DataColumn(
+                label: Text('User',
+                    style: TextStyle(fontWeight: FontWeight.bold))),
+            DataColumn(
+                label: Text('Normal In',
+                    style: TextStyle(fontWeight: FontWeight.bold))),
+            DataColumn(
+                label: Text('Lunch Out',
+                    style: TextStyle(fontWeight: FontWeight.bold))),
+            DataColumn(
+                label: Text('Lunch In',
+                    style: TextStyle(fontWeight: FontWeight.bold))),
+            DataColumn(
+                label: Text('Normal Out',
+                    style: TextStyle(fontWeight: FontWeight.bold))),
+            DataColumn(
+                label: Text('OT In',
+                    style: TextStyle(fontWeight: FontWeight.bold))),
+            DataColumn(
+                label: Text('OT Out',
+                    style: TextStyle(fontWeight: FontWeight.bold))),
           ],
           rows: usersToShow.map((uid) {
             final record = attendanceMap[uid]?[date]?.split('|') ??
@@ -275,7 +297,8 @@ class _AttendancePageState extends State<AttendancePage> {
               // User column with wrap
               DataCell(
                 ConstrainedBox(
-                  constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.15),
+                  constraints: BoxConstraints(
+                      maxWidth: MediaQuery.of(context).size.width * 0.15),
                   child: Text(
                     userNames[uid]!,
                     softWrap: true,
@@ -297,7 +320,8 @@ class _AttendancePageState extends State<AttendancePage> {
   }
 
   Widget _buildMonthTable(String date) {
-    final usersToShow = selectedUserId != null ? [selectedUserId!] : userNames.keys.toList();
+    final usersToShow =
+    selectedUserId != null ? [selectedUserId!] : userNames.keys.toList();
 
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
@@ -306,19 +330,35 @@ class _AttendancePageState extends State<AttendancePage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(date, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            Text(date,
+                style:
+                const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             const SizedBox(height: 8),
             SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: DataTable(
                 columns: const [
-                  DataColumn(label: Text('User', style: TextStyle(fontWeight: FontWeight.bold))),
-                  DataColumn(label: Text('Normal In', style: TextStyle(fontWeight: FontWeight.bold))),
-                  DataColumn(label: Text('Lunch Out', style: TextStyle(fontWeight: FontWeight.bold))),
-                  DataColumn(label: Text('Lunch In', style: TextStyle(fontWeight: FontWeight.bold))),
-                  DataColumn(label: Text('Normal Out', style: TextStyle(fontWeight: FontWeight.bold))),
-                  DataColumn(label: Text('OT In', style: TextStyle(fontWeight: FontWeight.bold))),
-                  DataColumn(label: Text('OT Out', style: TextStyle(fontWeight: FontWeight.bold))),
+                  DataColumn(
+                      label: Text('User',
+                          style: TextStyle(fontWeight: FontWeight.bold))),
+                  DataColumn(
+                      label: Text('Normal In',
+                          style: TextStyle(fontWeight: FontWeight.bold))),
+                  DataColumn(
+                      label: Text('Lunch Out',
+                          style: TextStyle(fontWeight: FontWeight.bold))),
+                  DataColumn(
+                      label: Text('Lunch In',
+                          style: TextStyle(fontWeight: FontWeight.bold))),
+                  DataColumn(
+                      label: Text('Normal Out',
+                          style: TextStyle(fontWeight: FontWeight.bold))),
+                  DataColumn(
+                      label: Text('OT In',
+                          style: TextStyle(fontWeight: FontWeight.bold))),
+                  DataColumn(
+                      label: Text('OT Out',
+                          style: TextStyle(fontWeight: FontWeight.bold))),
                 ],
                 rows: usersToShow.map((uid) {
                   final record = attendanceMap[uid]?[date]?.split('|') ??
@@ -327,7 +367,8 @@ class _AttendancePageState extends State<AttendancePage> {
                     // User column with wrap
                     DataCell(
                       ConstrainedBox(
-                        constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.15),
+                        constraints: BoxConstraints(
+                            maxWidth: MediaQuery.of(context).size.width * 0.15),
                         child: Text(
                           userNames[uid]!,
                           softWrap: true,

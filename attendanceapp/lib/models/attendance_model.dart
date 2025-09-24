@@ -4,7 +4,10 @@ class ScanRecord {
   final DateTime time;
   final String imageUrl; // required since stored in Storage
 
-  ScanRecord({required this.time, required this.imageUrl});
+  ScanRecord({
+    required this.time,
+    required this.imageUrl,
+  });
 
   factory ScanRecord.fromMap(Map<String, dynamic> map) {
     return ScanRecord(
@@ -38,10 +41,22 @@ class Attendance {
   });
 
   factory Attendance.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
-    final data = doc.data()!;
+    final data = doc.data();
+    if (data == null) {
+      // Defensive fallback to prevent null crash
+      return Attendance(
+        id: doc.id,
+        userRef: FirebaseFirestore.instance.doc('users/unknown'),
+        date: '',
+        scanIns: [],
+        scanOuts: [],
+      );
+    }
+
     return Attendance(
       id: doc.id,
-      userRef: data['user'] as DocumentReference,
+      userRef: data['user'] as DocumentReference? ??
+          FirebaseFirestore.instance.doc('users/unknown'),
       date: data['date'] ?? '',
       scanIns: (data['scanIns'] as List? ?? [])
           .map((e) => ScanRecord.fromMap(Map<String, dynamic>.from(e)))

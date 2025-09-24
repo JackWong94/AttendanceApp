@@ -6,6 +6,25 @@ import '../services/date_service.dart';
 class AttendanceService {
   final AttendanceModelService _modelService = AttendanceModelService.instance;
 
+  /// Generate a deterministic or indexed docId
+  Future<String> _generateDocId(String dateKey, String userId) async {
+    String baseId = "${dateKey}_$userId";
+    String docId = baseId;
+
+    int counter = 1;
+    while (true) {
+      final exists = await _modelService.attendanceRef.doc(docId).get();
+
+      if (!exists.exists) {
+        break; // free ID found
+      }
+      counter++;
+      docId = "${baseId}_$counter";
+    }
+
+    return docId;
+  }
+
   /// Add a scan-in
   Future<String> addScanIn({
     required String userId,
@@ -13,14 +32,13 @@ class AttendanceService {
     required String url,
   }) async {
     final dateKey = DateService.toStorageDate(time);
-    final docId = "${userId}_$dateKey"; // unique ID per user per day
+    final docId = await _generateDocId(dateKey, userId);
 
     Attendance? attendance = await _modelService.fetchAttendanceForDate(
       userId: userId,
       date: dateKey,
     );
 
-    // Create new if not exist
     attendance ??= Attendance(
       id: docId,
       userRef: FirebaseFirestore.instance.collection("users").doc(userId),
@@ -48,14 +66,13 @@ class AttendanceService {
     required String url,
   }) async {
     final dateKey = DateService.toStorageDate(time);
-    final docId = "${userId}_$dateKey";
+    final docId = await _generateDocId(dateKey, userId);
 
     Attendance? attendance = await _modelService.fetchAttendanceForDate(
       userId: userId,
       date: dateKey,
     );
 
-    // Create new if not exist
     attendance ??= Attendance(
       id: docId,
       userRef: FirebaseFirestore.instance.collection("users").doc(userId),
@@ -86,12 +103,11 @@ class AttendanceService {
     return attendance.scanOuts.length > index ? attendance.scanOuts[index].time : null;
   }
 
-  /// Save attendance (new or existing)
+  /// Save attendance
   Future<void> saveAttendance(Attendance attendance) async {
     if (attendance.id.isEmpty) {
       throw Exception("Attendance must have a valid ID before saving");
     }
-    // Always update using deterministic ID
     await _modelService.setAttendance(attendance);
   }
 
