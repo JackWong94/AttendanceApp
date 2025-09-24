@@ -1,61 +1,63 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-class Attendance {
-  final String id; // Firestore document ID
-  final DocumentReference userRef; // Firestore reference to the user
-  final String userName;
-  final String date; // "yyyy-MM-dd" format
+class ScanRecord {
+  final DateTime time;
+  final String imageUrl; // required since stored in Storage
 
-  // Scan times
-  DateTime? scanIn;
-  DateTime? scanOut;
-  DateTime? scanInLunch;
-  DateTime? scanOutLunch;
-  DateTime? scanInOt;
-  DateTime? scanOutOt;
+  ScanRecord({required this.time, required this.imageUrl});
+
+  factory ScanRecord.fromMap(Map<String, dynamic> map) {
+    return ScanRecord(
+      time: (map['time'] as Timestamp).toDate(),
+      imageUrl: map['imageUrl'] ?? '',
+    );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'time': Timestamp.fromDate(time),
+      'imageUrl': imageUrl,
+    };
+  }
+}
+
+class Attendance {
+  final String id; // Firestore doc ID
+  final DocumentReference userRef; // Ref to user document
+  final String date; // "yyyy-MM-dd"
+
+  final List<ScanRecord> scanIns;
+  final List<ScanRecord> scanOuts;
 
   Attendance({
     required this.id,
     required this.userRef,
-    required this.userName,
     required this.date,
-    this.scanIn,
-    this.scanOut,
-    this.scanInLunch,
-    this.scanOutLunch,
-    this.scanInOt,
-    this.scanOutOt,
+    required this.scanIns,
+    required this.scanOuts,
   });
 
-  /// Convert Firestore document to Attendance object
   factory Attendance.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
     final data = doc.data()!;
     return Attendance(
       id: doc.id,
       userRef: data['user'] as DocumentReference,
-      userName: data['userName'] ?? '',
       date: data['date'] ?? '',
-      scanIn: data['scanIn'] != null ? (data['scanIn'] as Timestamp).toDate() : null,
-      scanOut: data['scanOut'] != null ? (data['scanOut'] as Timestamp).toDate() : null,
-      scanInLunch: data['scanInLunch'] != null ? (data['scanInLunch'] as Timestamp).toDate() : null,
-      scanOutLunch: data['scanOutLunch'] != null ? (data['scanOutLunch'] as Timestamp).toDate() : null,
-      scanInOt: data['scanInOt'] != null ? (data['scanInOt'] as Timestamp).toDate() : null,
-      scanOutOt: data['scanOutOt'] != null ? (data['scanOutOt'] as Timestamp).toDate() : null,
+      scanIns: (data['scanIns'] as List? ?? [])
+          .map((e) => ScanRecord.fromMap(Map<String, dynamic>.from(e)))
+          .toList(),
+      scanOuts: (data['scanOuts'] as List? ?? [])
+          .map((e) => ScanRecord.fromMap(Map<String, dynamic>.from(e)))
+          .toList(),
     );
   }
 
-  /// Convert Attendance object to Firestore map
   Map<String, dynamic> toMap() {
     return {
       'user': userRef,
-      'userName': userName,
       'date': date,
-      'scanIn': scanIn != null ? Timestamp.fromDate(scanIn!) : null,
-      'scanOut': scanOut != null ? Timestamp.fromDate(scanOut!) : null,
-      'scanInLunch': scanInLunch != null ? Timestamp.fromDate(scanInLunch!) : null,
-      'scanOutLunch': scanOutLunch != null ? Timestamp.fromDate(scanOutLunch!) : null,
-      'scanInOt': scanInOt != null ? Timestamp.fromDate(scanInOt!) : null,
-      'scanOutOt': scanOutOt != null ? Timestamp.fromDate(scanOutOt!) : null,
+      'scanIns': scanIns.map((r) => r.toMap()).toList(),
+      'scanOuts': scanOuts.map((r) => r.toMap()).toList(),
     };
   }
 }

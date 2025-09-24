@@ -12,20 +12,6 @@ import 'package:attendanceapp/models/user_model.dart';
 import '../main.dart'; // routeObserver
 import 'package:camera/camera.dart';
 import 'package:attendanceapp/services/tenant_model_service.dart';
-import 'package:attendanceapp/services/attendance_service.dart' show ScanType;
-
-extension ScanTypeName on ScanType {
-  String get displayName {
-    switch (this) {
-      case ScanType.normal:
-        return "Normal";
-      case ScanType.lunch:
-        return "Lunch";
-      case ScanType.ot:
-        return "OT";
-    }
-  }
-}
 
 class LoginUserPage extends StatefulWidget {
   const LoginUserPage({super.key});
@@ -114,41 +100,38 @@ class _LoginUserPageState extends State<LoginUserPage> with RouteAware {
     }
   }
 
-  void _showScanOptionsOverlay({required bool isScanIn, required UserModel user}) {
+  void _showScanOverlay({
+    required bool isScanIn,
+    required UserModel user,
+    required DateTime time,
+  }) {
     _overlayEntry = OverlayEntry(
       builder: (context) => Positioned.fill(
-        child: Material(
-          color: Colors.black54,
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                "Hello, ${user.name}",
-                style: const TextStyle(color: Colors.white, fontSize: 24),
-              ),
-              const SizedBox(height: 20),
-              ...ScanType.values.map((type) {
-                return Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      minimumSize: const Size(200, 60),
-                      textStyle: const TextStyle(fontSize: 18),
-                    ),
-                    onPressed: () async {
-                      _removeOverlay();
-                      await _handleScan(user: user, isScanIn: isScanIn, scanType: type);
-                    },
-                    child: Text("${isScanIn ? 'Scan In' : 'Scan Out'} ${type.displayName}"),
+        child: GestureDetector(
+          onTap: _removeOverlay,
+          child: Material(
+            color: Colors.black54,
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    "Hello, ${user.name}",
+                    style: const TextStyle(color: Colors.white, fontSize: 24),
                   ),
-                );
-              }).toList(),
-              const SizedBox(height: 20),
-              TextButton(
-                onPressed: _removeOverlay,
-                child: const Text("Cancel", style: TextStyle(color: Colors.white)),
+                  const SizedBox(height: 20),
+                  Text(
+                    "${isScanIn ? 'Signed In' : 'Signed Out'} at ${time.toLocal()}",
+                    style: const TextStyle(color: Colors.white, fontSize: 20),
+                  ),
+                  const SizedBox(height: 20),
+                  const Text(
+                    "Tap anywhere to close",
+                    style: TextStyle(color: Colors.white70, fontSize: 16),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
       ),
@@ -166,32 +149,45 @@ class _LoginUserPageState extends State<LoginUserPage> with RouteAware {
     final user = await _detectPerson();
     if (user == null) return;
     _detectedUser = user;
-    _showScanOptionsOverlay(isScanIn: isScanIn, user: user);
+    await _handleScan(user: user, isScanIn: isScanIn);
   }
 
   Future<void> _handleScan({
     required UserModel user,
     required bool isScanIn,
-    required ScanType scanType,
   }) async {
     try {
-      // Call your attendance service
-      final result = await _attendanceService.scanUser(
-        user: user,
-        isScanIn: isScanIn,
-        scanType: scanType,
+      final now = DateTime.now();
+
+      // Call attendance service
+      final message = isScanIn
+          ? await _attendanceService.addScanIn(
+        userId: user.id,
+        time: now,
+        url: "cameraImageUrl", // TODO: pass actual image URL if needed
+      )
+          : await _attendanceService.addScanOut(
+        userId: user.id,
+        time: now,
+        url: "cameraImageUrl",
       );
 
-      // Show message based on ScanResult
+      // Show overlay with greeting and time
+      _showScanOverlay(
+        isScanIn: isScanIn,
+        user: user,
+        time: now,
+      );
+
+      // Also show a quick snackbar
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(result.message),
-          backgroundColor: result.success ? Colors.green : Colors.red,
+          content: Text(message),
+          backgroundColor: message.startsWith("✅") ? Colors.green : Colors.red,
           duration: const Duration(seconds: 2),
         ),
       );
     } catch (e) {
-      // Catch unexpected errors
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text("❌ Error scanning attendance: $e"),
@@ -201,6 +197,7 @@ class _LoginUserPageState extends State<LoginUserPage> with RouteAware {
       );
     }
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -294,34 +291,34 @@ class _LoginUserPageState extends State<LoginUserPage> with RouteAware {
             ),
           ),
           Expanded(
-          child: Center(
-            child: FutureBuilder<void>(
-              future: _cameraService.initializeFuture,
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  // Still initializing → show loading
-                  return const Center(child: CircularProgressIndicator());
-                } else if (snapshot.hasError) {
-                  // Initialization failed → show placeholder
-                  return const CameraPlaceholder(
-                    message: "Camera error or not supported on this platform",
-                  );
-                } else if (_cameraService.controller != null &&
-                    _cameraService.controller!.value.isInitialized) {
-                  // Camera ready → show preview
-                  return Padding(
-                    padding: const EdgeInsets.all(24.0),
-                    child: AspectRatio(
-                      aspectRatio: _cameraService.controller!.value.aspectRatio,
-                      child: CameraPreview(_cameraService.controller!),
-                    ),
-                  );
-                } else {
-                  // Camera still null or unavailable → show loading
-                  return const Center(child: CircularProgressIndicator());
-                }
-              },
-            ),
+            child: Center(
+              child: FutureBuilder<void>(
+                future: _cameraService.initializeFuture,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    // Still initializing → show loading
+                    return const Center(child: CircularProgressIndicator());
+                  } else if (snapshot.hasError) {
+                    // Initialization failed → show placeholder
+                    return const CameraPlaceholder(
+                      message: "Camera error or not supported on this platform",
+                    );
+                  } else if (_cameraService.controller != null &&
+                      _cameraService.controller!.value.isInitialized) {
+                    // Camera ready → show preview
+                    return Padding(
+                      padding: const EdgeInsets.all(24.0),
+                      child: AspectRatio(
+                        aspectRatio: _cameraService.controller!.value.aspectRatio,
+                        child: CameraPreview(_cameraService.controller!),
+                      ),
+                    );
+                  } else {
+                    // Camera still null or unavailable → show loading
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                },
+              ),
             ),
           ),
           const SizedBox(height: 30),

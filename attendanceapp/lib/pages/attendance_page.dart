@@ -73,6 +73,7 @@ class _AttendancePageState extends State<AttendancePage> {
       int days = DateService.getDaysInMonth(selectedDate.year, selectedDate.month);
       for (int i = 1; i <= days; i++) {
         final day = DateTime(selectedDate.year, selectedDate.month, i);
+        // 3 ins + 3 outs
         newMap[uid]![DateService.toStorageDate(day)] = 'N/A|N/A|N/A|N/A|N/A|N/A';
       }
     }
@@ -95,18 +96,27 @@ class _AttendancePageState extends State<AttendancePage> {
     }
 
     // Fill in actual data
-    final ams = AttendanceModelService.instance;
     for (var att in allAttendances) {
       final uid = att.userRef.id;
       if (!newMap.containsKey(uid)) continue;
 
+      // ✅ Now att exists, so we can safely build ins/outs
+      final ins = List.generate(
+        3,
+            (i) => att.scanIns.length > i
+            ? DateService.toDisplayTime(att.scanIns[i].time)
+            : 'N/A',
+      );
+      final outs = List.generate(
+        3,
+            (i) => att.scanOuts.length > i
+            ? DateService.toDisplayTime(att.scanOuts[i].time)
+            : 'N/A',
+      );
+
+      // Pack into string (order: In1|Out1|In2|Out2|In3|Out3)
       newMap[uid]![att.date] =
-      '${ams.getScanInByType(att, ScanType.normal) != null ? DateService.toDisplayTime(ams.getScanInByType(att, ScanType.normal)!) : 'N/A'}|'
-          '${ams.getScanOutByType(att, ScanType.lunch) != null ? DateService.toDisplayTime(ams.getScanOutByType(att, ScanType.lunch)!) : 'N/A'}|'
-          '${ams.getScanInByType(att, ScanType.lunch) != null ? DateService.toDisplayTime(ams.getScanInByType(att, ScanType.lunch)!) : 'N/A'}|'
-          '${ams.getScanOutByType(att, ScanType.normal) != null ? DateService.toDisplayTime(ams.getScanOutByType(att, ScanType.normal)!) : 'N/A'}|'
-          '${ams.getScanInByType(att, ScanType.ot) != null ? DateService.toDisplayTime(ams.getScanInByType(att, ScanType.ot)!) : 'N/A'}|'
-          '${ams.getScanOutByType(att, ScanType.ot) != null ? DateService.toDisplayTime(ams.getScanOutByType(att, ScanType.ot)!) : 'N/A'}';
+      '${ins[0]}|${outs[0]}|${ins[1]}|${outs[1]}|${ins[2]}|${outs[2]}';
     }
 
     setState(() {
@@ -114,6 +124,8 @@ class _AttendancePageState extends State<AttendancePage> {
       loading = false;
     });
   }
+
+
 
   Future<void> _exportExcel() async {
     setState(() => loading = true);

@@ -1,147 +1,122 @@
-import 'user_model_service.dart';
-import 'attendance_model_service.dart';
-import '../models/user_model.dart';
 import '../models/attendance_model.dart';
-import 'date_service.dart';
-import 'package:attendanceapp/services/attendance_service.dart' show ScanType;
+import 'attendance_model_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../services/date_service.dart';
 
-/// Result object for scanning
-class ScanResult {
-  final bool success;
-  final String message;
-
-  ScanResult({required this.success, required this.message});
-}
-enum ScanType { normal, lunch, ot }
 class AttendanceService {
-  /// Scan user attendance (prevent repeated scan-in or scan-out)
-  Future<ScanResult> scanUser({
-    required UserModel user,
-    required bool isScanIn,
-    required ScanType scanType,
-  }) async {
-    final userRef = UserModelService.instance.getUserDocRef(user.id);
-    final todayStr = DateService.toStorageDate(DateTime.now());
-    final now = DateTime.now();
+  final AttendanceModelService _modelService = AttendanceModelService.instance;
 
-    final existingAttendance = await AttendanceModelService.instance.fetchAttendanceForDate(
-      userId: user.id,
-      date: todayStr,
+  /// Add a scan-in
+  Future<String> addScanIn({
+    required String userId,
+    required DateTime time,
+    required String url,
+  }) async {
+    final dateKey = DateService.toStorageDate(time);
+
+    Attendance? attendance = await _modelService.fetchAttendanceForDate(
+      userId: userId,
+      date: dateKey,
     );
 
-    if (existingAttendance == null) {
-      // No attendance yet
-      final newAttendance = Attendance(
-        id: "${todayStr}-${now.millisecondsSinceEpoch}",
-        userRef: userRef,
-        userName: user.name,
-        date: todayStr,
-      );
+    // Create new if not exist
+    attendance ??= Attendance(
+      id: "", // could generate with userId+date if you want uniqueness
+      userRef: FirebaseFirestore.instance.collection("users").doc(userId),
+      date: dateKey,
+      scanIns: [],
+      scanOuts: [],
+    );
 
-      if (isScanIn) {
-        AttendanceModelService.instance.setScanInByType(newAttendance, scanType, now);
-        await AttendanceModelService.instance.addAttendance(newAttendance);
-        return ScanResult(
-          success: true,
-          message: "✅ ${user.name} scanned in (${scanType.name}) successfully",
-        );
-      } else {
-        AttendanceModelService.instance.setScanOutByType(newAttendance, scanType, now);
-        await AttendanceModelService.instance.addAttendance(newAttendance);
-        return ScanResult(
-          success: true,
-          message: "✅ ${user.name} scanned out (${scanType.name}) successfully",
-        );
-      }
+    if (attendance.scanIns.length >= 3) {
+      return "You already have 3 scan-ins today.";
+    }
+
+    attendance.scanIns.add(
+      ScanRecord(time: time, imageUrl: url),
+    );
+
+    await saveAttendance(attendance);
+    return "Scan-in recorded successfully (${attendance.scanIns.length}/3).";
+  }
+
+  /// Add a scan-out
+  Future<String> addScanOut({
+    required String userId,
+    required DateTime time,
+    required String url,
+  }) async {
+    final dateKey = DateService.toStorageDate(time);
+
+    Attendance? attendance = await _modelService.fetchAttendanceForDate(
+      userId: userId,
+      date: dateKey,
+    );
+
+    // Create new if not exist
+    attendance ??= Attendance(
+      id: "",
+      userRef: FirebaseFirestore.instance.collection("users").doc(userId),
+      date: dateKey,
+      scanIns: [],
+      scanOuts: [],
+    );
+
+    if (attendance.scanOuts.length >= 3) {
+      return "You already have 3 scan-outs today.";
+    }
+
+    attendance.scanOuts.add(
+      ScanRecord(time: time, imageUrl: url),
+    );
+
+    await saveAttendance(attendance);
+    return "Scan-out recorded successfully (${attendance.scanOuts.length}/3).";
+  }
+
+  /// Get scan-in by index
+  DateTime? getScanIn(Attendance attendance, int index) {
+    return attendance.scanIns.length > index ? attendance.scanIns[index].time : null;
+  }
+
+  /// Get scan-out by index
+  DateTime? getScanOut(Attendance attendance, int index) {
+    return attendance.scanOuts.length > index ? attendance.scanOuts[index].time : null;
+  }
+
+  /// Save attendance (new or existing)
+  Future<void> saveAttendance(Attendance attendance) async {
+    if (attendance.id.isEmpty) {
+      await _modelService.addAttendance(attendance);
     } else {
-      // Attendance exists
-      if (isScanIn) {
-        if (AttendanceModelService.instance.getScanInByType(existingAttendance, scanType) != null) {
-          return ScanResult(
-            success: false,
-            message: "✖ ${user.name} already scanned in for ${scanType.name} today",
-          );
-        }
-        AttendanceModelService.instance.setScanInByType(existingAttendance, scanType, now);
-        await AttendanceModelService.instance.updateAttendance(existingAttendance);
-        return ScanResult(
-          success: true,
-          message: "✅ ${user.name} scanned in (${scanType.name}) successfully",
-        );
-      } else {
-        if (AttendanceModelService.instance.getScanOutByType(existingAttendance, scanType) != null) {
-          return ScanResult(
-            success: false,
-            message: "✖ ${user.name} already scanned out for ${scanType.name} today",
-          );
-        }
-        AttendanceModelService.instance.setScanOutByType(existingAttendance, scanType, now);
-        await AttendanceModelService.instance.updateAttendance(existingAttendance);
-        return ScanResult(
-          success: true,
-          message: "✅ ${user.name} scanned out (${scanType.name}) successfully",
-        );
-      }
+      await _modelService.updateAttendance(attendance);
     }
   }
 
-  /// Fetch attendance for a single day
-  Future<Map<String, String>> fetchAttendance({
-    required UserModel user,
+  /// Get attendance for a specific date
+  Future<Attendance?> getAttendanceForDate({
+    required String userId,
     required String date,
-  }) async {
-    final attendance = await AttendanceModelService.instance.fetchAttendanceForDate(
-      userId: user.id,
-      date: date,
-    );
-
-    if (attendance == null) return {'scanIn': 'N/A', 'scanOut': 'N/A'};
-
-    final scanIn = attendance.scanIn != null
-        ? DateService.toDisplayTime(attendance.scanIn!)
-        : 'N/A';
-    final scanOut = attendance.scanOut != null
-        ? DateService.toDisplayTime(attendance.scanOut!)
-        : 'N/A';
-
-    return {'scanIn': scanIn, 'scanOut': scanOut};
+  }) {
+    return _modelService.fetchAttendanceForDate(userId: userId, date: date);
   }
 
-  /// Fetch attendance for a whole month
-  Future<Map<String, Map<String, String>>> fetchMonthlyAttendance({
-    required UserModel user,
+  /// Get attendance for a month
+  Future<List<Attendance>> getMonthlyAttendance({
+    required String userId,
     required DateTime month,
-  }) async {
-    final userRef = UserModelService.instance.getUserDocRef(user.id);
-    final int totalDays = DateService.getDaysInMonth(month.year, month.month);
-    final startOfMonth = DateTime(month.year, month.month, 1);
-    final endOfMonth = DateTime(month.year, month.month, totalDays);
+  }) {
+    return _modelService.fetchMonthlyAttendance(userId: userId, month: month);
+  }
 
-    final attendances = await AttendanceModelService.instance.fetchStartToEndDateAttendanceForUser(
-      userRef: userRef,
-      startDate: startOfMonth,
-      endDate: endOfMonth,
+  /// Get attendance for all users in a date range
+  Future<List<Attendance>> getAttendanceForAllUsers({
+    required DateTime startDate,
+    required DateTime endDate,
+  }) {
+    return _modelService.fetchAttendanceForMonthAllUsers(
+      startDate: startDate,
+      endDate: endDate,
     );
-
-    Map<String, Map<String, String>> result = {};
-
-    for (int i = 1; i <= totalDays; i++) {
-      final date = DateTime(month.year, month.month, i);
-      result[DateService.toStorageDate(date)] = {'scanIn': 'N/A', 'scanOut': 'N/A'};
-    }
-
-    for (var attendance in attendances) {
-      final dateStr = attendance.date;
-      final scanIn = attendance.scanIn != null
-          ? DateService.toDisplayTime(attendance.scanIn!)
-          : 'N/A';
-      final scanOut = attendance.scanOut != null
-          ? DateService.toDisplayTime(attendance.scanOut!)
-          : 'N/A';
-
-      result[dateStr] = {'scanIn': scanIn, 'scanOut': scanOut};
-    }
-
-    return result;
   }
 }

@@ -2,7 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/attendance_model.dart';
 import 'user_model_service.dart';
 import 'date_service.dart';
-import 'package:attendanceapp/services/attendance_service.dart' show ScanType;
+
 class AttendanceModelService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final String tenantId;
@@ -23,55 +23,6 @@ class AttendanceModelService {
   /// Reference to the tenant's attendance collection
   CollectionReference<Map<String, dynamic>> get _attendanceRef =>
       _firestore.collection('${tenantId}_Attendance');
-  DateTime? getScanInByType(Attendance attendance, ScanType type) {
-    switch (type) {
-      case ScanType.normal:
-        return attendance.scanIn;
-      case ScanType.lunch:
-        return attendance.scanInLunch;
-      case ScanType.ot:
-        return attendance.scanInOt;
-    }
-  }
-
-  DateTime? getScanOutByType(Attendance attendance, ScanType type) {
-    switch (type) {
-      case ScanType.normal:
-        return attendance.scanOut;
-      case ScanType.lunch:
-        return attendance.scanOutLunch;
-      case ScanType.ot:
-        return attendance.scanOutOt;
-    }
-  }
-
-  void setScanInByType(Attendance attendance, ScanType type, DateTime time) {
-    switch (type) {
-      case ScanType.normal:
-        attendance.scanIn = time;
-        break;
-      case ScanType.lunch:
-        attendance.scanInLunch = time;
-        break;
-      case ScanType.ot:
-        attendance.scanInOt = time;
-        break;
-    }
-  }
-
-  void setScanOutByType(Attendance attendance, ScanType type, DateTime time) {
-    switch (type) {
-      case ScanType.normal:
-        attendance.scanOut = time;
-        break;
-      case ScanType.lunch:
-        attendance.scanOutLunch = time;
-        break;
-      case ScanType.ot:
-        attendance.scanOutOt = time;
-        break;
-    }
-  }
 
   /// Generate ID based on date + increment
   Future<String> generateId(String date) async {
