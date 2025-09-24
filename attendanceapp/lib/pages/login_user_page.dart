@@ -164,7 +164,7 @@ class _LoginUserPageState extends State<LoginUserPage> with RouteAware {
           ? await _attendanceService.addScanIn(
         userId: user.id,
         time: now,
-        url: "cameraImageUrl", // TODO: pass actual image URL if needed
+        url: "cameraImageUrl",
       )
           : await _attendanceService.addScanOut(
         userId: user.id,
@@ -172,18 +172,22 @@ class _LoginUserPageState extends State<LoginUserPage> with RouteAware {
         url: "cameraImageUrl",
       );
 
-      // Show overlay with greeting and time
-      _showScanOverlay(
-        isScanIn: isScanIn,
-        user: user,
-        time: now,
-      );
+      final success = message.contains("recorded successfully");
 
-      // Also show a quick snackbar
+      // Show overlay only on success
+      if (success) {
+        _showScanOverlay(
+          isScanIn: isScanIn,
+          user: user,
+          time: now,
+        );
+      }
+
+      // Show snackbar (green if success, red if fail)
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(message),
-          backgroundColor: message.startsWith("✅") ? Colors.green : Colors.red,
+          backgroundColor: success ? Colors.green : Colors.red,
           duration: const Duration(seconds: 2),
         ),
       );
@@ -197,7 +201,6 @@ class _LoginUserPageState extends State<LoginUserPage> with RouteAware {
       );
     }
   }
-
 
   @override
   Widget build(BuildContext context) {
