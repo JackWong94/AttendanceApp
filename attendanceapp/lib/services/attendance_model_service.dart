@@ -24,38 +24,14 @@ class AttendanceModelService {
   CollectionReference<Map<String, dynamic>> get _attendanceRef =>
       _firestore.collection('${tenantId}_Attendance');
 
-  /// Generate ID based on date + increment
-  Future<String> generateId(String date) async {
-    final snapshot = await _attendanceRef
-        .where('date', isEqualTo: date)
-        .orderBy(FieldPath.documentId, descending: true)
-        .limit(1)
-        .get();
-
-    int nextNumber = 1;
-    if (snapshot.docs.isNotEmpty) {
-      final lastId = snapshot.docs.first.id; // e.g., "2025-09-20_3"
-      final parts = lastId.split('_');
-      if (parts.length == 2) {
-        final lastNum = int.tryParse(parts[1]);
-        if (lastNum != null) nextNumber = lastNum + 1;
-      }
+  /// Set attendance (create or update deterministically)
+  Future<void> setAttendance(Attendance attendance) async {
+    if (attendance.id.isEmpty) {
+      throw Exception("Attendance must have a valid ID before saving.");
     }
-
-    return '${date}_$nextNumber';
-  }
-
-  /// Add new attendance
-  Future<void> addAttendance(Attendance attendance) async {
-    final generatedId = await generateId(attendance.date);
-    await _attendanceRef.doc(generatedId).set(attendance.toMap());
-  }
-
-  /// Update existing attendance
-  Future<void> updateAttendance(Attendance attendance) async {
     await _attendanceRef.doc(attendance.id).set(
       attendance.toMap(),
-      SetOptions(merge: true),
+      SetOptions(merge: true), // will update if exists, create if not
     );
   }
 
@@ -64,30 +40,23 @@ class AttendanceModelService {
     required String userId,
     required String date,
   }) async {
-    final userRef = UserModelService.instance.getUserDocRef(userId);
+    final docId = "${userId}_$date";
+    final snapshot = await _attendanceRef.doc(docId).get();
 
-    final snapshot = await _attendanceRef
-        .where('user', isEqualTo: userRef)
-        .where('date', isEqualTo: date)
-        .limit(1)
-        .get();
-
-    if (snapshot.docs.isEmpty) return null;
-
-    return Attendance.fromDoc(snapshot.docs.first);
+    if (!snapshot.exists) return null;
+    return Attendance.fromDoc(snapshot);
   }
 
-  /// Fetch all attendance for a user for a month (single query)
+  /// Fetch all attendance for a user for a month
   Future<List<Attendance>> fetchMonthlyAttendance({
     required String userId,
     required DateTime month,
   }) async {
-    final userRef = UserModelService.instance.getUserDocRef(userId);
     final startOfMonth = DateTime(month.year, month.month, 1);
     final endOfMonth = DateTime(month.year, month.month + 1, 0);
 
     final snapshots = await _attendanceRef
-        .where('user', isEqualTo: userRef)
+        .where('user', isEqualTo: UserModelService.instance.getUserDocRef(userId))
         .where('date', isGreaterThanOrEqualTo: DateService.toStorageDate(startOfMonth))
         .where('date', isLessThanOrEqualTo: DateService.toStorageDate(endOfMonth))
         .orderBy('date')

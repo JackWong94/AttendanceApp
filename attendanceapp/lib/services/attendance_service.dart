@@ -13,6 +13,7 @@ class AttendanceService {
     required String url,
   }) async {
     final dateKey = DateService.toStorageDate(time);
+    final docId = "${userId}_$dateKey"; // unique ID per user per day
 
     Attendance? attendance = await _modelService.fetchAttendanceForDate(
       userId: userId,
@@ -21,7 +22,7 @@ class AttendanceService {
 
     // Create new if not exist
     attendance ??= Attendance(
-      id: "", // could generate with userId+date if you want uniqueness
+      id: docId,
       userRef: FirebaseFirestore.instance.collection("users").doc(userId),
       date: dateKey,
       scanIns: [],
@@ -47,6 +48,7 @@ class AttendanceService {
     required String url,
   }) async {
     final dateKey = DateService.toStorageDate(time);
+    final docId = "${userId}_$dateKey";
 
     Attendance? attendance = await _modelService.fetchAttendanceForDate(
       userId: userId,
@@ -55,7 +57,7 @@ class AttendanceService {
 
     // Create new if not exist
     attendance ??= Attendance(
-      id: "",
+      id: docId,
       userRef: FirebaseFirestore.instance.collection("users").doc(userId),
       date: dateKey,
       scanIns: [],
@@ -87,10 +89,10 @@ class AttendanceService {
   /// Save attendance (new or existing)
   Future<void> saveAttendance(Attendance attendance) async {
     if (attendance.id.isEmpty) {
-      await _modelService.addAttendance(attendance);
-    } else {
-      await _modelService.updateAttendance(attendance);
+      throw Exception("Attendance must have a valid ID before saving");
     }
+    // Always update using deterministic ID
+    await _modelService.setAttendance(attendance);
   }
 
   /// Get attendance for a specific date
