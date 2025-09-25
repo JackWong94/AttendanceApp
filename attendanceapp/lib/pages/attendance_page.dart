@@ -272,22 +272,22 @@ class _AttendancePageState extends State<AttendancePage> {
                 label: Text('User',
                     style: TextStyle(fontWeight: FontWeight.bold))),
             DataColumn(
-                label: Text('Normal In',
+                label: Text('Scan In 1',
                     style: TextStyle(fontWeight: FontWeight.bold))),
             DataColumn(
-                label: Text('Lunch Out',
+                label: Text('Scan Out 1',
                     style: TextStyle(fontWeight: FontWeight.bold))),
             DataColumn(
-                label: Text('Lunch In',
+                label: Text('Scan In 2',
                     style: TextStyle(fontWeight: FontWeight.bold))),
             DataColumn(
-                label: Text('Normal Out',
+                label: Text('Scan Out 2',
                     style: TextStyle(fontWeight: FontWeight.bold))),
             DataColumn(
-                label: Text('OT In',
+                label: Text('Scan In 3',
                     style: TextStyle(fontWeight: FontWeight.bold))),
             DataColumn(
-                label: Text('OT Out',
+                label: Text('Scan Out 3',
                     style: TextStyle(fontWeight: FontWeight.bold))),
           ],
           rows: usersToShow.map((uid) {
@@ -342,22 +342,22 @@ class _AttendancePageState extends State<AttendancePage> {
                       label: Text('User',
                           style: TextStyle(fontWeight: FontWeight.bold))),
                   DataColumn(
-                      label: Text('Normal In',
+                      label: Text('Scan In 1',
                           style: TextStyle(fontWeight: FontWeight.bold))),
                   DataColumn(
-                      label: Text('Lunch Out',
+                      label: Text('Scan Out 1',
                           style: TextStyle(fontWeight: FontWeight.bold))),
                   DataColumn(
-                      label: Text('Lunch In',
+                      label: Text('Scan In 2',
                           style: TextStyle(fontWeight: FontWeight.bold))),
                   DataColumn(
-                      label: Text('Normal Out',
+                      label: Text('Scan Out 2',
                           style: TextStyle(fontWeight: FontWeight.bold))),
                   DataColumn(
-                      label: Text('OT In',
+                      label: Text('Scan In 3',
                           style: TextStyle(fontWeight: FontWeight.bold))),
                   DataColumn(
-                      label: Text('OT Out',
+                      label: Text('Scan Out 3',
                           style: TextStyle(fontWeight: FontWeight.bold))),
                 ],
                 rows: usersToShow.map((uid) {

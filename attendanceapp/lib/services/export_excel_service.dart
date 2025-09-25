@@ -18,7 +18,9 @@ class ExportExcelService {
         ];
 
     for (int i = 0; i < infoLines.length; i++) {
-      final cell = sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: i));
+      final cell = sheet.cell(
+        CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: i),
+      );
       cell.value = infoLines[i];
       cell.cellStyle = yellowStyle;
     }
@@ -43,15 +45,22 @@ class ExportExcelService {
 
     sheet.appendRow([
       'User',
-      'Normal In',
-      'Lunch Out',
-      'Lunch In',
-      'Normal Out',
-      'OT In',
-      'OT Out'
+      'Scan In 1',
+      'Scan In 2',
+      'Scan In 3',
+      'Scan Out 1',
+      'Scan Out 2',
+      'Scan Out 3'
     ]);
 
-    final usersToExport = selectedUserId != null ? [selectedUserId] : userNames.keys.toList();
+    // Set column widths
+    sheet.setColWidth(0, 20); // User column
+    for (var i = 1; i <= 6; i++) {
+      sheet.setColWidth(i, 15);
+    }
+
+    final usersToExport =
+    selectedUserId != null ? [selectedUserId] : userNames.keys.toList();
     final dateStr = DateService.toStorageDate(selectedDate);
 
     for (var uid in usersToExport) {
@@ -90,9 +99,12 @@ class ExportExcelService {
     String? selectedUserId,
   }) {
     final excel = Excel.createExcel();
+
     // Reusable header
     createInfoHeader(excel['Sheet1']);
-    final usersToExport = selectedUserId != null ? [selectedUserId] : attendanceMap.keys.toList();
+
+    final usersToExport =
+    selectedUserId != null ? [selectedUserId] : attendanceMap.keys.toList();
 
     for (var uid in usersToExport) {
       final sheetName = userNames[uid] ?? uid;
@@ -100,25 +112,32 @@ class ExportExcelService {
 
       sheet.appendRow([
         'Date',
-        'Normal In',
-        'Lunch Out',
-        'Lunch In',
-        'Normal Out',
-        'OT In',
-        'OT Out'
+        'Scan In 1',
+        'Scan In 2',
+        'Scan In 3',
+        'Scan Out 1',
+        'Scan Out 2',
+        'Scan Out 3'
       ]);
+
+      // Set column widths
+      sheet.setColWidth(0, 20); // Date column
+      for (var i = 1; i <= 6; i++) {
+        sheet.setColWidth(i, 15);
+      }
 
       final days = attendanceMap[uid]?.keys.toList() ?? [];
       for (var day in days) {
-        final split = attendanceMap[uid]![day]!.split('|');
+        final record = attendanceMap[uid]?[day]?.split('|') ??
+            ['N/A', 'N/A', 'N/A', 'N/A', 'N/A', 'N/A'];
         sheet.appendRow([
           day,
-          split[0],
-          split[1],
-          split[2],
-          split[3],
-          split[4],
-          split[5],
+          record[0],
+          record[1],
+          record[2],
+          record[3],
+          record[4],
+          record[5],
         ]);
       }
     }
