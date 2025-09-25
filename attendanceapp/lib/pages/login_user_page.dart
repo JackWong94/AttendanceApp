@@ -12,6 +12,7 @@ import 'package:attendanceapp/models/user_model.dart';
 import '../main.dart'; // routeObserver
 import 'package:camera/camera.dart';
 import 'package:attendanceapp/services/tenant_model_service.dart';
+import 'package:intl/intl.dart'; // add at the top
 
 class LoginUserPage extends StatefulWidget {
   const LoginUserPage({super.key});
@@ -108,6 +109,8 @@ class _LoginUserPageState extends State<LoginUserPage> with RouteAware {
     // Remove any previous overlay first
     _removeOverlay();
 
+    final formattedTime = DateFormat.Hm().format(time.toLocal()); // ✅ HH:mm only
+
     _overlayEntry = OverlayEntry(
       builder: (context) => Positioned.fill(
         child: GestureDetector(
@@ -133,7 +136,7 @@ class _LoginUserPageState extends State<LoginUserPage> with RouteAware {
                       ),
                       const SizedBox(height: 20),
                       Text(
-                        "${isScanIn ? 'Signed In' : 'Signed Out'} at ${time.toLocal()}",
+                        "${isScanIn ? 'Signed In' : 'Signed Out'} at ${formattedTime}",
                         style: const TextStyle(color: Colors.white, fontSize: 20),
                         textAlign: TextAlign.center,
                       ),
