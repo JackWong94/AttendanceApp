@@ -11,6 +11,9 @@ import '../services/export_excel_service.dart';
 
 enum FilterType { day, month }
 
+// ✅ Single source of truth for number of scan pairs
+const int maxScans = 3; // means ScanIn1–3, ScanOut1–3
+
 class AttendancePage extends StatefulWidget {
   const AttendancePage({super.key});
 
@@ -25,8 +28,9 @@ class _AttendancePageState extends State<AttendancePage> {
   FilterType selectedFilter = FilterType.day;
   String? selectedUserId;
 
-  Map<String, Map<String, String>> attendanceMap = {}; // {userId: {date: "normalIn|lunchOut|lunchIn|normalOut|otIn|otOut"}}
-  Map<String, String> userNames = {}; // {userId: userName}
+  // {userId: {date: "in1|out1|in2|out2|..."}}
+  Map<String, Map<String, String>> attendanceMap = {};
+  Map<String, String> userNames = {};
 
   bool loading = false;
 
@@ -73,8 +77,10 @@ class _AttendancePageState extends State<AttendancePage> {
       int days = DateService.getDaysInMonth(selectedDate.year, selectedDate.month);
       for (int i = 1; i <= days; i++) {
         final day = DateTime(selectedDate.year, selectedDate.month, i);
-        // 3 ins + 3 outs
-        newMap[uid]![DateService.toStorageDate(day)] = 'N/A|N/A|N/A|N/A|N/A|N/A';
+
+        // Fill N/A for all scans (in/out pairs)
+        newMap[uid]![DateService.toStorageDate(day)] =
+            List.filled(maxScans * 2, 'N/A').join('|');
       }
     }
 
@@ -100,23 +106,27 @@ class _AttendancePageState extends State<AttendancePage> {
       final uid = att.userRef.id;
       if (!newMap.containsKey(uid)) continue;
 
-      // ✅ Now att exists, so we can safely build ins/outs
       final ins = List.generate(
-        3,
+        maxScans,
             (i) => att.scanIns.length > i
             ? DateService.toDisplayTime(att.scanIns[i].time)
             : 'N/A',
       );
       final outs = List.generate(
-        3,
+        maxScans,
             (i) => att.scanOuts.length > i
             ? DateService.toDisplayTime(att.scanOuts[i].time)
             : 'N/A',
       );
 
-      // Pack into string (order: In1|Out1|In2|Out2|In3|Out3)
-      newMap[uid]![att.date] =
-      '${ins[0]}|${outs[0]}|${ins[1]}|${outs[1]}|${ins[2]}|${outs[2]}';
+      // Pack into string (in/out pairs)
+      List<String> all = [];
+      for (int i = 0; i < maxScans; i++) {
+        all.add(ins[i]);
+        all.add(outs[i]);
+      }
+
+      newMap[uid]![att.date] = all.join('|');
     }
 
     setState(() {
@@ -244,9 +254,7 @@ class _AttendancePageState extends State<AttendancePage> {
                   child: Column(
                     children: selectedFilter == FilterType.day
                         ? [_buildDayTable()]
-                        : sortedDates
-                        .map((d) => _buildMonthTable(d))
-                        .toList(),
+                        : sortedDates.map((d) => _buildMonthTable(d)).toList(),
                   ),
                 ),
               ),
@@ -267,32 +275,21 @@ class _AttendancePageState extends State<AttendancePage> {
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: DataTable(
-          columns: const [
-            DataColumn(
-                label: Text('User',
-                    style: TextStyle(fontWeight: FontWeight.bold))),
-            DataColumn(
-                label: Text('Scan In 1',
-                    style: TextStyle(fontWeight: FontWeight.bold))),
-            DataColumn(
-                label: Text('Scan Out 1',
-                    style: TextStyle(fontWeight: FontWeight.bold))),
-            DataColumn(
-                label: Text('Scan In 2',
-                    style: TextStyle(fontWeight: FontWeight.bold))),
-            DataColumn(
-                label: Text('Scan Out 2',
-                    style: TextStyle(fontWeight: FontWeight.bold))),
-            DataColumn(
-                label: Text('Scan In 3',
-                    style: TextStyle(fontWeight: FontWeight.bold))),
-            DataColumn(
-                label: Text('Scan Out 3',
-                    style: TextStyle(fontWeight: FontWeight.bold))),
+          columns: [
+            const DataColumn(
+                label: Text('User', style: TextStyle(fontWeight: FontWeight.bold))),
+            for (int i = 0; i < maxScans; i++) ...[
+              DataColumn(
+                  label: Text('Scan In ${i + 1}',
+                      style: const TextStyle(fontWeight: FontWeight.bold))),
+              DataColumn(
+                  label: Text('Scan Out ${i + 1}',
+                      style: const TextStyle(fontWeight: FontWeight.bold))),
+            ],
           ],
           rows: usersToShow.map((uid) {
             final record = attendanceMap[uid]?[date]?.split('|') ??
-                ['N/A', 'N/A', 'N/A', 'N/A', 'N/A', 'N/A'];
+                List.filled(maxScans * 2, 'N/A');
             return DataRow(cells: [
               // User column with wrap
               DataCell(
@@ -306,12 +303,7 @@ class _AttendancePageState extends State<AttendancePage> {
                   ),
                 ),
               ),
-              DataCell(Text(record[0])),
-              DataCell(Text(record[1])),
-              DataCell(Text(record[2])),
-              DataCell(Text(record[3])),
-              DataCell(Text(record[4])),
-              DataCell(Text(record[5])),
+              for (var val in record) DataCell(Text(val)),
             ]);
           }).toList(),
         ),
@@ -337,32 +329,22 @@ class _AttendancePageState extends State<AttendancePage> {
             SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: DataTable(
-                columns: const [
-                  DataColumn(
-                      label: Text('User',
-                          style: TextStyle(fontWeight: FontWeight.bold))),
-                  DataColumn(
-                      label: Text('Scan In 1',
-                          style: TextStyle(fontWeight: FontWeight.bold))),
-                  DataColumn(
-                      label: Text('Scan Out 1',
-                          style: TextStyle(fontWeight: FontWeight.bold))),
-                  DataColumn(
-                      label: Text('Scan In 2',
-                          style: TextStyle(fontWeight: FontWeight.bold))),
-                  DataColumn(
-                      label: Text('Scan Out 2',
-                          style: TextStyle(fontWeight: FontWeight.bold))),
-                  DataColumn(
-                      label: Text('Scan In 3',
-                          style: TextStyle(fontWeight: FontWeight.bold))),
-                  DataColumn(
-                      label: Text('Scan Out 3',
-                          style: TextStyle(fontWeight: FontWeight.bold))),
+                columns: [
+                  const DataColumn(
+                      label:
+                      Text('User', style: TextStyle(fontWeight: FontWeight.bold))),
+                  for (int i = 0; i < maxScans; i++) ...[
+                    DataColumn(
+                        label: Text('Scan In ${i + 1}',
+                            style: const TextStyle(fontWeight: FontWeight.bold))),
+                    DataColumn(
+                        label: Text('Scan Out ${i + 1}',
+                            style: const TextStyle(fontWeight: FontWeight.bold))),
+                  ],
                 ],
                 rows: usersToShow.map((uid) {
                   final record = attendanceMap[uid]?[date]?.split('|') ??
-                      ['N/A', 'N/A', 'N/A', 'N/A', 'N/A', 'N/A'];
+                      List.filled(maxScans * 2, 'N/A');
                   return DataRow(cells: [
                     // User column with wrap
                     DataCell(
@@ -376,12 +358,7 @@ class _AttendancePageState extends State<AttendancePage> {
                         ),
                       ),
                     ),
-                    DataCell(Text(record[0])),
-                    DataCell(Text(record[1])),
-                    DataCell(Text(record[2])),
-                    DataCell(Text(record[3])),
-                    DataCell(Text(record[4])),
-                    DataCell(Text(record[5])),
+                    for (var val in record) DataCell(Text(val)),
                   ]);
                 }).toList(),
               ),
