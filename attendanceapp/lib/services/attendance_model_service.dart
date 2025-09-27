@@ -132,5 +132,18 @@ class AttendanceModelService {
   Future<void> deleteAttendance(String attendanceId) async {
     await _attendanceRef.doc(attendanceId).delete();
   }
+  /// Batch delete all attendance for a user
+  Future<void> deleteAllAttendanceForUser(String userId) async {
+    final userRef = UserModelService.instance.getUserDocRef(userId);
+    final snapshots = await _attendanceRef
+        .where('user', isEqualTo: userRef)
+        .get(); // no orderBy, avoids index
 
+    final batch = _firestore.batch();
+    for (var doc in snapshots.docs) {
+      batch.delete(doc.reference);
+    }
+
+    await batch.commit();
+  }
 }
