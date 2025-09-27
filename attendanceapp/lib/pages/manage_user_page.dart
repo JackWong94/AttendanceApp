@@ -5,6 +5,7 @@ import 'package:attendanceapp/services/camera_service.dart';
 import 'package:attendanceapp/services/user_model_service.dart';
 import 'package:attendanceapp/services/attendance_model_service.dart';
 import 'package:attendanceapp/models/user_model.dart';
+import 'package:attendanceapp/widgets/camera_placeholder.dart';
 import 'package:attendanceapp/widgets/face_capture_widget.dart';
 
 class ManageUserPage extends StatefulWidget {
@@ -26,6 +27,7 @@ class _ManageUserPageState extends State<ManageUserPage> {
   final Map<String, List<Uint8List>> capturedPhotos = {};
   final Map<String, List<List<double>>> capturedEmbeddings = {};
   final Map<String, TextEditingController> _nameControllers = {};
+  final Map<String, int> _captureStep = {};
 
   @override
   void initState() {
@@ -47,12 +49,12 @@ class _ManageUserPageState extends State<ManageUserPage> {
   Future<void> _loadUsers() async {
     setState(() => _isLoading = true);
     _users = await _userService.getAllUsers();
-
     _isEditing.clear();
     _isRecapturing.clear();
     capturedPhotos.clear();
     capturedEmbeddings.clear();
     _nameControllers.clear();
+    _captureStep.clear();
 
     for (var u in _users) {
       _isEditing[u.id] = false;
@@ -60,8 +62,8 @@ class _ManageUserPageState extends State<ManageUserPage> {
       capturedPhotos[u.id] = [];
       capturedEmbeddings[u.id] = [];
       _nameControllers[u.id] = TextEditingController(text: u.name);
+      _captureStep[u.id] = 0;
     }
-
     setState(() => _isLoading = false);
   }
 
@@ -74,6 +76,64 @@ class _ManageUserPageState extends State<ManageUserPage> {
     final updatedUser = user.copyWith(name: newName.trim());
     await _userService.addUser(updatedUser);
     await _loadUsers();
+  }
+
+  Future<void> _startRecapture(UserModel user) async {
+    setState(() {
+      _isRecapturing[user.id] = true;
+      capturedPhotos[user.id] = [];
+      capturedEmbeddings[user.id] = [];
+      _captureStep[user.id] = 0;
+    });
+
+    // Show overlay with FaceCaptureWidget
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => AlertDialog(
+        content: FaceCaptureWidget(
+          cameraService: _cameraService,
+          onCompleted: (photos, embeddings) {
+            capturedPhotos[user.id] = photos;
+            capturedEmbeddings[user.id] = embeddings;
+            setState(() {});
+          },
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              _isRecapturing[user.id] = false;
+              Navigator.pop(context);
+              setState(() {});
+            },
+            child: const Text("Cancel"),
+          ),
+          TextButton(
+            onPressed: () {
+              if (capturedEmbeddings[user.id]!.length != 3) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text("Please capture all 3 valid photos")),
+                );
+                return;
+              }
+              final updatedUser = user.copyWith(
+                faceEmbeddings: capturedEmbeddings[user.id],
+                embedding: capturedEmbeddings[user.id]!.first,
+              );
+              _userService.addUser(updatedUser).then((_) {
+                _isRecapturing[user.id] = false;
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text("User embeddings updated!")),
+                );
+                setState(() {});
+              });
+            },
+            child: const Text("Update"),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _deleteUser(UserModel user) async {
@@ -115,98 +175,6 @@ class _ManageUserPageState extends State<ManageUserPage> {
     }
   }
 
-  Future<void> _startRecapture(UserModel user) async {
-    capturedPhotos[user.id] = [];
-    capturedEmbeddings[user.id] = [];
-    setState(() => _isRecapturing[user.id] = true);
-
-    await showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => WillPopScope(
-        onWillPop: () async => false,
-        child: StatefulBuilder(
-          builder: (context, setOverlayState) {
-            return Scaffold(
-              backgroundColor: Colors.black.withOpacity(0.7),
-              body: SafeArea(
-                child: Center(
-                  child: Container(
-                    margin: const EdgeInsets.all(16),
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          "Recapture Face for ${user.name}",
-                          style: const TextStyle(
-                              fontWeight: FontWeight.bold, fontSize: 18),
-                        ),
-                        const SizedBox(height: 16),
-
-                        // Only widget shows previews
-                        FaceCaptureWidget(
-                          cameraService: _cameraService,
-                          onCompleted: (photos, embeddings) {
-                            setOverlayState(() {
-                              capturedPhotos[user.id] = photos;
-                              capturedEmbeddings[user.id] = embeddings;
-                            });
-                          },
-                        ),
-
-                        const SizedBox(height: 16),
-
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: [
-                            ElevatedButton(
-                              onPressed: () {
-                                setState(() => _isRecapturing[user.id] = false);
-                                Navigator.of(context).pop();
-                              },
-                              style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.grey),
-                              child: const Text("Cancel"),
-                            ),
-                            ElevatedButton(
-                              onPressed: capturedEmbeddings[user.id]!.length == 3
-                                  ? () async {
-                                final updatedUser = user.copyWith(
-                                  faceEmbeddings: capturedEmbeddings[user.id],
-                                  embedding: capturedEmbeddings[user.id]!.first,
-                                );
-                                await _userService.addUser(updatedUser);
-
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text("User embeddings updated!")),
-                                );
-
-                                setState(() => _isRecapturing[user.id] = false);
-                                Navigator.of(context).pop();
-                                await _loadUsers();
-                              }
-                                  : null,
-                              child: const Text("OK"),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            );
-          },
-        ),
-      ),
-    );
-  }
-
   Widget _buildUserCard(UserModel user, int index) {
     final isEditing = _isEditing[user.id] ?? false;
 
@@ -214,43 +182,36 @@ class _ManageUserPageState extends State<ManageUserPage> {
       margin: const EdgeInsets.symmetric(vertical: 8),
       child: Padding(
         padding: const EdgeInsets.all(8),
-        child: Column(
+        child: Row(
           children: [
-            // Name row with Edit & Delete
-            Row(
-              children: [
-                Text("${index + 1}.", style: const TextStyle(fontWeight: FontWeight.bold)),
-                const SizedBox(width: 8),
-                Expanded(
-                  flex: 2,
-                  child: isEditing
-                      ? TextField(
-                    controller: _nameControllers[user.id],
-                    decoration: const InputDecoration(labelText: "Name"),
-                  )
-                      : Text(user.name, style: const TextStyle(fontSize: 16)),
-                ),
-                IconButton(
-                  icon: Icon(isEditing ? Icons.save : Icons.edit, color: Colors.blue),
-                  onPressed: () {
-                    if (isEditing) {
-                      _updateUserName(user, _nameControllers[user.id]!.text);
-                    }
-                    _toggleEdit(user.id);
-                  },
-                ),
-                IconButton(
-                  icon: const Icon(Icons.delete),
-                  onPressed: () => _deleteUser(user),
-                ),
-              ],
+            Text("${index + 1}.", style: const TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(width: 8),
+            Expanded(
+              flex: 2,
+              child: isEditing
+                  ? TextField(
+                controller: _nameControllers[user.id],
+                decoration: const InputDecoration(labelText: "Name"),
+              )
+                  : Text(user.name, style: const TextStyle(fontSize: 16)),
             ),
-            const SizedBox(height: 8),
-
-            ElevatedButton.icon(
+            IconButton(
+              icon: Icon(isEditing ? Icons.save : Icons.edit, color: Colors.blue),
+              onPressed: () {
+                if (isEditing) {
+                  _updateUserName(user, _nameControllers[user.id]!.text);
+                }
+                _toggleEdit(user.id);
+              },
+            ),
+            IconButton(
+              icon: const Icon(Icons.delete),
+              onPressed: () => _deleteUser(user),
+            ),
+            IconButton(
+              icon: const Icon(Icons.face, color: Colors.green),
+              tooltip: "Recapture Face",
               onPressed: () => _startRecapture(user),
-              icon: const Icon(Icons.videocam),
-              label: const Text("Recapture Face"),
             ),
           ],
         ),
