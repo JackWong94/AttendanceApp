@@ -264,7 +264,6 @@ class _AttendancePageState extends State<AttendancePage> {
       ),
     );
   }
-
   Widget _buildDayTable() {
     final date = DateService.toStorageDate(selectedDate);
     final usersToShow =
@@ -272,41 +271,46 @@ class _AttendancePageState extends State<AttendancePage> {
 
     return Card(
       margin: const EdgeInsets.all(16),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: DataTable(
-          columns: [
-            const DataColumn(
-                label: Text('User', style: TextStyle(fontWeight: FontWeight.bold))),
-            for (int i = 0; i < maxScans; i++) ...[
-              DataColumn(
-                  label: Text('Scan In ${i + 1}',
-                      style: const TextStyle(fontWeight: FontWeight.bold))),
-              DataColumn(
-                  label: Text('Scan Out ${i + 1}',
-                      style: const TextStyle(fontWeight: FontWeight.bold))),
-            ],
-          ],
-          rows: usersToShow.map((uid) {
-            final record = attendanceMap[uid]?[date]?.split('|') ??
-                List.filled(maxScans * 2, 'N/A');
-            return DataRow(cells: [
-              // User column with wrap
-              DataCell(
-                ConstrainedBox(
-                  constraints: BoxConstraints(
-                      maxWidth: MediaQuery.of(context).size.width * 0.15),
-                  child: Text(
-                    userNames[uid]!,
-                    softWrap: true,
-                    overflow: TextOverflow.visible,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          return SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: DataTable(
+              columns: [
+                const DataColumn(
+                    label: Text('User',
+                        style: TextStyle(fontWeight: FontWeight.bold))),
+                for (int i = 0; i < maxScans; i++) ...[
+                  DataColumn(
+                      label: Text('Scan In ${i + 1}',
+                          style: TextStyle(fontWeight: FontWeight.bold))),
+                  DataColumn(
+                      label: Text('Scan Out ${i + 1}',
+                          style: TextStyle(fontWeight: FontWeight.bold))),
+                ],
+              ],
+              rows: usersToShow.map((uid) {
+                final record = attendanceMap[uid]?[date]?.split('|') ??
+                    List.filled(maxScans * 2, 'N/A');
+                return DataRow(cells: [
+                  DataCell(
+                    ConstrainedBox(
+                      constraints: BoxConstraints(
+                        maxWidth: constraints.maxWidth * 0.15, // ✅ relative to table
+                      ),
+                      child: Text(
+                        userNames[uid]!,
+                        softWrap: true,
+                        overflow: TextOverflow.visible,
+                      ),
+                    ),
                   ),
-                ),
-              ),
-              for (var val in record) DataCell(Text(val)),
-            ]);
-          }).toList(),
-        ),
+                  for (var val in record) DataCell(Text(val)),
+                ]);
+              }).toList(),
+            ),
+          );
+        },
       ),
     );
   }
@@ -323,49 +327,57 @@ class _AttendancePageState extends State<AttendancePage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(date,
-                style:
-                const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                style: const TextStyle(
+                    fontWeight: FontWeight.bold, fontSize: 16)),
             const SizedBox(height: 8),
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: DataTable(
-                columns: [
-                  const DataColumn(
-                      label:
-                      Text('User', style: TextStyle(fontWeight: FontWeight.bold))),
-                  for (int i = 0; i < maxScans; i++) ...[
-                    DataColumn(
-                        label: Text('Scan In ${i + 1}',
-                            style: const TextStyle(fontWeight: FontWeight.bold))),
-                    DataColumn(
-                        label: Text('Scan Out ${i + 1}',
-                            style: const TextStyle(fontWeight: FontWeight.bold))),
-                  ],
-                ],
-                rows: usersToShow.map((uid) {
-                  final record = attendanceMap[uid]?[date]?.split('|') ??
-                      List.filled(maxScans * 2, 'N/A');
-                  return DataRow(cells: [
-                    // User column with wrap
-                    DataCell(
-                      ConstrainedBox(
-                        constraints: BoxConstraints(
-                            maxWidth: MediaQuery.of(context).size.width * 0.15),
-                        child: Text(
-                          userNames[uid]!,
-                          softWrap: true,
-                          overflow: TextOverflow.visible,
+            LayoutBuilder(
+              builder: (context, constraints) {
+                return SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: DataTable(
+                    columns: [
+                      const DataColumn(
+                          label: Text('User',
+                              style: TextStyle(fontWeight: FontWeight.bold))),
+                      for (int i = 0; i < maxScans; i++) ...[
+                        DataColumn(
+                            label: Text('Scan In ${i + 1}',
+                                style:
+                                TextStyle(fontWeight: FontWeight.bold))),
+                        DataColumn(
+                            label: Text('Scan Out ${i + 1}',
+                                style:
+                                TextStyle(fontWeight: FontWeight.bold))),
+                      ],
+                    ],
+                    rows: usersToShow.map((uid) {
+                      final record = attendanceMap[uid]?[date]?.split('|') ??
+                          List.filled(maxScans * 2, 'N/A');
+                      return DataRow(cells: [
+                        DataCell(
+                          ConstrainedBox(
+                            constraints: BoxConstraints(
+                              maxWidth:
+                              constraints.maxWidth * 0.15, // ✅ relative
+                            ),
+                            child: Text(
+                              userNames[uid]!,
+                              softWrap: true,
+                              overflow: TextOverflow.visible,
+                            ),
+                          ),
                         ),
-                      ),
-                    ),
-                    for (var val in record) DataCell(Text(val)),
-                  ]);
-                }).toList(),
-              ),
+                        for (var val in record) DataCell(Text(val)),
+                      ]);
+                    }).toList(),
+                  ),
+                );
+              },
             ),
           ],
         ),
       ),
     );
   }
+
 }
