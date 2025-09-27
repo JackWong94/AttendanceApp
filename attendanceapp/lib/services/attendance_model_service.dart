@@ -117,4 +117,20 @@ class AttendanceModelService {
 
     return snapshots.docs.map((doc) => Attendance.fromDoc(doc)).toList();
   }
+  /// Fetch all attendance for a specific user
+  Future<List<Attendance>> fetchAttendanceForUser(String userId) async {
+    final userRef = UserModelService.instance.getUserDocRef(userId);
+    final snapshots = await _attendanceRef
+        .where('user', isEqualTo: userRef)
+        .orderBy('date')
+        .get();
+
+    return snapshots.docs.map((doc) => Attendance.fromDoc(doc)).toList();
+  }
+
+  /// Delete a specific attendance document
+  Future<void> deleteAttendance(String attendanceId) async {
+    await _attendanceRef.doc(attendanceId).delete();
+  }
+
 }

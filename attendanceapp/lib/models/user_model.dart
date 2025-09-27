@@ -4,8 +4,9 @@ class UserModel {
   final String id;
   final String name;
   final String employeeId;
-  final List<List<double>> faceEmbeddings; // multiple embeddings per user
-  final List<double> embedding; // optional primary embedding for recognition
+  final List<List<double>> faceEmbeddings;
+  final List<double> embedding;
+  final bool isDeleted; // new flag
 
   UserModel({
     required this.id,
@@ -13,35 +14,45 @@ class UserModel {
     required this.employeeId,
     this.faceEmbeddings = const [],
     this.embedding = const [],
+    this.isDeleted = false,
   });
 
-  /// Convert to Firestore map
+  /// Create a copy with optional changes
+  UserModel copyWith({
+    String? name,
+    String? employeeId,
+    List<List<double>>? faceEmbeddings,
+    List<double>? embedding,
+    bool? isDeleted,
+  }) {
+    return UserModel(
+      id: id,
+      name: name ?? this.name,
+      employeeId: employeeId ?? this.employeeId,
+      faceEmbeddings: faceEmbeddings ?? this.faceEmbeddings,
+      embedding: embedding ?? this.embedding,
+      isDeleted: isDeleted ?? this.isDeleted,
+    );
+  }
+
   Map<String, dynamic> toMap() {
     return {
       'name': name,
       'employeeId': employeeId,
-      'faceEmbeddings': faceEmbeddings
-          .map((e) => e.join(',')) // store each embedding as CSV string
-          .toList(),
+      'faceEmbeddings': faceEmbeddings.map((e) => e.join(',')).toList(),
+      'isDeleted': isDeleted,
     };
   }
 
-  /// Create UserModel from Firestore document
   static UserModel fromDocument(DocumentSnapshot<Map<String, dynamic>> doc) {
     final data = doc.data()!;
     final List<List<double>> embeddings = [];
     if (data['faceEmbeddings'] != null) {
       for (var e in data['faceEmbeddings'] as List<dynamic>) {
-        embeddings.add((e as String)
-            .split(',')
-            .map((v) => double.parse(v))
-            .toList());
+        embeddings.add((e as String).split(',').map((v) => double.parse(v)).toList());
       }
     }
-
-    // optional primary embedding for quick recognition
-    List<double> primaryEmbedding =
-    embeddings.isNotEmpty ? embeddings.first : [];
+    List<double> primaryEmbedding = embeddings.isNotEmpty ? embeddings.first : [];
 
     return UserModel(
       id: doc.id,
@@ -49,6 +60,7 @@ class UserModel {
       employeeId: data['employeeId'] ?? '',
       faceEmbeddings: embeddings,
       embedding: primaryEmbedding,
+      isDeleted: data['isDeleted'] ?? false,
     );
   }
 }

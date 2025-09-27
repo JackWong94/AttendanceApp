@@ -93,16 +93,6 @@ class AttendanceService {
     return "Scan-out recorded successfully (${attendance.scanOuts.length}/3).";
   }
 
-  /// Get scan-in by index
-  DateTime? getScanIn(Attendance attendance, int index) {
-    return attendance.scanIns.length > index ? attendance.scanIns[index].time : null;
-  }
-
-  /// Get scan-out by index
-  DateTime? getScanOut(Attendance attendance, int index) {
-    return attendance.scanOuts.length > index ? attendance.scanOuts[index].time : null;
-  }
-
   /// Save attendance
   Future<void> saveAttendance(Attendance attendance) async {
     if (attendance.id.isEmpty) {
@@ -117,6 +107,20 @@ class AttendanceService {
     required String date,
   }) {
     return _modelService.fetchAttendanceForDate(userId: userId, date: date);
+  }
+
+  /// Get all attendance for a user
+  Future<List<Attendance>> getAllAttendanceForUser(String userId) async {
+    return _modelService.fetchAttendanceForUser(userId);
+  }
+
+  /// Delete all attendance for a user
+  Future<void> deleteUserAttendance(String userId) async {
+    final allAttendance = await getAllAttendanceForUser(userId);
+
+    for (var att in allAttendance) {
+      await _modelService.deleteAttendance(att.id);
+    }
   }
 
   /// Get attendance for a month

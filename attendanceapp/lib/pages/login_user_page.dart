@@ -4,6 +4,7 @@ import 'package:attendanceapp/widgets/camera_placeholder.dart';
 import 'package:attendanceapp/pages/web_login_page.dart';
 import 'package:attendanceapp/pages/register_user_page.dart';
 import 'package:attendanceapp/pages/attendance_page.dart';
+import 'package:attendanceapp/pages/manage_user_page.dart';
 import 'package:attendanceapp/services/camera_service.dart';
 import 'package:attendanceapp/services/face_recognition_service.dart';
 import 'package:attendanceapp/services/attendance_service.dart';
@@ -264,6 +265,17 @@ class _LoginUserPageState extends State<LoginUserPage> with RouteAware {
                 Navigator.push(
                   context,
                   MaterialPageRoute(builder: (_) => const AttendancePage()),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.manage_accounts),
+              title: const Text("Manage User"),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const ManageUserPage()),
                 );
               },
             ),

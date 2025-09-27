@@ -63,4 +63,14 @@ class UserModelService {
   DocumentReference<Map<String, dynamic>> getUserDocRef(String userId) {
     return _usersRef.doc(userId);
   }
+  /// Update user data (overwrite)
+  Future<void> updateUser(UserModel user) async {
+    await _usersRef.doc(user.id).set(user.toMap(), SetOptions(merge: true));
+  }
+
+  /// Delete user (remove Firestore doc)
+  Future<void> deleteUser(String userId) async {
+    await _usersRef.doc(userId).delete();
+  }
+
 }
