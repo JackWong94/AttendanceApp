@@ -26,8 +26,6 @@ class NavigationService {
 
   /// Password verification before opening ManageUserPage
   static void goToManageUser(BuildContext context) async {
-    Navigator.pop(context); // Close drawer
-
     final passwordController = TextEditingController();
     final authService = AuthenticationService();
 
@@ -59,6 +57,8 @@ class NavigationService {
     );
 
     if (verified == true) {
+      // Only close drawer **after verification**
+      Navigator.pop(context);
       Navigator.push(
         context,
         MaterialPageRoute(builder: (_) => const ManageUserPage()),
@@ -69,6 +69,7 @@ class NavigationService {
       );
     }
   }
+
 
   static Future<void> logOut(BuildContext context) async {
     Navigator.pop(context);
