@@ -1,12 +1,11 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
-import 'package:camera/camera.dart';
 import 'package:attendanceapp/services/camera_service.dart';
 import 'package:attendanceapp/services/user_model_service.dart';
 import 'package:attendanceapp/services/attendance_model_service.dart';
 import 'package:attendanceapp/models/user_model.dart';
-import 'package:attendanceapp/widgets/camera_placeholder.dart';
 import 'package:attendanceapp/widgets/face_capture_widget.dart';
+import '../main.dart'; // routeObserver
 
 class ManageUserPage extends StatefulWidget {
   const ManageUserPage({super.key});
@@ -15,7 +14,7 @@ class ManageUserPage extends StatefulWidget {
   State<ManageUserPage> createState() => _ManageUserPageState();
 }
 
-class _ManageUserPageState extends State<ManageUserPage> {
+class _ManageUserPageState extends State<ManageUserPage> with RouteAware {
   final UserModelService _userService = UserModelService.instance;
   final CameraService _cameraService = CameraService();
 
@@ -27,15 +26,18 @@ class _ManageUserPageState extends State<ManageUserPage> {
   final Map<String, List<Uint8List>> capturedPhotos = {};
   final Map<String, List<List<double>>> capturedEmbeddings = {};
   final Map<String, TextEditingController> _nameControllers = {};
-  final Map<String, int> _captureStep = {};
 
   @override
   void initState() {
     super.initState();
     _loadUsers();
-    _cameraService.initCamera(forceReinitOnWeb: true).then((_) {
-      if (mounted) setState(() {});
-    });
+    _initCamera();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    routeObserver.subscribe(this, ModalRoute.of(context)!);
   }
 
   @override
@@ -43,18 +45,35 @@ class _ManageUserPageState extends State<ManageUserPage> {
     for (var ctrl in _nameControllers.values) {
       ctrl.dispose();
     }
+    routeObserver.unsubscribe(this);
     super.dispose();
+  }
+
+  @override
+  void didPopNext() {
+    // Reinitialize camera when coming back from dialog/page
+    _reinitCamera();
+  }
+
+  Future<void> _initCamera() async {
+    await _cameraService.initCamera(forceReinitOnWeb: true);
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _reinitCamera() async {
+    await _cameraService.initCamera(forceReinitOnWeb: true);
+    if (mounted) setState(() {});
   }
 
   Future<void> _loadUsers() async {
     setState(() => _isLoading = true);
     _users = await _userService.getAllUsers();
+
     _isEditing.clear();
     _isRecapturing.clear();
     capturedPhotos.clear();
     capturedEmbeddings.clear();
     _nameControllers.clear();
-    _captureStep.clear();
 
     for (var u in _users) {
       _isEditing[u.id] = false;
@@ -62,8 +81,8 @@ class _ManageUserPageState extends State<ManageUserPage> {
       capturedPhotos[u.id] = [];
       capturedEmbeddings[u.id] = [];
       _nameControllers[u.id] = TextEditingController(text: u.name);
-      _captureStep[u.id] = 0;
     }
+
     setState(() => _isLoading = false);
   }
 
@@ -79,61 +98,43 @@ class _ManageUserPageState extends State<ManageUserPage> {
   }
 
   Future<void> _startRecapture(UserModel user) async {
-    setState(() {
-      _isRecapturing[user.id] = true;
-      capturedPhotos[user.id] = [];
-      capturedEmbeddings[user.id] = [];
-      _captureStep[user.id] = 0;
-    });
+    if (!_cameraService.isInitialized) return;
 
-    // Show overlay with FaceCaptureWidget
-    showDialog(
+    _isRecapturing[user.id] = true;
+    capturedPhotos[user.id] = [];
+    capturedEmbeddings[user.id] = [];
+
+    await showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (_) => AlertDialog(
-        content: FaceCaptureWidget(
-          cameraService: _cameraService,
-          onCompleted: (photos, embeddings) {
-            capturedPhotos[user.id] = photos;
-            capturedEmbeddings[user.id] = embeddings;
-            setState(() {});
-          },
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              _isRecapturing[user.id] = false;
-              Navigator.pop(context);
-              setState(() {});
-            },
-            child: const Text("Cancel"),
-          ),
-          TextButton(
-            onPressed: () {
-              if (capturedEmbeddings[user.id]!.length != 3) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text("Please capture all 3 valid photos")),
-                );
-                return;
-              }
-              final updatedUser = user.copyWith(
-                faceEmbeddings: capturedEmbeddings[user.id],
-                embedding: capturedEmbeddings[user.id]!.first,
+      builder: (_) => FaceCaptureDialog(
+        cameraService: _cameraService,
+        onCompleted: (photos, embeddings) {
+          capturedPhotos[user.id] = photos;
+          capturedEmbeddings[user.id] = embeddings;
+
+          if (embeddings.length == 3) {
+            final updatedUser = user.copyWith(
+              faceEmbeddings: embeddings,
+              embedding: embeddings.first,
+            );
+            _userService.addUser(updatedUser).then((_) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text("User embeddings updated!")),
               );
-              _userService.addUser(updatedUser).then((_) {
-                _isRecapturing[user.id] = false;
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text("User embeddings updated!")),
-                );
-                setState(() {});
-              });
-            },
-            child: const Text("Update"),
-          ),
-        ],
+              setState(() {});
+            });
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text("Please capture all 3 valid photos")),
+            );
+          }
+        },
       ),
     );
+
+    _isRecapturing[user.id] = false;
+    setState(() {});
   }
 
   Future<void> _deleteUser(UserModel user) async {
@@ -198,9 +199,7 @@ class _ManageUserPageState extends State<ManageUserPage> {
             IconButton(
               icon: Icon(isEditing ? Icons.save : Icons.edit, color: Colors.blue),
               onPressed: () {
-                if (isEditing) {
-                  _updateUserName(user, _nameControllers[user.id]!.text);
-                }
+                if (isEditing) _updateUserName(user, _nameControllers[user.id]!.text);
                 _toggleEdit(user.id);
               },
             ),
@@ -233,6 +232,38 @@ class _ManageUserPageState extends State<ManageUserPage> {
           return _buildUserCard(user, index);
         },
       ),
+    );
+  }
+}
+
+/// Dialog wrapper for face capture
+class FaceCaptureDialog extends StatelessWidget {
+  final CameraService cameraService;
+  final void Function(List<Uint8List> photos, List<List<double>> embeddings) onCompleted;
+
+  const FaceCaptureDialog({
+    super.key,
+    required this.cameraService,
+    required this.onCompleted,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      content: SizedBox(
+        width: 400,
+        height: 500,
+        child: cameraService.isInitialized
+            ? FaceCaptureWidget(
+          cameraService: cameraService,
+          onCompleted: onCompleted,
+        )
+            : const Center(child: CircularProgressIndicator()),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancel")),
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text("Done")),
+      ],
     );
   }
 }
