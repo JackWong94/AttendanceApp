@@ -4,7 +4,7 @@ import '../pages/register_user_page.dart';
 import '../pages/attendance_page.dart';
 import '../pages/manage_user_page.dart';
 import '../pages/web_login_page.dart';
-import 'authentication_service.dart';
+import 'package:attendanceapp/services/authentication_service.dart';
 import 'tenant_model_service.dart';
 
 class NavigationService {
@@ -24,12 +24,50 @@ class NavigationService {
     );
   }
 
-  static void goToManageUser(BuildContext context) {
-    Navigator.pop(context);
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const ManageUserPage()),
+  /// Password verification before opening ManageUserPage
+  static void goToManageUser(BuildContext context) async {
+    Navigator.pop(context); // Close drawer
+
+    final passwordController = TextEditingController();
+    final authService = AuthenticationService();
+
+    final bool? verified = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Password Verification'),
+        content: TextField(
+          controller: passwordController,
+          obscureText: true,
+          decoration: const InputDecoration(
+            labelText: 'Enter your password',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () async {
+              final success = await authService.verifyPassword(passwordController.text);
+              Navigator.pop(context, success);
+            },
+            child: const Text('Verify'),
+          ),
+        ],
+      ),
     );
+
+    if (verified == true) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const ManageUserPage()),
+      );
+    } else if (verified == false) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Incorrect password')),
+      );
+    }
   }
 
   static Future<void> logOut(BuildContext context) async {

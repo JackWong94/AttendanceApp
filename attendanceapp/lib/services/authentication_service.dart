@@ -28,4 +28,20 @@ class AuthenticationService {
   Future<void> signOut() async {
     await _auth.signOut();
   }
+  /// New: verify current user's password
+  Future<bool> verifyPassword(String password) async {
+    final user = _auth.currentUser;
+    if (user == null || user.email == null) return false;
+
+    try {
+      final credential = EmailAuthProvider.credential(
+        email: user.email!,
+        password: password,
+      );
+      await user.reauthenticateWithCredential(credential);
+      return true; // Verified
+    } on FirebaseAuthException {
+      return false; // Incorrect password
+    }
+  }
 }
