@@ -9,6 +9,7 @@ import 'package:attendanceapp/services/camera_service.dart';
 import 'package:attendanceapp/services/face_recognition_service.dart';
 import 'package:attendanceapp/services/attendance_service.dart';
 import 'package:attendanceapp/services/authentication_service.dart';
+import 'package:attendanceapp/services/navigation_service.dart';
 import 'package:attendanceapp/models/user_model.dart';
 import '../main.dart'; // routeObserver
 import 'package:camera/camera.dart';
@@ -237,68 +238,30 @@ class _LoginUserPageState extends State<LoginUserPage> with RouteAware {
       appBar: AppBar(title: Text(TenantModelService.instance.currentTenantName)),
       endDrawer: Drawer(
         child: ListView(
-          padding: EdgeInsets.zero,
           children: [
             const DrawerHeader(
               decoration: BoxDecoration(color: Colors.blue),
-              child: Text(
-                "Settings",
-                style: TextStyle(color: Colors.white, fontSize: 20),
-              ),
+              child: Text("Settings", style: TextStyle(color: Colors.white, fontSize: 20)),
             ),
             ListTile(
               leading: const Icon(Icons.person_add),
               title: const Text("Register New User"),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const RegisterUserPage()),
-                );
-              },
+              onTap: () => NavigationService.goToRegisterUser(context),
             ),
             ListTile(
               leading: const Icon(Icons.assignment),
               title: const Text("Attendance"),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const AttendancePage()),
-                );
-              },
+              onTap: () => NavigationService.goToAttendance(context),
             ),
             ListTile(
               leading: const Icon(Icons.manage_accounts),
               title: const Text("Manage User"),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const ManageUserPage()),
-                );
-              },
+              onTap: () => NavigationService.goToManageUser(context),
             ),
             ListTile(
               leading: const Icon(Icons.logout),
               title: const Text("Log out"),
-              onTap: () async {
-                Navigator.pop(context);
-                final authService = AuthenticationService();
-                try {
-                  await authService.signOut();
-                  TenantModelService.instance.clearCurrentTenant();
-                } catch (e) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text("Logout failed: $e")),
-                  );
-                  return;
-                }
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(builder: (_) => const WebLoginPage()),
-                );
-              },
+              onTap: () => NavigationService.logOut(context),
             ),
           ],
         ),
