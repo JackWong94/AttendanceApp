@@ -5,8 +5,7 @@ import 'package:attendanceapp/services/camera_service.dart';
 import 'package:attendanceapp/services/user_model_service.dart';
 import 'package:attendanceapp/services/attendance_model_service.dart';
 import 'package:attendanceapp/models/user_model.dart';
-import 'package:attendanceapp/widgets/camera_placeholder.dart';
-import 'package:attendanceapp/services/web_face_api.dart' as webFaceApi;
+import 'package:attendanceapp/widgets/face_capture_widget.dart';
 
 class ManageUserPage extends StatefulWidget {
   const ManageUserPage({super.key});
@@ -27,7 +26,6 @@ class _ManageUserPageState extends State<ManageUserPage> {
   final Map<String, List<Uint8List>> capturedPhotos = {};
   final Map<String, List<List<double>>> capturedEmbeddings = {};
   final Map<String, TextEditingController> _nameControllers = {};
-  final Map<String, int> _captureStep = {};
 
   @override
   void initState() {
@@ -49,12 +47,12 @@ class _ManageUserPageState extends State<ManageUserPage> {
   Future<void> _loadUsers() async {
     setState(() => _isLoading = true);
     _users = await _userService.getAllUsers();
+
     _isEditing.clear();
     _isRecapturing.clear();
     capturedPhotos.clear();
     capturedEmbeddings.clear();
     _nameControllers.clear();
-    _captureStep.clear();
 
     for (var u in _users) {
       _isEditing[u.id] = false;
@@ -62,8 +60,8 @@ class _ManageUserPageState extends State<ManageUserPage> {
       capturedPhotos[u.id] = [];
       capturedEmbeddings[u.id] = [];
       _nameControllers[u.id] = TextEditingController(text: u.name);
-      _captureStep[u.id] = 0;
     }
+
     setState(() => _isLoading = false);
   }
 
@@ -76,93 +74,6 @@ class _ManageUserPageState extends State<ManageUserPage> {
     final updatedUser = user.copyWith(name: newName.trim());
     await _userService.addUser(updatedUser);
     await _loadUsers();
-  }
-
-  Future<void> _startRecapture(UserModel user) async {
-    setState(() {
-      _isRecapturing[user.id] = true;
-      capturedPhotos[user.id] = [];
-      capturedEmbeddings[user.id] = [];
-      _captureStep[user.id] = 0;
-    });
-  }
-
-  Future<void> _captureFaceStep(UserModel user) async {
-    if (!_cameraService.isInitialized) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Camera not ready")),
-      );
-      return;
-    }
-
-    final steps = ["Look straight", "Turn LEFT", "Turn RIGHT"];
-
-    if (_captureStep[user.id]! >= steps.length) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("All 3 steps completed")),
-      );
-      return;
-    }
-
-    try {
-      final picture = await _cameraService.controller!.takePicture();
-      final bytes = await picture.readAsBytes();
-
-      final img = await webFaceApi.uint8ListToImage(bytes);
-      final resizedImg = await webFaceApi.resizeImage(img, 160, 160);
-      final descriptor = await webFaceApi.computeFaceDescriptorSafe(resizedImg);
-
-      if (descriptor.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("No face detected. Please try again.")),
-        );
-        return;
-      }
-
-      capturedPhotos[user.id]!.add(bytes);
-      capturedEmbeddings[user.id]!.add(descriptor);
-      setState(() {
-        _captureStep[user.id] = _captureStep[user.id]! + 1;
-      });
-
-      if (_captureStep[user.id]! == steps.length) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("✅ 3 photos captured successfully!")),
-        );
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error capturing photo: $e")),
-      );
-    }
-  }
-
-  Future<void> _updateEmbeddings(UserModel user) async {
-    if (capturedEmbeddings[user.id]!.length != 3) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please capture 3 valid photos")),
-      );
-      return;
-    }
-
-    final updatedUser = user.copyWith(
-      faceEmbeddings: capturedEmbeddings[user.id],
-      embedding: capturedEmbeddings[user.id]!.first,
-    );
-    await _userService.addUser(updatedUser);
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("User embeddings updated!")),
-    );
-    setState(() => _isRecapturing[user.id] = false);
-    await _loadUsers();
-  }
-
-  Future<void> _cancelRecapture(String userId) async {
-    capturedPhotos[userId] = [];
-    capturedEmbeddings[userId] = [];
-    _captureStep[userId] = 0;
-    setState(() => _isRecapturing[userId] = false);
   }
 
   Future<void> _deleteUser(UserModel user) async {
@@ -204,10 +115,100 @@ class _ManageUserPageState extends State<ManageUserPage> {
     }
   }
 
+  Future<void> _startRecapture(UserModel user) async {
+    capturedPhotos[user.id] = [];
+    capturedEmbeddings[user.id] = [];
+    setState(() => _isRecapturing[user.id] = true);
+
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => WillPopScope(
+        onWillPop: () async => false,
+        child: StatefulBuilder(
+          builder: (context, setOverlayState) {
+            return Scaffold(
+              backgroundColor: Colors.black.withOpacity(0.7),
+              body: SafeArea(
+                child: Center(
+                  child: Container(
+                    margin: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          "Recapture Face for ${user.name}",
+                          style: const TextStyle(
+                              fontWeight: FontWeight.bold, fontSize: 18),
+                        ),
+                        const SizedBox(height: 16),
+
+                        // Only widget shows previews
+                        FaceCaptureWidget(
+                          cameraService: _cameraService,
+                          onCompleted: (photos, embeddings) {
+                            setOverlayState(() {
+                              capturedPhotos[user.id] = photos;
+                              capturedEmbeddings[user.id] = embeddings;
+                            });
+                          },
+                        ),
+
+                        const SizedBox(height: 16),
+
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: [
+                            ElevatedButton(
+                              onPressed: () {
+                                setState(() => _isRecapturing[user.id] = false);
+                                Navigator.of(context).pop();
+                              },
+                              style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.grey),
+                              child: const Text("Cancel"),
+                            ),
+                            ElevatedButton(
+                              onPressed: capturedEmbeddings[user.id]!.length == 3
+                                  ? () async {
+                                final updatedUser = user.copyWith(
+                                  faceEmbeddings: capturedEmbeddings[user.id],
+                                  embedding: capturedEmbeddings[user.id]!.first,
+                                );
+                                await _userService.addUser(updatedUser);
+
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text("User embeddings updated!")),
+                                );
+
+                                setState(() => _isRecapturing[user.id] = false);
+                                Navigator.of(context).pop();
+                                await _loadUsers();
+                              }
+                                  : null,
+                              child: const Text("OK"),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
   Widget _buildUserCard(UserModel user, int index) {
     final isEditing = _isEditing[user.id] ?? false;
-    final isRecapturing = _isRecapturing[user.id] ?? false;
-    final steps = ["Look straight", "Turn LEFT", "Turn RIGHT"];
 
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 8),
@@ -244,61 +245,13 @@ class _ManageUserPageState extends State<ManageUserPage> {
                 ),
               ],
             ),
-
             const SizedBox(height: 8),
 
-            if (isRecapturing)
-              Column(
-                children: [
-                  if (_captureStep[user.id]! < steps.length)
-                    Text(
-                      "Step ${_captureStep[user.id]! + 1}/${steps.length}: ${steps[_captureStep[user.id]!]}",
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    )
-                  else
-                    const Text("All 3 steps completed!", style: TextStyle(fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      ElevatedButton.icon(
-                        onPressed: () => _captureFaceStep(user),
-                        icon: const Icon(Icons.videocam),
-                        label: const Text("Capture Step"),
-                      ),
-                      const SizedBox(width: 8),
-                      ElevatedButton.icon(
-                        onPressed: () => _updateEmbeddings(user),
-                        icon: const Icon(Icons.save),
-                        label: const Text("Update Embeddings"),
-                      ),
-                      const SizedBox(width: 8),
-                      ElevatedButton.icon(
-                        onPressed: () => _cancelRecapture(user.id),
-                        icon: const Icon(Icons.cancel),
-                        label: const Text("Cancel"),
-                        style: ElevatedButton.styleFrom(backgroundColor: Colors.grey),
-                      ),
-                    ],
-                  ),
-                  if (capturedPhotos[user.id]!.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 8.0),
-                      child: Wrap(
-                        spacing: 4,
-                        children: capturedPhotos[user.id]!
-                            .map((bytes) => Image.memory(bytes,
-                            width: 80, height: 80, fit: BoxFit.cover))
-                            .toList(),
-                      ),
-                    ),
-                ],
-              )
-            else
-              ElevatedButton.icon(
-                onPressed: () => _startRecapture(user),
-                icon: const Icon(Icons.videocam),
-                label: const Text("Recapture Face"),
-              ),
+            ElevatedButton.icon(
+              onPressed: () => _startRecapture(user),
+              icon: const Icon(Icons.videocam),
+              label: const Text("Recapture Face"),
+            ),
           ],
         ),
       ),
@@ -309,31 +262,15 @@ class _ManageUserPageState extends State<ManageUserPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text("Manage Users")),
-      body: Column(
-        children: [
-          // Camera always fixed on top
-          SizedBox(
-            height: 250,
-            child: _cameraService.controller != null &&
-                _cameraService.controller!.value.isInitialized
-                ? CameraPreview(_cameraService.controller!)
-                : const CameraPlaceholder(message: "Camera not ready"),
-          ),
-
-          // User list scrolls below camera
-          Expanded(
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: _users.length,
-              itemBuilder: (context, index) {
-                final user = _users[index];
-                return _buildUserCard(user, index);
-              },
-            ),
-          ),
-        ],
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: _users.length,
+        itemBuilder: (context, index) {
+          final user = _users[index];
+          return _buildUserCard(user, index);
+        },
       ),
     );
   }
