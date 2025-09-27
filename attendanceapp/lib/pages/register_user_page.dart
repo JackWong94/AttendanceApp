@@ -8,7 +8,7 @@ import 'package:attendanceapp/services/user_model_service.dart';
 import 'package:attendanceapp/models/user_model.dart';
 import 'package:attendanceapp/pages/login_user_page.dart';
 import 'package:attendanceapp/widgets/camera_placeholder.dart';
-import 'package:attendanceapp/services/web_face_api.dart' as webFaceApi;
+import 'package:attendanceapp/widgets/face_capture_widget.dart';
 
 class RegisterUserPage extends StatefulWidget {
   const RegisterUserPage({super.key});
@@ -73,71 +73,12 @@ class _RegisterUserPageState extends State<RegisterUserPage> {
     return newId;
   }
 
-  Future<void> _captureFaceSequence() async {
-    if (_isCreating) return;
-
-    capturedPhotos.clear();
-    capturedEmbeddings.clear();
-
-    final steps = [
-      {"instruction": "Look straight ahead"},
-      {"instruction": "Slightly turn your head to the LEFT"},
-      {"instruction": "Slightly turn your head to the RIGHT"},
-    ];
-
-    for (var i = 0; i < steps.length; i++) {
-      final step = steps[i];
-      final confirmed = await showDialog<bool>(
-        context: context,
-        barrierDismissible: false,
-        builder: (_) => AlertDialog(
-          title: const Text("Face Recording"),
-          content: Text(step["instruction"]!),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text("Capture"),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text("Skip"),
-            ),
-          ],
-        ),
-      );
-
-      if (confirmed == true) {
-        try {
-          if (!_cameraService.isInitialized) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text("Camera not ready")),
-            );
-            return;
-          }
-
-          final picture = await _cameraService.controller!.takePicture();
-          final bytes = await picture.readAsBytes();
-          capturedPhotos.add(bytes);
-
-          final img = await webFaceApi.uint8ListToImage(bytes);
-          final resizedImg = await webFaceApi.resizeImage(img, 160, 160);
-          final descriptor =
-          await webFaceApi.computeFaceDescriptorSafe(resizedImg);
-
-          if (descriptor.isEmpty) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text("No face detected in photo #${i + 1}")),
-            );
-          } else {
-            capturedEmbeddings.add(descriptor);
-          }
-        } catch (e) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text("Error capturing photo: $e")),
-          );
-        }
-      }
-    }
+  void _onFaceCaptureCompleted(
+      List<Uint8List> photos, List<List<double>> embeddings) {
+    setState(() {
+      capturedPhotos = photos;
+      capturedEmbeddings = embeddings;
+    });
 
     if (capturedEmbeddings.length == 3) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -146,12 +87,11 @@ class _RegisterUserPageState extends State<RegisterUserPage> {
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-            content: Text(
-                "Only ${capturedEmbeddings.length}/3 valid photos recorded")),
+          content:
+          Text("Only ${capturedEmbeddings.length}/3 valid photos recorded"),
+        ),
       );
     }
-
-    setState(() {});
   }
 
   Future<void> _registerUser() async {
@@ -220,39 +160,10 @@ class _RegisterUserPageState extends State<RegisterUserPage> {
               padding: const EdgeInsets.all(16.0),
               child: Column(
                 children: [
-                  SizedBox(
-                    height: 250,
-                    child: FutureBuilder<void>(
-                      future: _cameraService.initializeFuture,
-                      builder: (context, snapshot) {
-                        if (snapshot.connectionState == ConnectionState.waiting) {
-                          // Still initializing → show spinner
-                          return const Center(child: CircularProgressIndicator());
-                        } else if (snapshot.hasError) {
-                          // Initialization failed → show placeholder
-                          return const CameraPlaceholder(
-                            message: "Camera error or not supported on this platform",
-                          );
-                        } else if (_cameraService.controller != null &&
-                            _cameraService.controller!.value.isInitialized) {
-                          // Camera ready → show preview
-                          return Padding(
-                            padding: const EdgeInsets.all(24.0),
-                            child: AspectRatio(
-                              aspectRatio: _cameraService.controller!.value.aspectRatio,
-                              child: CameraPreview(_cameraService.controller!),
-                            ),
-                          );
-                        } else {
-                          // Camera still null/unavailable → show spinner unless timeout
-                          return !_cameraTimedOut
-                              ? const Center(child: CircularProgressIndicator())
-                              : const CameraPlaceholder(
-                            message: "Camera not available on this platform",
-                          );
-                        }
-                      },
-                    ),
+                  // Replaced manual capture sequence with FaceCaptureWidget
+                  FaceCaptureWidget(
+                    cameraService: _cameraService,
+                    onCompleted: _onFaceCaptureCompleted,
                   ),
                   const SizedBox(height: 24),
                   Form(
@@ -268,24 +179,6 @@ class _RegisterUserPageState extends State<RegisterUserPage> {
                     ),
                   ),
                   const SizedBox(height: 24),
-                  ElevatedButton.icon(
-                    onPressed: _captureFaceSequence,
-                    icon: const Icon(Icons.videocam),
-                    label: const Text("Record Face (3 Photos)"),
-                  ),
-                  const SizedBox(height: 16),
-                  if (capturedPhotos.isNotEmpty)
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: capturedPhotos
-                          .map((bytes) => Padding(
-                        padding: const EdgeInsets.all(4.0),
-                        child: Image.memory(bytes,
-                            width: 80, height: 80, fit: BoxFit.cover),
-                      ))
-                          .toList(),
-                    ),
-                  const SizedBox(height: 24),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
@@ -297,8 +190,7 @@ class _RegisterUserPageState extends State<RegisterUserPage> {
                       ElevatedButton.icon(
                         onPressed: () => Navigator.pushReplacement(
                           context,
-                          MaterialPageRoute(
-                              builder: (_) => const LoginUserPage()),
+                          MaterialPageRoute(builder: (_) => const LoginUserPage()),
                         ),
                         icon: const Icon(Icons.cancel),
                         label: const Text("Cancel"),
