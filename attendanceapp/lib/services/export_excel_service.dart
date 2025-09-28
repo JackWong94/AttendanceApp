@@ -117,7 +117,7 @@ class ExportExcelService {
       conditions.add('AND(ISTEXT($colLetter$rowNum), ISNUMBER(FIND(":", $colLetter$rowNum)))');
     }
 
-    return '=IF(OR(${conditions.join(',')}),"Present","Absent")';
+    return '=IF(OR(${conditions.join(',')}),"","Absent")';
   }
 
   // === Day Attendance Export ===
