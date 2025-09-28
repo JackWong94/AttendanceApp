@@ -16,7 +16,7 @@ class ManageUserPage extends StatefulWidget {
 
 class _ManageUserPageState extends State<ManageUserPage> with RouteAware {
   final UserModelService _userService = UserModelService.instance;
-  final CameraService _cameraService = CameraService();
+  final CameraService _cameraService = CameraService.instance; // ✅ fixed
 
   List<UserModel> _users = [];
   bool _isLoading = true;
@@ -51,8 +51,7 @@ class _ManageUserPageState extends State<ManageUserPage> with RouteAware {
 
   @override
   void didPopNext() {
-    // Reinitialize camera when coming back from dialog/page
-    _reinitCamera();
+    _initCamera(); // ✅ reuse the same init
   }
 
   Future<void> _initCamera() async {
@@ -61,6 +60,7 @@ class _ManageUserPageState extends State<ManageUserPage> with RouteAware {
   }
 
   Future<void> _reinitCamera() async {
+    await _cameraService.disposeCamera(); // ✅ always clean first
     await _cameraService.initCamera(forceReinitOnWeb: true);
     if (mounted) setState(() {});
   }

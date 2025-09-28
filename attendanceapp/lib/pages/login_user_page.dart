@@ -24,7 +24,8 @@ class LoginUserPage extends StatefulWidget {
 }
 
 class _LoginUserPageState extends State<LoginUserPage> with RouteAware {
-  final CameraService _cameraService = CameraService();
+  // ✅ use singleton instance instead of constructor
+  final CameraService _cameraService = CameraService.instance;
   final AttendanceService _attendanceService = AttendanceService();
   bool _scanInProgress = false;
   bool _cameraTimedOut = false;
@@ -59,8 +60,12 @@ class _LoginUserPageState extends State<LoginUserPage> with RouteAware {
     setState(() {});
   }
 
-  void _initCamera() {
+  void _initCamera() async {
     _cameraTimedOut = false;
+
+    // ✅ Always dispose first on web before reinit
+    await _cameraService.disposeCamera();
+
     _cameraService.initCamera(forceReinitOnWeb: true).then((_) {
       if (mounted) setState(() {});
     });
@@ -108,24 +113,23 @@ class _LoginUserPageState extends State<LoginUserPage> with RouteAware {
     required UserModel user,
     required DateTime time,
   }) {
-    // Remove any previous overlay first
     _removeOverlay();
 
-    final formattedTime = DateFormat.Hm().format(time.toLocal()); // ✅ HH:mm only
+    final formattedTime = DateFormat.Hm().format(time.toLocal());
 
     _overlayEntry = OverlayEntry(
       builder: (context) => Positioned.fill(
         child: GestureDetector(
           onTap: _removeOverlay,
           child: Material(
-            color: Colors.black54, // Full-screen semi-transparent background
+            color: Colors.black54,
             child: Center(
               child: FractionallySizedBox(
-                widthFactor: 0.6, // Box width relative to screen
+                widthFactor: 0.6,
                 child: Container(
                   padding: const EdgeInsets.all(24),
                   decoration: BoxDecoration(
-                    color: Colors.black87, // Slightly darker box
+                    color: Colors.black87,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Column(
@@ -138,7 +142,7 @@ class _LoginUserPageState extends State<LoginUserPage> with RouteAware {
                       ),
                       const SizedBox(height: 20),
                       Text(
-                        "${isScanIn ? 'Signed In' : 'Signed Out'} at ${formattedTime}",
+                        "${isScanIn ? 'Signed In' : 'Signed Out'} at $formattedTime",
                         style: const TextStyle(color: Colors.white, fontSize: 20),
                         textAlign: TextAlign.center,
                       ),
@@ -161,16 +165,13 @@ class _LoginUserPageState extends State<LoginUserPage> with RouteAware {
     Overlay.of(context).insert(_overlayEntry!);
   }
 
-
-
-
   void _removeOverlay() {
     _overlayEntry?.remove();
     _overlayEntry = null;
   }
 
   Future<void> _handleScanFlow({required bool isScanIn}) async {
-    if (_scanInProgress) return; // Prevent concurrent scans
+    if (_scanInProgress) return;
     _scanInProgress = true;
     try {
       final user = await _detectPerson();
@@ -178,7 +179,7 @@ class _LoginUserPageState extends State<LoginUserPage> with RouteAware {
       _detectedUser = user;
       await _handleScan(user: user, isScanIn: isScanIn);
     } finally {
-      _scanInProgress = false; // Always reset
+      _scanInProgress = false;
     }
   }
 
@@ -189,7 +190,6 @@ class _LoginUserPageState extends State<LoginUserPage> with RouteAware {
     try {
       final now = DateTime.now();
 
-      // Call attendance service
       final message = isScanIn
           ? await _attendanceService.addScanIn(
         userId: user.id,
@@ -204,7 +204,6 @@ class _LoginUserPageState extends State<LoginUserPage> with RouteAware {
 
       final success = message.contains("recorded successfully");
 
-      // Show overlay only on success
       if (success) {
         _showScanOverlay(
           isScanIn: isScanIn,
@@ -213,7 +212,6 @@ class _LoginUserPageState extends State<LoginUserPage> with RouteAware {
         );
       }
 
-      // Show snackbar (green if success, red if fail)
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(message),
@@ -302,16 +300,13 @@ class _LoginUserPageState extends State<LoginUserPage> with RouteAware {
                 future: _cameraService.initializeFuture,
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
-                    // Still initializing → show loading
                     return const Center(child: CircularProgressIndicator());
                   } else if (snapshot.hasError) {
-                    // Initialization failed → show placeholder
                     return const CameraPlaceholder(
                       message: "Camera error or not supported on this platform",
                     );
                   } else if (_cameraService.controller != null &&
                       _cameraService.controller!.value.isInitialized) {
-                    // Camera ready → show preview
                     return Padding(
                       padding: const EdgeInsets.all(24.0),
                       child: AspectRatio(
@@ -320,7 +315,6 @@ class _LoginUserPageState extends State<LoginUserPage> with RouteAware {
                       ),
                     );
                   } else {
-                    // Camera still null or unavailable → show loading
                     return const Center(child: CircularProgressIndicator());
                   }
                 },

@@ -4,24 +4,19 @@ import 'package:flutter/material.dart';
 
 class CameraService {
   // Singleton
-  static final CameraService _instance = CameraService._internal();
-  factory CameraService() => _instance;
+  static final CameraService instance = CameraService._internal();
   CameraService._internal();
 
   CameraController? controller;
   Future<void>? initializeFuture;
 
   /// Initialize or reinitialize camera
-  /// [forceReinitOnWeb] ensures web camera is disposed and recreated
   Future<void> initCamera({bool forceReinitOnWeb = false}) async {
     try {
-      // Dispose web camera if forced
-      if (kIsWeb && controller != null && forceReinitOnWeb) {
+      // Always dispose if forced
+      if (forceReinitOnWeb && controller != null) {
         await disposeCamera();
       }
-
-      // Skip initialization if controller already exists and is initialized on mobile
-      if (!kIsWeb && isInitialized) return;
 
       // Get available cameras
       final cameras = await availableCameras();
@@ -33,14 +28,12 @@ class CameraService {
         orElse: () => cameras.first,
       );
 
-      // Create controller
       controller = CameraController(
         frontCamera,
         ResolutionPreset.medium,
-        enableAudio: !kIsWeb, // disable audio for web
+        enableAudio: false, // disable audio for web
       );
 
-      // Initialize
       initializeFuture = controller!.initialize();
       await initializeFuture;
     } catch (e) {
@@ -50,7 +43,6 @@ class CameraService {
     }
   }
 
-  /// Dispose camera controller safely
   Future<void> disposeCamera() async {
     try {
       await controller?.dispose();
@@ -62,10 +54,6 @@ class CameraService {
     }
   }
 
-  /// Helper to check if camera is available and initialized
   bool get isInitialized =>
       controller != null && controller!.value.isInitialized;
-
-  /// Optional: check if controller exists even if not yet initialized
-  bool get hasController => controller != null;
 }

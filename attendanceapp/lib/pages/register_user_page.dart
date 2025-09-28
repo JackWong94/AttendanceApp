@@ -20,7 +20,7 @@ class RegisterUserPage extends StatefulWidget {
 class _RegisterUserPageState extends State<RegisterUserPage> {
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _nameController = TextEditingController();
-  final CameraService _cameraService = CameraService();
+  final CameraService _cameraService = CameraService.instance; // ✅ fixed
   final UserModelService _userService = UserModelService.instance;
 
   List<Uint8List> capturedPhotos = [];
