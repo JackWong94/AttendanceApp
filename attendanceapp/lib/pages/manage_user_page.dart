@@ -270,11 +270,11 @@ class _FaceCaptureDialogState extends State<FaceCaptureDialog> {
   List<List<double>> _embeddings = [];
 
   void _handleCompleted(List<Uint8List> photos, List<List<double>> embeddings) {
+    // ✅ only cache in state
     setState(() {
       _photos = photos;
       _embeddings = embeddings;
     });
-    widget.onCompleted(photos, embeddings);
   }
 
   @override
@@ -298,7 +298,13 @@ class _FaceCaptureDialogState extends State<FaceCaptureDialog> {
           child: const Text("Cancel"),
         ),
         TextButton(
-          onPressed: isDoneEnabled ? () => Navigator.pop(context) : null,
+          onPressed: _embeddings.length == 3
+              ? () {
+            // ✅ Commit update only here
+            widget.onCompleted(_photos, _embeddings);
+            Navigator.pop(context);
+          }
+              : null, // disabled until 3 photos
           child: const Text("Done"),
         ),
       ],
