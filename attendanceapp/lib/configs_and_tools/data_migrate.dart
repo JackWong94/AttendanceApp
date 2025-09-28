@@ -1,7 +1,30 @@
-/*
-Dataigration script example
+//Data migration script example
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+Future<void> migrateUsers() async {
+  final firestore = FirebaseFirestore.instance;
+
+  final oldCollection = firestore.collection('pro_CKHW_Users');
+  final newCollection = firestore.collection('dev_Users');
+
+  final snapshot = await oldCollection.get();
+
+  for (final doc in snapshot.docs) {
+    final data = Map<String, dynamic>.from(doc.data());
+
+    // Remove "migratedAt" if exists
+    data.remove('migratedAt');
+
+    // Keep same docId (e.g., EMP0001)
+    final userId = doc.id;
+
+    await newCollection.doc(userId).set(data);
+
+    print("✅ Migrated user $userId");
+  }
+
+  print("🎉 Users migration finished.");
+}
 
 Future<void> migrateAttendance() async {
   final firestore = FirebaseFirestore.instance;
@@ -57,4 +80,58 @@ Future<void> migrateAttendance() async {
 
   print("🎉 Attendance migration finished.");
 }
-*/
+
+Future<void> copyUsersDevToPro() async {
+  final firestore = FirebaseFirestore.instance;
+
+  final devCollection = firestore.collection('dev_Users');
+  final proCollection = firestore.collection('pro_CKHW_Users');
+
+  final snapshot = await devCollection.get();
+
+  for (final doc in snapshot.docs) {
+    final data = Map<String, dynamic>.from(doc.data());
+
+    // Just copy as-is
+    await proCollection.doc(doc.id).set(data);
+
+    print("✅ Copied user ${doc.id}");
+  }
+
+  print("🎉 Finished copying Users from dev_Users → pro_CKHW_Users");
+}
+
+Future<void> copyAttendanceDevToPro() async {
+  final firestore = FirebaseFirestore.instance;
+
+  final devCollection = firestore.collection('dev_Attendance');
+  final proCollection = firestore.collection('pro_CKHW_Attendance');
+
+  final snapshot = await devCollection.get();
+
+  for (final doc in snapshot.docs) {
+    final data = Map<String, dynamic>.from(doc.data());
+
+    // Update "user" field reference
+    if (data['user'] != null && data['user'] is DocumentReference) {
+      final ref = data['user'] as DocumentReference;
+      final userId = ref.id;
+      data['user'] = firestore.doc('/pro_CKHW_Users/$userId');
+    }
+
+    await proCollection.doc(doc.id).set(data);
+
+    print("✅ Copied attendance ${doc.id}");
+  }
+
+  print("🎉 Finished copying Attendance from dev_Attendance → pro_CKHW_Attendance");
+}
+
+
+Future<void> runMigrationScript() async {
+  print("\u26A0 WARNING YOU ARE RUNNING MIGRATION SCRIPT NOW \u26A0");
+  //await migrateUsers();
+  //await migrateAttendance();
+  //await copyUsersDevToPro();
+  //await copyAttendanceDevToPro();
+}
