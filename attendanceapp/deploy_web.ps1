@@ -53,10 +53,10 @@ Set-Location $ProjectPath
 # Build Flutter Web (with retry)
 # ---------------------------
 Write-Host "Building Flutter web app for $TargetName..." -ForegroundColor Green
-flutter build web --base-href $BaseHref --dart-define-from-file=lib/config/firebase_config.json 2>$null
+flutter build web --base-href $BaseHref --dart-define-from-file=lib/configs_and_tools/firebase_config.json 2>$null
 if ($LASTEXITCODE -ne 0) {
     Write-Host "⚠️ First build failed (EXPECTED, NO NEED OF ALARM), retrying..." -ForegroundColor Yellow
-    flutter build web --base-href $BaseHref --dart-define-from-file=lib/config/firebase_config.json
+    flutter build web --base-href $BaseHref --dart-define-from-file=lib/configs_and_tools/firebase_config.json
     if ($LASTEXITCODE -ne 0) {
         Write-Host "❌ Flutter web build failed twice. Aborting." -ForegroundColor Red
         exit $LASTEXITCODE
