@@ -31,10 +31,14 @@ class ExportExcelService {
 
   /// Append data row (converts HH:mm to Excel time)
   static void appendRow(
-      Worksheet sheet, int rowIndex, List<dynamic> values,
-      {bool alternate = false, bool isSunday = false}) {
+      Worksheet sheet,
+      int rowIndex,
+      List<dynamic> values, {
+        bool alternate = false,
+        bool isSunday = false,
+      }) {
     final bgColor = isSunday
-        ? '#FFA500' // Orange for Sunday
+        ? '#FFA500'
         : (alternate ? '#F2F2F2' : '#FFFFFF');
 
     for (int i = 0; i < values.length; i++) {
@@ -83,6 +87,8 @@ class ExportExcelService {
 
     final cellText = sheet.getRangeByIndex(startRow, 2);
     cellText.setText('Sunday');
+    // Apply border
+    sheet.getRangeByIndex(startRow, 1, startRow, 2).cellStyle.borders.all.lineStyle = LineStyle.thin;
   }
 
   /// Export daily attendance
@@ -99,25 +105,36 @@ class ExportExcelService {
     // Title
     createInfoHeader(sheet, 'Attendance on ${DateService.toStorageDate(selectedDate)}');
 
+    // Headers including Lunch and OT
     final headers = [
-      'User', 'Scan In 1', 'Scan In 2', 'Scan In 3',
-      'Scan Out 1', 'Scan Out 2', 'Scan Out 3'
+      'User',
+      'Scan In 1', 'Scan Out 1',
+      'Scan In 2', 'Scan Out 2',
+      'Scan In 3', 'Scan Out 3',
+      'Lunch (h)',
+      'OT (h)',
     ];
     addHeaderRow(sheet, headers, 2);
-    setColumnWidths(sheet, [25, 15, 15, 15, 15, 15, 15]);
+    setColumnWidths(sheet, [25, 12, 12, 12, 12, 12, 12, 12, 12]);
 
     final usersToExport = selectedUserId != null ? [selectedUserId] : userNames.keys.toList();
     for (int i = 0; i < usersToExport.length; i++) {
       final uid = usersToExport[i];
       final dateStr = DateService.toStorageDate(selectedDate);
       final record = attendanceMap[uid]?[dateStr]?.split('|') ?? List.filled(6, '');
-      appendRow(
-          sheet,
-          i + 3,
-          [userNames[uid] ?? uid, ...record],
+      appendRow(sheet, i + 3, [userNames[uid] ?? uid, ...record],
           alternate: i % 2 != 0,
-          isSunday: selectedDate.weekday == DateTime.sunday
-      );
+          isSunday: selectedDate.weekday == DateTime.sunday);
+
+      // Set formulas for Lunch and OT
+      final rowNum = i + 3;
+      // Lunch = ScanIn2 - ScanOut1
+      sheet.getRangeByIndex(rowNum, 8).formula = '=(D$rowNum-C$rowNum)*24';
+      sheet.getRangeByIndex(rowNum, 8).numberFormat = '0.00';
+      // OT = last non-empty ScanOut - 17:00
+      sheet.getRangeByIndex(rowNum, 9).formula =
+      '=IF(G$rowNum<>"",(G$rowNum-TIME(17,0,0))*24,IF(E$rowNum<>"",(E$rowNum-TIME(17,0,0))*24,IF(C$rowNum<>"",(C$rowNum-TIME(17,0,0))*24,0)))';
+      sheet.getRangeByIndex(rowNum, 9).numberFormat = '0.00';
     }
 
     addLegend(sheet, usersToExport.length + 4);
@@ -132,7 +149,7 @@ class ExportExcelService {
     String? selectedUserId,
   }) {
     final workbook = _createWorkbook();
-    final defaultSheet = workbook.worksheets[0]; // default first sheet
+    final defaultSheet = workbook.worksheets[0];
 
     final usersToExport = selectedUserId != null ? [selectedUserId] : attendanceMap.keys.toList();
 
@@ -152,24 +169,31 @@ class ExportExcelService {
       createInfoHeader(sheet, '$sheetName Attendance for $monthStr');
 
       final headers = [
-        'Date', 'Scan In 1', 'Scan In 2', 'Scan In 3',
-        'Scan Out 1', 'Scan Out 2', 'Scan Out 3'
+        'Date',
+        'Scan In 1', 'Scan Out 1',
+        'Scan In 2', 'Scan Out 2',
+        'Scan In 3', 'Scan Out 3',
+        'Lunch (h)',
+        'OT (h)',
       ];
       addHeaderRow(sheet, headers, 2);
-      setColumnWidths(sheet, [20, 15, 15, 15, 15, 15, 15]);
+      setColumnWidths(sheet, [12, 12, 12, 12, 12, 12, 12, 12, 12]);
 
       final days = attendanceMap[uid]?.keys.toList() ?? [];
       for (int j = 0; j < days.length; j++) {
         final dayStr = days[j];
         final dt = DateTime.parse(dayStr);
         final record = attendanceMap[uid]?[dayStr]?.split('|') ?? List.filled(6, '');
-        appendRow(
-          sheet,
-          j + 3,
-          [dayStr, ...record],
-          isSunday: dt.weekday == DateTime.sunday,
-          alternate: j % 2 != 0,
-        );
+        appendRow(sheet, j + 3, [dayStr, ...record],
+            isSunday: dt.weekday == DateTime.sunday,
+            alternate: j % 2 != 0);
+
+        final rowNum = j + 3;
+        sheet.getRangeByIndex(rowNum, 8).formula = '=(D$rowNum-C$rowNum)*24';
+        sheet.getRangeByIndex(rowNum, 8).numberFormat = '0.00';
+        sheet.getRangeByIndex(rowNum, 9).formula =
+        '=IF(G$rowNum<>"",(G$rowNum-TIME(17,0,0))*24,IF(E$rowNum<>"",(E$rowNum-TIME(17,0,0))*24,IF(C$rowNum<>"",(C$rowNum-TIME(17,0,0))*24,0)))';
+        sheet.getRangeByIndex(rowNum, 9).numberFormat = '0.00';
       }
 
       addLegend(sheet, days.length + 4);
