@@ -31,7 +31,6 @@ class _ManageUserPageState extends State<ManageUserPage> with RouteAware {
   void initState() {
     super.initState();
     _loadUsers();
-    _initCamera();
   }
 
   @override
@@ -45,18 +44,20 @@ class _ManageUserPageState extends State<ManageUserPage> with RouteAware {
     for (var ctrl in _nameControllers.values) {
       ctrl.dispose();
     }
-    _cameraService.disposeCamera(); // ✅ always clean up
     routeObserver.unsubscribe(this);
     super.dispose();
   }
 
   @override
   void didPopNext() {
-    _initCamera(); // ✅ reinit on return
+    // 🔥 only reinit when coming back
+    if (!_cameraService.isInitialized) {
+      _initCamera();
+    }
   }
 
-  void _initCamera() async {
-    await _cameraService.initCamera(forceReinitOnWeb: true);
+  void _initCamera() {
+    _cameraService.initCamera(forceReinitOnWeb: true);
     if (mounted) setState(() {});
   }
 
