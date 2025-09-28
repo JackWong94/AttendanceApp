@@ -4,19 +4,16 @@ import 'package:syncfusion_flutter_xlsio/xlsio.dart';
 import '../services/date_service.dart';
 
 class ExportExcelService {
-  /// Create workbook
   static Workbook _createWorkbook() => Workbook();
 
-  /// Info header (title)
   static void createInfoHeader(Worksheet sheet, String title) {
     final cell = sheet.getRangeByIndex(1, 1);
     cell.setText(title);
     cell.cellStyle.bold = true;
-    cell.cellStyle.hAlign = HAlignType.center;
+    cell.cellStyle.hAlign = HAlignType.left; // allow overflow
     cell.cellStyle.vAlign = VAlignType.center;
   }
 
-  /// Header row style (bold, blue, with borders)
   static void addHeaderRow(Worksheet sheet, List<String> headers, int rowIndex) {
     for (int i = 0; i < headers.length; i++) {
       final cell = sheet.getRangeByIndex(rowIndex, i + 1);
@@ -29,7 +26,6 @@ class ExportExcelService {
     }
   }
 
-  /// Append data row (converts HH:mm to Excel time)
   static void appendRow(
       Worksheet sheet,
       int rowIndex,
@@ -37,9 +33,7 @@ class ExportExcelService {
         bool alternate = false,
         bool isSunday = false,
       }) {
-    final bgColor = isSunday
-        ? '#FFA500'
-        : (alternate ? '#F2F2F2' : '#FFFFFF');
+    final bgColor = isSunday ? '#FFA500' : (alternate ? '#F2F2F2' : '#FFFFFF');
 
     for (int i = 0; i < values.length; i++) {
       final cell = sheet.getRangeByIndex(rowIndex, i + 1);
@@ -71,7 +65,6 @@ class ExportExcelService {
     }
   }
 
-  /// Set column widths
   static void setColumnWidths(Worksheet sheet, List<double> widths) {
     for (int i = 0; i < widths.length; i++) {
       final range = sheet.getRangeByIndex(1, i + 1);
@@ -79,7 +72,6 @@ class ExportExcelService {
     }
   }
 
-  /// Add legend row at bottom
   static void addLegend(Worksheet sheet, int startRow) {
     final cellColor = sheet.getRangeByIndex(startRow, 1);
     cellColor.cellStyle.backColor = '#FFA500';
@@ -87,11 +79,11 @@ class ExportExcelService {
 
     final cellText = sheet.getRangeByIndex(startRow, 2);
     cellText.setText('Sunday');
-    // Apply border
-    sheet.getRangeByIndex(startRow, 1, startRow, 2).cellStyle.borders.all.lineStyle = LineStyle.thin;
+
+    sheet.getRangeByIndex(startRow, 1, startRow, 2).cellStyle.borders.all.lineStyle =
+        LineStyle.thin;
   }
 
-  /// Export daily attendance
   static void exportDayAttendance({
     required Map<String, Map<String, String>> attendanceMap,
     required Map<String, String> userNames,
@@ -102,10 +94,8 @@ class ExportExcelService {
     final sheet = workbook.worksheets[0];
     sheet.name = 'Attendance';
 
-    // Title
     createInfoHeader(sheet, 'Attendance on ${DateService.toStorageDate(selectedDate)}');
 
-    // Headers including Lunch and OT
     final headers = [
       'User',
       'Scan In 1', 'Scan Out 1',
@@ -118,6 +108,7 @@ class ExportExcelService {
     setColumnWidths(sheet, [25, 12, 12, 12, 12, 12, 12, 12, 12]);
 
     final usersToExport = selectedUserId != null ? [selectedUserId] : userNames.keys.toList();
+
     for (int i = 0; i < usersToExport.length; i++) {
       final uid = usersToExport[i];
       final dateStr = DateService.toStorageDate(selectedDate);
@@ -126,22 +117,38 @@ class ExportExcelService {
           alternate: i % 2 != 0,
           isSunday: selectedDate.weekday == DateTime.sunday);
 
-      // Set formulas for Lunch and OT
       final rowNum = i + 3;
-      // Lunch = ScanIn2 - ScanOut1
+
+      // Lunch formula = ScanIn2 - ScanOut1
       sheet.getRangeByIndex(rowNum, 8).formula = '=(D$rowNum-C$rowNum)*24';
       sheet.getRangeByIndex(rowNum, 8).numberFormat = '0.00';
-      // OT = last non-empty ScanOut - 17:00
+      sheet.getRangeByIndex(rowNum, 8).cellStyle.borders.all.lineStyle = LineStyle.thin;
+
+      // OT formula = last non-empty ScanOut - 17:00
       sheet.getRangeByIndex(rowNum, 9).formula =
       '=IF(G$rowNum<>"",(G$rowNum-TIME(17,0,0))*24,IF(E$rowNum<>"",(E$rowNum-TIME(17,0,0))*24,IF(C$rowNum<>"",(C$rowNum-TIME(17,0,0))*24,0)))';
       sheet.getRangeByIndex(rowNum, 9).numberFormat = '0.00';
+      sheet.getRangeByIndex(rowNum, 9).cellStyle.borders.all.lineStyle = LineStyle.thin;
     }
 
-    addLegend(sheet, usersToExport.length + 4);
+    // Totals for Day
+    final totalRow = usersToExport.length + 3;
+    sheet.getRangeByIndex(totalRow, 7).setText('Total');
+    sheet.getRangeByIndex(totalRow, 7).cellStyle.bold = true;
+    sheet.getRangeByIndex(totalRow, 7).cellStyle.borders.all.lineStyle = LineStyle.thin;
+
+    sheet.getRangeByIndex(totalRow, 8).formula = 'SUM(H3:H${totalRow - 1})';
+    sheet.getRangeByIndex(totalRow, 8).numberFormat = '0.00';
+    sheet.getRangeByIndex(totalRow, 8).cellStyle.borders.all.lineStyle = LineStyle.thin;
+
+    sheet.getRangeByIndex(totalRow, 9).formula = 'SUM(I3:I${totalRow - 1})';
+    sheet.getRangeByIndex(totalRow, 9).numberFormat = '0.00';
+    sheet.getRangeByIndex(totalRow, 9).cellStyle.borders.all.lineStyle = LineStyle.thin;
+
+    addLegend(sheet, totalRow + 2);
     _saveExcelFile(workbook, 'attendance-${DateService.toStorageDate(selectedDate)}.xlsx');
   }
 
-  /// Export monthly attendance
   static void exportMonthAttendance({
     required Map<String, Map<String, String>> attendanceMap,
     required Map<String, String> userNames,
@@ -189,14 +196,34 @@ class ExportExcelService {
             alternate: j % 2 != 0);
 
         final rowNum = j + 3;
+
+        // Lunch = ScanIn2 - ScanOut1
         sheet.getRangeByIndex(rowNum, 8).formula = '=(D$rowNum-C$rowNum)*24';
         sheet.getRangeByIndex(rowNum, 8).numberFormat = '0.00';
+        sheet.getRangeByIndex(rowNum, 8).cellStyle.borders.all.lineStyle = LineStyle.thin;
+
+        // OT = last non-empty ScanOut - 17:00
         sheet.getRangeByIndex(rowNum, 9).formula =
         '=IF(G$rowNum<>"",(G$rowNum-TIME(17,0,0))*24,IF(E$rowNum<>"",(E$rowNum-TIME(17,0,0))*24,IF(C$rowNum<>"",(C$rowNum-TIME(17,0,0))*24,0)))';
         sheet.getRangeByIndex(rowNum, 9).numberFormat = '0.00';
+        sheet.getRangeByIndex(rowNum, 9).cellStyle.borders.all.lineStyle = LineStyle.thin;
       }
 
-      addLegend(sheet, days.length + 4);
+      // Totals for Month
+      final totalRow = days.length + 3;
+      sheet.getRangeByIndex(totalRow, 7).setText('Total');
+      sheet.getRangeByIndex(totalRow, 7).cellStyle.bold = true;
+      sheet.getRangeByIndex(totalRow, 7).cellStyle.borders.all.lineStyle = LineStyle.thin;
+
+      sheet.getRangeByIndex(totalRow, 8).formula = 'SUM(H3:H${totalRow - 1})';
+      sheet.getRangeByIndex(totalRow, 8).numberFormat = '0.00';
+      sheet.getRangeByIndex(totalRow, 8).cellStyle.borders.all.lineStyle = LineStyle.thin;
+
+      sheet.getRangeByIndex(totalRow, 9).formula = 'SUM(I3:I${totalRow - 1})';
+      sheet.getRangeByIndex(totalRow, 9).numberFormat = '0.00';
+      sheet.getRangeByIndex(totalRow, 9).cellStyle.borders.all.lineStyle = LineStyle.thin;
+
+      addLegend(sheet, totalRow + 2);
     }
 
     final fileName = selectedDate != null
@@ -206,7 +233,6 @@ class ExportExcelService {
     _saveExcelFile(workbook, fileName);
   }
 
-  /// Save Excel file in browser
   static void _saveExcelFile(Workbook workbook, String fileName) {
     final List<int> bytes = workbook.saveAsStream();
     workbook.dispose();
