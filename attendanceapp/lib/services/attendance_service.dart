@@ -1,6 +1,6 @@
 import '../models/attendance_model.dart';
+import 'user_model_service.dart';
 import 'attendance_model_service.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/date_service.dart';
 
 class AttendanceService {
@@ -41,7 +41,7 @@ class AttendanceService {
 
     attendance ??= Attendance(
       id: docId,
-      userRef: FirebaseFirestore.instance.collection("users").doc(userId),
+      userRef: UserModelService.instance.getUserDocRef(userId), // ✅ tenant-aware
       date: dateKey,
       scanIns: [],
       scanOuts: [],
@@ -75,7 +75,7 @@ class AttendanceService {
 
     attendance ??= Attendance(
       id: docId,
-      userRef: FirebaseFirestore.instance.collection("users").doc(userId),
+      userRef: UserModelService.instance.getUserDocRef(userId), // ✅ tenant-aware
       date: dateKey,
       scanIns: [],
       scanOuts: [],
