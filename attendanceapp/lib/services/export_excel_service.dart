@@ -66,15 +66,25 @@ class ExportExcelService {
     }
   }
 
-  /// Add legend below the table
-  static void addLegend(Worksheet sheet, int startRow) {
-    final cell = sheet.getRangeByIndex(startRow, 1);
-    cell.setText('Legend: Highlighted orange rows = Sunday');
-    cell.cellStyle.bold = true;
-    cell.cellStyle.backColor = '#FFD966';
-    cell.cellStyle.hAlign = HAlignType.left;
-    cell.cellStyle.vAlign = VAlignType.center;
+  /// Add legend below table
+  static void addLegendTable(Worksheet sheet, int startRow) {
+    // Label "Legends:" one row above
+    final labelCell = sheet.getRangeByIndex(startRow, 1);
+    labelCell.setText('Legends:');
+    labelCell.cellStyle.bold = true;
+    labelCell.cellStyle.hAlign = HAlignType.left;
+    labelCell.cellStyle.vAlign = VAlignType.center;
     sheet.getRangeByIndex(startRow, 1, startRow, 7).merge();
+
+    // Color + description row
+    final colorCell = sheet.getRangeByIndex(startRow + 1, 1);
+    colorCell.cellStyle.backColor = '#FFD966'; // orange
+    colorCell.cellStyle.borders.all.lineStyle = LineStyle.thin;
+
+    final descCell = sheet.getRangeByIndex(startRow + 1, 2);
+    descCell.setText('Sunday');
+    descCell.cellStyle.hAlign = HAlignType.left;
+    descCell.cellStyle.vAlign = VAlignType.center;
   }
 
   /// Check if string date is Sunday
@@ -113,7 +123,7 @@ class ExportExcelService {
           isSunday: isSunday(dateStr));
     }
 
-    addLegend(sheet, usersToExport.length + 6); // below table
+    addLegendTable(sheet, usersToExport.length + 6); // below table
     _saveExcelFile(workbook, 'attendance-${DateService.toStorageDate(selectedDate)}.xlsx');
   }
 
@@ -144,7 +154,7 @@ class ExportExcelService {
             isSunday: isSunday(day));
       }
 
-      addLegend(sheet, days.length + 6);
+      addLegendTable(sheet, days.length + 6);
     }
 
     final fileName = selectedDate != null
