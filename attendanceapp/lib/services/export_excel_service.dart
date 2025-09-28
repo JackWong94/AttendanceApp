@@ -29,8 +29,9 @@ class ExportExcelService {
     }
   }
 
-  /// Append data row
-  static void appendRow(Worksheet sheet, int rowIndex, List<dynamic> values,
+  /// Append data row (converts HH:mm to Excel time)
+  static void appendRow(
+      Worksheet sheet, int rowIndex, List<dynamic> values,
       {bool alternate = false, bool isSunday = false}) {
     final bgColor = isSunday
         ? '#FFA500' // Orange for Sunday
@@ -39,7 +40,26 @@ class ExportExcelService {
     for (int i = 0; i < values.length; i++) {
       final cell = sheet.getRangeByIndex(rowIndex, i + 1);
       final val = values[i];
-      cell.setText((val is String && val.toUpperCase() == 'N/A') ? '' : val.toString());
+
+      if (val is String && val.contains(':')) {
+        try {
+          final parts = val.split(':');
+          if (parts.length == 2) {
+            final dt = DateTime(0, 1, 1, int.parse(parts[0]), int.parse(parts[1]));
+            cell.setDateTime(dt);
+            cell.numberFormat = 'hh:mm';
+          } else {
+            cell.setText(val);
+          }
+        } catch (_) {
+          cell.setText(val);
+        }
+      } else if (val is String && val.toUpperCase() == 'N/A') {
+        cell.setText('');
+      } else {
+        cell.setText(val.toString());
+      }
+
       cell.cellStyle.backColor = bgColor;
       cell.cellStyle.hAlign = HAlignType.left;
       cell.cellStyle.vAlign = VAlignType.center;
@@ -79,7 +99,10 @@ class ExportExcelService {
     // Title
     createInfoHeader(sheet, 'Attendance on ${DateService.toStorageDate(selectedDate)}');
 
-    final headers = ['User', 'Scan In 1', 'Scan In 2', 'Scan In 3', 'Scan Out 1', 'Scan Out 2', 'Scan Out 3'];
+    final headers = [
+      'User', 'Scan In 1', 'Scan In 2', 'Scan In 3',
+      'Scan Out 1', 'Scan Out 2', 'Scan Out 3'
+    ];
     addHeaderRow(sheet, headers, 2);
     setColumnWidths(sheet, [25, 15, 15, 15, 15, 15, 15]);
 
@@ -88,9 +111,13 @@ class ExportExcelService {
       final uid = usersToExport[i];
       final dateStr = DateService.toStorageDate(selectedDate);
       final record = attendanceMap[uid]?[dateStr]?.split('|') ?? List.filled(6, '');
-      appendRow(sheet, i + 3, [userNames[uid] ?? uid, ...record],
+      appendRow(
+          sheet,
+          i + 3,
+          [userNames[uid] ?? uid, ...record],
           alternate: i % 2 != 0,
-          isSunday: selectedDate.weekday == DateTime.sunday);
+          isSunday: selectedDate.weekday == DateTime.sunday
+      );
     }
 
     addLegend(sheet, usersToExport.length + 4);
@@ -113,11 +140,10 @@ class ExportExcelService {
       final uid = usersToExport[i];
       final sheetName = userNames[uid] ?? uid;
 
-      // Fix: use if-else instead of cascade in ternary
       Worksheet sheet;
       if (i == 0) {
         sheet = defaultSheet;
-        sheet.name = sheetName; // set name separately
+        sheet.name = sheetName;
       } else {
         sheet = workbook.worksheets.addWithName(sheetName);
       }
@@ -125,7 +151,10 @@ class ExportExcelService {
       final monthStr = selectedDate != null ? DateService.toMonthString(selectedDate) : '';
       createInfoHeader(sheet, '$sheetName Attendance for $monthStr');
 
-      final headers = ['Date', 'Scan In 1', 'Scan In 2', 'Scan In 3', 'Scan Out 1', 'Scan Out 2', 'Scan Out 3'];
+      final headers = [
+        'Date', 'Scan In 1', 'Scan In 2', 'Scan In 3',
+        'Scan Out 1', 'Scan Out 2', 'Scan Out 3'
+      ];
       addHeaderRow(sheet, headers, 2);
       setColumnWidths(sheet, [20, 15, 15, 15, 15, 15, 15]);
 
@@ -134,9 +163,13 @@ class ExportExcelService {
         final dayStr = days[j];
         final dt = DateTime.parse(dayStr);
         final record = attendanceMap[uid]?[dayStr]?.split('|') ?? List.filled(6, '');
-        appendRow(sheet, j + 3, [dayStr, ...record],
-            isSunday: dt.weekday == DateTime.sunday,
-            alternate: j % 2 != 0);
+        appendRow(
+          sheet,
+          j + 3,
+          [dayStr, ...record],
+          isSunday: dt.weekday == DateTime.sunday,
+          alternate: j % 2 != 0,
+        );
       }
 
       addLegend(sheet, days.length + 4);
@@ -148,7 +181,6 @@ class ExportExcelService {
 
     _saveExcelFile(workbook, fileName);
   }
-
 
   /// Save Excel file in browser
   static void _saveExcelFile(Workbook workbook, String fileName) {
