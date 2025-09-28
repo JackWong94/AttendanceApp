@@ -3,14 +3,35 @@ import 'dart:html' as html;
 import 'package:syncfusion_flutter_xlsio/xlsio.dart';
 import '../services/date_service.dart';
 
+// Define attendance columns as enum at top-level
+enum AttendanceColumn {
+  user,
+  scanIn1,
+  scanOut1,
+  scanIn2,
+  scanOut2,
+  scanIn3,
+  scanOut3,
+  lunch,
+  ot,
+}
+
+// Helper to get column index (1-based for Excel)
+int colIndex(AttendanceColumn col) => col.index + 1;
+
 class ExportExcelService {
   static Workbook _createWorkbook() => Workbook();
 
+  // Row constants
+  static const int infoHeaderRow = 1;
+  static const int headerRow = 2;
+  static const int firstDataRow = 3;
+
   static void createInfoHeader(Worksheet sheet, String title) {
-    final cell = sheet.getRangeByIndex(1, 1);
+    final cell = sheet.getRangeByIndex(infoHeaderRow, colIndex(AttendanceColumn.user));
     cell.setText(title);
     cell.cellStyle.bold = true;
-    cell.cellStyle.hAlign = HAlignType.left; // allow overflow
+    cell.cellStyle.hAlign = HAlignType.left;
     cell.cellStyle.vAlign = VAlignType.center;
   }
 
@@ -84,6 +105,7 @@ class ExportExcelService {
         LineStyle.thin;
   }
 
+  // === Day Attendance Export ===
   static void exportDayAttendance({
     required Map<String, Map<String, String>> attendanceMap,
     required Map<String, String> userNames,
@@ -104,7 +126,7 @@ class ExportExcelService {
       'Lunch (h)',
       'OT (h)',
     ];
-    addHeaderRow(sheet, headers, 2);
+    addHeaderRow(sheet, headers, headerRow);
     setColumnWidths(sheet, [25, 12, 12, 12, 12, 12, 12, 12, 12]);
 
     final usersToExport = selectedUserId != null ? [selectedUserId] : userNames.keys.toList();
@@ -113,42 +135,50 @@ class ExportExcelService {
       final uid = usersToExport[i];
       final dateStr = DateService.toStorageDate(selectedDate);
       final record = attendanceMap[uid]?[dateStr]?.split('|') ?? List.filled(6, '');
-      appendRow(sheet, i + 3, [userNames[uid] ?? uid, ...record],
+      appendRow(sheet, firstDataRow + i, [userNames[uid] ?? uid, ...record],
           alternate: i % 2 != 0,
           isSunday: selectedDate.weekday == DateTime.sunday);
 
-      final rowNum = i + 3;
+      final rowNum = firstDataRow + i;
 
       // Lunch formula = ScanIn2 - ScanOut1
-      sheet.getRangeByIndex(rowNum, 8).formula = '=(D$rowNum-C$rowNum)*24';
-      sheet.getRangeByIndex(rowNum, 8).numberFormat = '0.00';
-      sheet.getRangeByIndex(rowNum, 8).cellStyle.borders.all.lineStyle = LineStyle.thin;
+      sheet.getRangeByIndex(rowNum, colIndex(AttendanceColumn.lunch))
+        ..formula = '=(D$rowNum-C$rowNum)*24'
+        ..numberFormat = '0.00'
+        ..cellStyle.borders.all.lineStyle = LineStyle.thin;
 
       // OT formula = last non-empty ScanOut - 17:00
-      sheet.getRangeByIndex(rowNum, 9).formula =
-      '=IF(G$rowNum<>"",(G$rowNum-TIME(17,0,0))*24,IF(E$rowNum<>"",(E$rowNum-TIME(17,0,0))*24,IF(C$rowNum<>"",(C$rowNum-TIME(17,0,0))*24,0)))';
-      sheet.getRangeByIndex(rowNum, 9).numberFormat = '0.00';
-      sheet.getRangeByIndex(rowNum, 9).cellStyle.borders.all.lineStyle = LineStyle.thin;
+      sheet.getRangeByIndex(rowNum, colIndex(AttendanceColumn.ot))
+        ..formula =
+            '=IF(G$rowNum<>"",(G$rowNum-TIME(17,0,0))*24,IF(E$rowNum<>"",(E$rowNum-TIME(17,0,0))*24,IF(C$rowNum<>"",(C$rowNum-TIME(17,0,0))*24,0)))'
+        ..numberFormat = '0.00'
+        ..cellStyle.borders.all.lineStyle = LineStyle.thin;
     }
 
     // Totals for Day
-    final totalRow = usersToExport.length + 3;
-    sheet.getRangeByIndex(totalRow, 7).setText('Total');
-    sheet.getRangeByIndex(totalRow, 7).cellStyle.bold = true;
-    sheet.getRangeByIndex(totalRow, 7).cellStyle.borders.all.lineStyle = LineStyle.thin;
+    final totalRow = firstDataRow + usersToExport.length;
+    sheet.getRangeByIndex(totalRow, colIndex(AttendanceColumn.scanOut3)).setText('Total');
+    sheet.getRangeByIndex(totalRow, colIndex(AttendanceColumn.scanOut3)).cellStyle.bold = true;
+    sheet.getRangeByIndex(totalRow, colIndex(AttendanceColumn.scanOut3))
+        .cellStyle.borders.all.lineStyle = LineStyle.thin;
 
-    sheet.getRangeByIndex(totalRow, 8).formula = 'SUM(H3:H${totalRow - 1})';
-    sheet.getRangeByIndex(totalRow, 8).numberFormat = '0.00';
-    sheet.getRangeByIndex(totalRow, 8).cellStyle.borders.all.lineStyle = LineStyle.thin;
+    sheet.getRangeByIndex(totalRow, colIndex(AttendanceColumn.lunch)).formula =
+    'SUM(H$firstDataRow:H${totalRow - 1})';
+    sheet.getRangeByIndex(totalRow, colIndex(AttendanceColumn.lunch))
+      ..numberFormat = '0.00'
+      ..cellStyle.borders.all.lineStyle = LineStyle.thin;
 
-    sheet.getRangeByIndex(totalRow, 9).formula = 'SUM(I3:I${totalRow - 1})';
-    sheet.getRangeByIndex(totalRow, 9).numberFormat = '0.00';
-    sheet.getRangeByIndex(totalRow, 9).cellStyle.borders.all.lineStyle = LineStyle.thin;
+    sheet.getRangeByIndex(totalRow, colIndex(AttendanceColumn.ot)).formula =
+    'SUM(I$firstDataRow:I${totalRow - 1})';
+    sheet.getRangeByIndex(totalRow, colIndex(AttendanceColumn.ot))
+      ..numberFormat = '0.00'
+      ..cellStyle.borders.all.lineStyle = LineStyle.thin;
 
     addLegend(sheet, totalRow + 2);
     _saveExcelFile(workbook, 'attendance-${DateService.toStorageDate(selectedDate)}.xlsx');
   }
 
+  // === Month Attendance Export ===
   static void exportMonthAttendance({
     required Map<String, Map<String, String>> attendanceMap,
     required Map<String, String> userNames,
@@ -183,7 +213,7 @@ class ExportExcelService {
         'Lunch (h)',
         'OT (h)',
       ];
-      addHeaderRow(sheet, headers, 2);
+      addHeaderRow(sheet, headers, headerRow);
       setColumnWidths(sheet, [12, 12, 12, 12, 12, 12, 12, 12, 12]);
 
       final days = attendanceMap[uid]?.keys.toList() ?? [];
@@ -191,37 +221,43 @@ class ExportExcelService {
         final dayStr = days[j];
         final dt = DateTime.parse(dayStr);
         final record = attendanceMap[uid]?[dayStr]?.split('|') ?? List.filled(6, '');
-        appendRow(sheet, j + 3, [dayStr, ...record],
+        appendRow(sheet, firstDataRow + j, [dayStr, ...record],
             isSunday: dt.weekday == DateTime.sunday,
             alternate: j % 2 != 0);
 
-        final rowNum = j + 3;
+        final rowNum = firstDataRow + j;
 
-        // Lunch = ScanIn2 - ScanOut1
-        sheet.getRangeByIndex(rowNum, 8).formula = '=(D$rowNum-C$rowNum)*24';
-        sheet.getRangeByIndex(rowNum, 8).numberFormat = '0.00';
-        sheet.getRangeByIndex(rowNum, 8).cellStyle.borders.all.lineStyle = LineStyle.thin;
+        // Lunch formula
+        sheet.getRangeByIndex(rowNum, colIndex(AttendanceColumn.lunch))
+          ..formula = '=(D$rowNum-C$rowNum)*24'
+          ..numberFormat = '0.00'
+          ..cellStyle.borders.all.lineStyle = LineStyle.thin;
 
-        // OT = last non-empty ScanOut - 17:00
-        sheet.getRangeByIndex(rowNum, 9).formula =
-        '=IF(G$rowNum<>"",(G$rowNum-TIME(17,0,0))*24,IF(E$rowNum<>"",(E$rowNum-TIME(17,0,0))*24,IF(C$rowNum<>"",(C$rowNum-TIME(17,0,0))*24,0)))';
-        sheet.getRangeByIndex(rowNum, 9).numberFormat = '0.00';
-        sheet.getRangeByIndex(rowNum, 9).cellStyle.borders.all.lineStyle = LineStyle.thin;
+        // OT formula
+        sheet.getRangeByIndex(rowNum, colIndex(AttendanceColumn.ot))
+          ..formula =
+              '=IF(G$rowNum<>"",(G$rowNum-TIME(17,0,0))*24,IF(E$rowNum<>"",(E$rowNum-TIME(17,0,0))*24,IF(C$rowNum<>"",(C$rowNum-TIME(17,0,0))*24,0)))'
+          ..numberFormat = '0.00'
+          ..cellStyle.borders.all.lineStyle = LineStyle.thin;
       }
 
-      // Totals for Month
-      final totalRow = days.length + 3;
-      sheet.getRangeByIndex(totalRow, 7).setText('Total');
-      sheet.getRangeByIndex(totalRow, 7).cellStyle.bold = true;
-      sheet.getRangeByIndex(totalRow, 7).cellStyle.borders.all.lineStyle = LineStyle.thin;
+      final totalRow = firstDataRow + days.length;
+      sheet.getRangeByIndex(totalRow, colIndex(AttendanceColumn.scanOut3)).setText('Total');
+      sheet.getRangeByIndex(totalRow, colIndex(AttendanceColumn.scanOut3)).cellStyle.bold = true;
+      sheet.getRangeByIndex(totalRow, colIndex(AttendanceColumn.scanOut3))
+          .cellStyle.borders.all.lineStyle = LineStyle.thin;
 
-      sheet.getRangeByIndex(totalRow, 8).formula = 'SUM(H3:H${totalRow - 1})';
-      sheet.getRangeByIndex(totalRow, 8).numberFormat = '0.00';
-      sheet.getRangeByIndex(totalRow, 8).cellStyle.borders.all.lineStyle = LineStyle.thin;
+      sheet.getRangeByIndex(totalRow, colIndex(AttendanceColumn.lunch)).formula =
+      'SUM(H$firstDataRow:H${totalRow - 1})';
+      sheet.getRangeByIndex(totalRow, colIndex(AttendanceColumn.lunch))
+        ..numberFormat = '0.00'
+        ..cellStyle.borders.all.lineStyle = LineStyle.thin;
 
-      sheet.getRangeByIndex(totalRow, 9).formula = 'SUM(I3:I${totalRow - 1})';
-      sheet.getRangeByIndex(totalRow, 9).numberFormat = '0.00';
-      sheet.getRangeByIndex(totalRow, 9).cellStyle.borders.all.lineStyle = LineStyle.thin;
+      sheet.getRangeByIndex(totalRow, colIndex(AttendanceColumn.ot)).formula =
+      'SUM(I$firstDataRow:I${totalRow - 1})';
+      sheet.getRangeByIndex(totalRow, colIndex(AttendanceColumn.ot))
+        ..numberFormat = '0.00'
+        ..cellStyle.borders.all.lineStyle = LineStyle.thin;
 
       addLegend(sheet, totalRow + 2);
     }
