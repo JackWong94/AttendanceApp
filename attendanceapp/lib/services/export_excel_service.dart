@@ -7,28 +7,17 @@ class ExportExcelService {
   /// Create workbook
   static Workbook _createWorkbook() => Workbook();
 
-  /// Info header (yellow) - merged across 7 columns
-  static void createInfoHeader(Worksheet sheet, {List<String>? lines}) {
-    final infoLines = lines ?? [
-      'Thanks for using Attendance App!',
-      'Generated data located at next sheets.',
-      'Please download the data and save locally as the data will be deleted each year.'
-    ];
-
-    for (int i = 0; i < infoLines.length; i++) {
-      final row = i + 1;
-      final cell = sheet.getRangeByIndex(row, 1);
-      cell.setText(infoLines[i]);
-      cell.cellStyle.backColor = '#FFFF00';
-      cell.cellStyle.bold = false;
-      cell.cellStyle.hAlign = HAlignType.center;
-      cell.cellStyle.vAlign = VAlignType.center;
-      sheet.getRangeByIndex(row, 1, row, 7).merge(); // merge 7 columns
-    }
+  /// Info header (title)
+  static void createInfoHeader(Worksheet sheet, String title) {
+    final cell = sheet.getRangeByIndex(1, 1);
+    cell.setText(title);
+    cell.cellStyle.bold = true;
+    cell.cellStyle.hAlign = HAlignType.center;
+    cell.cellStyle.vAlign = VAlignType.center;
   }
 
-  /// Header row style (bold, light blue)
-  static void addHeaderRow(Worksheet sheet, List<String> headers, {int rowIndex = 4}) {
+  /// Header row style (bold, blue, with borders)
+  static void addHeaderRow(Worksheet sheet, List<String> headers, int rowIndex) {
     for (int i = 0; i < headers.length; i++) {
       final cell = sheet.getRangeByIndex(rowIndex, i + 1);
       cell.setText(headers[i]);
@@ -40,11 +29,11 @@ class ExportExcelService {
     }
   }
 
-  /// Append data row with optional Sunday highlight and alternating colors
+  /// Append data row
   static void appendRow(Worksheet sheet, int rowIndex, List<dynamic> values,
       {bool alternate = false, bool isSunday = false}) {
     final bgColor = isSunday
-        ? '#FFD966' // orange for Sunday
+        ? '#FFA500' // Orange for Sunday
         : (alternate ? '#F2F2F2' : '#FFFFFF');
 
     for (int i = 0; i < values.length; i++) {
@@ -52,9 +41,9 @@ class ExportExcelService {
       final val = values[i];
       cell.setText((val is String && val.toUpperCase() == 'N/A') ? '' : val.toString());
       cell.cellStyle.backColor = bgColor;
-      cell.cellStyle.borders.all.lineStyle = LineStyle.thin;
       cell.cellStyle.hAlign = HAlignType.left;
       cell.cellStyle.vAlign = VAlignType.center;
+      cell.cellStyle.borders.all.lineStyle = LineStyle.thin;
     }
   }
 
@@ -66,38 +55,17 @@ class ExportExcelService {
     }
   }
 
-  /// Add legend below table
-  static void addLegendTable(Worksheet sheet, int startRow) {
-    // Label "Legends:" one row above
-    final labelCell = sheet.getRangeByIndex(startRow, 1);
-    labelCell.setText('Legends:');
-    labelCell.cellStyle.bold = true;
-    labelCell.cellStyle.hAlign = HAlignType.left;
-    labelCell.cellStyle.vAlign = VAlignType.center;
-    sheet.getRangeByIndex(startRow, 1, startRow, 7).merge();
+  /// Add legend row at bottom
+  static void addLegend(Worksheet sheet, int startRow) {
+    final cellColor = sheet.getRangeByIndex(startRow, 1);
+    cellColor.cellStyle.backColor = '#FFA500';
+    cellColor.setText('(Orange)');
 
-    // Color + description row
-    final colorCell = sheet.getRangeByIndex(startRow + 1, 1);
-    colorCell.cellStyle.backColor = '#FFD966'; // orange
-    colorCell.cellStyle.borders.all.lineStyle = LineStyle.thin;
-
-    final descCell = sheet.getRangeByIndex(startRow + 1, 2);
-    descCell.setText('Sunday');
-    descCell.cellStyle.hAlign = HAlignType.left;
-    descCell.cellStyle.vAlign = VAlignType.center;
+    final cellText = sheet.getRangeByIndex(startRow, 2);
+    cellText.setText('Sunday');
   }
 
-  /// Check if string date is Sunday
-  static bool isSunday(String dateStr) {
-    try {
-      final dt = DateService.parseStorageDate(dateStr);
-      return dt.weekday == DateTime.sunday;
-    } catch (_) {
-      return false;
-    }
-  }
-
-  /// Export single day attendance
+  /// Export daily attendance
   static void exportDayAttendance({
     required Map<String, Map<String, String>> attendanceMap,
     required Map<String, String> userNames,
@@ -108,22 +76,24 @@ class ExportExcelService {
     final sheet = workbook.worksheets[0];
     sheet.name = 'Attendance';
 
-    createInfoHeader(sheet);
-    addHeaderRow(sheet, ['User', 'Scan In 1', 'Scan In 2', 'Scan In 3', 'Scan Out 1', 'Scan Out 2', 'Scan Out 3'], rowIndex: 4);
+    // Title
+    createInfoHeader(sheet, 'Attendance on ${DateService.toStorageDate(selectedDate)}');
+
+    final headers = ['User', 'Scan In 1', 'Scan In 2', 'Scan In 3', 'Scan Out 1', 'Scan Out 2', 'Scan Out 3'];
+    addHeaderRow(sheet, headers, 2);
     setColumnWidths(sheet, [25, 15, 15, 15, 15, 15, 15]);
 
     final usersToExport = selectedUserId != null ? [selectedUserId] : userNames.keys.toList();
-    final dateStr = DateService.toStorageDate(selectedDate);
-
     for (int i = 0; i < usersToExport.length; i++) {
       final uid = usersToExport[i];
+      final dateStr = DateService.toStorageDate(selectedDate);
       final record = attendanceMap[uid]?[dateStr]?.split('|') ?? List.filled(6, '');
-      appendRow(sheet, i + 5, [userNames[uid] ?? uid, ...record],
+      appendRow(sheet, i + 3, [userNames[uid] ?? uid, ...record],
           alternate: i % 2 != 0,
-          isSunday: isSunday(dateStr));
+          isSunday: selectedDate.weekday == DateTime.sunday);
     }
 
-    addLegendTable(sheet, usersToExport.length + 6); // below table
+    addLegend(sheet, usersToExport.length + 4);
     _saveExcelFile(workbook, 'attendance-${DateService.toStorageDate(selectedDate)}.xlsx');
   }
 
@@ -135,26 +105,41 @@ class ExportExcelService {
     String? selectedUserId,
   }) {
     final workbook = _createWorkbook();
+    final defaultSheet = workbook.worksheets[0]; // default first sheet
+
     final usersToExport = selectedUserId != null ? [selectedUserId] : attendanceMap.keys.toList();
 
-    for (var uid in usersToExport) {
+    for (var i = 0; i < usersToExport.length; i++) {
+      final uid = usersToExport[i];
       final sheetName = userNames[uid] ?? uid;
-      final sheet = workbook.worksheets.addWithName(sheetName);
 
-      createInfoHeader(sheet);
-      addHeaderRow(sheet, ['Date', 'Scan In 1', 'Scan In 2', 'Scan In 3', 'Scan Out 1', 'Scan Out 2', 'Scan Out 3'], rowIndex: 4);
+      // Fix: use if-else instead of cascade in ternary
+      Worksheet sheet;
+      if (i == 0) {
+        sheet = defaultSheet;
+        sheet.name = sheetName; // set name separately
+      } else {
+        sheet = workbook.worksheets.addWithName(sheetName);
+      }
+
+      final monthStr = selectedDate != null ? DateService.toMonthString(selectedDate) : '';
+      createInfoHeader(sheet, '$sheetName Attendance for $monthStr');
+
+      final headers = ['Date', 'Scan In 1', 'Scan In 2', 'Scan In 3', 'Scan Out 1', 'Scan Out 2', 'Scan Out 3'];
+      addHeaderRow(sheet, headers, 2);
       setColumnWidths(sheet, [20, 15, 15, 15, 15, 15, 15]);
 
       final days = attendanceMap[uid]?.keys.toList() ?? [];
-      for (int i = 0; i < days.length; i++) {
-        final day = days[i];
-        final record = attendanceMap[uid]?[day]?.split('|') ?? List.filled(6, '');
-        appendRow(sheet, i + 5, [day, ...record],
-            alternate: i % 2 != 0,
-            isSunday: isSunday(day));
+      for (int j = 0; j < days.length; j++) {
+        final dayStr = days[j];
+        final dt = DateTime.parse(dayStr);
+        final record = attendanceMap[uid]?[dayStr]?.split('|') ?? List.filled(6, '');
+        appendRow(sheet, j + 3, [dayStr, ...record],
+            isSunday: dt.weekday == DateTime.sunday,
+            alternate: j % 2 != 0);
       }
 
-      addLegendTable(sheet, days.length + 6);
+      addLegend(sheet, days.length + 4);
     }
 
     final fileName = selectedDate != null
@@ -163,6 +148,7 @@ class ExportExcelService {
 
     _saveExcelFile(workbook, fileName);
   }
+
 
   /// Save Excel file in browser
   static void _saveExcelFile(Workbook workbook, String fileName) {
