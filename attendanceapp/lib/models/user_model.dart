@@ -6,7 +6,6 @@ class UserModel {
   final String employeeId;
   final List<List<double>> faceEmbeddings;
   final List<double> embedding;
-  final bool isDeleted; // new flag
 
   UserModel({
     required this.id,
@@ -14,7 +13,6 @@ class UserModel {
     required this.employeeId,
     this.faceEmbeddings = const [],
     this.embedding = const [],
-    this.isDeleted = false,
   });
 
   /// Create a copy with optional changes
@@ -23,7 +21,6 @@ class UserModel {
     String? employeeId,
     List<List<double>>? faceEmbeddings,
     List<double>? embedding,
-    bool? isDeleted,
   }) {
     return UserModel(
       id: id,
@@ -31,7 +28,6 @@ class UserModel {
       employeeId: employeeId ?? this.employeeId,
       faceEmbeddings: faceEmbeddings ?? this.faceEmbeddings,
       embedding: embedding ?? this.embedding,
-      isDeleted: isDeleted ?? this.isDeleted,
     );
   }
 
@@ -40,7 +36,6 @@ class UserModel {
       'name': name,
       'employeeId': employeeId,
       'faceEmbeddings': faceEmbeddings.map((e) => e.join(',')).toList(),
-      'isDeleted': isDeleted,
     };
   }
 
@@ -60,7 +55,6 @@ class UserModel {
       employeeId: data['employeeId'] ?? '',
       faceEmbeddings: embeddings,
       embedding: primaryEmbedding,
-      isDeleted: data['isDeleted'] ?? false,
     );
   }
 }
