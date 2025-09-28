@@ -30,4 +30,9 @@ class DateService {
     final lastDayOfMonth = DateTime(nextMonthYear, nextMonth, 1).subtract(const Duration(days: 1));
     return lastDayOfMonth.day;
   }
+
+  /// Add this inside DateService
+  static DateTime parseStorageDate(String dateStr) {
+    return _storageFormat.parse(dateStr);
+  }
 }
