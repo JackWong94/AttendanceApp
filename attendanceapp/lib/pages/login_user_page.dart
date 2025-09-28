@@ -51,6 +51,7 @@ class _LoginUserPageState extends State<LoginUserPage> with RouteAware {
     _cameraTimer?.cancel();
     routeObserver.unsubscribe(this);
     _removeOverlay();
+    _cameraService.disposeCamera(); // ✅ ensure cleanup
     super.dispose();
   }
 

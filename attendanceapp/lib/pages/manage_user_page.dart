@@ -16,7 +16,7 @@ class ManageUserPage extends StatefulWidget {
 
 class _ManageUserPageState extends State<ManageUserPage> with RouteAware {
   final UserModelService _userService = UserModelService.instance;
-  final CameraService _cameraService = CameraService.instance; // ✅ fixed
+  final CameraService _cameraService = CameraService.instance; // ✅ singleton
 
   List<UserModel> _users = [];
   bool _isLoading = true;
@@ -45,22 +45,17 @@ class _ManageUserPageState extends State<ManageUserPage> with RouteAware {
     for (var ctrl in _nameControllers.values) {
       ctrl.dispose();
     }
+    _cameraService.disposeCamera(); // ✅ always clean up
     routeObserver.unsubscribe(this);
     super.dispose();
   }
 
   @override
   void didPopNext() {
-    _initCamera(); // ✅ reuse the same init
+    _initCamera(); // ✅ reinit on return
   }
 
-  Future<void> _initCamera() async {
-    await _cameraService.initCamera(forceReinitOnWeb: true);
-    if (mounted) setState(() {});
-  }
-
-  Future<void> _reinitCamera() async {
-    await _cameraService.disposeCamera(); // ✅ always clean first
+  void _initCamera() async {
     await _cameraService.initCamera(forceReinitOnWeb: true);
     if (mounted) setState(() {});
   }
@@ -98,7 +93,20 @@ class _ManageUserPageState extends State<ManageUserPage> with RouteAware {
   }
 
   Future<void> _startRecapture(UserModel user) async {
-    if (!_cameraService.isInitialized) return;
+    // Always clean up before reinit
+    await _cameraService.disposeCamera();
+
+    await _cameraService.initCamera(forceReinitOnWeb: true);
+
+    // Small delay helps especially on web so preview is ready
+    await Future.delayed(const Duration(milliseconds: 500));
+
+    if (!_cameraService.isInitialized) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("⚠️ Camera failed to initialize")),
+      );
+      return;
+    }
 
     _isRecapturing[user.id] = true;
     capturedPhotos[user.id] = [];
@@ -109,7 +117,7 @@ class _ManageUserPageState extends State<ManageUserPage> with RouteAware {
       barrierDismissible: false,
       builder: (_) => FaceCaptureDialog(
         cameraService: _cameraService,
-        onCompleted: (photos, embeddings) {
+        onCompleted: (photos, embeddings) async {
           capturedPhotos[user.id] = photos;
           capturedEmbeddings[user.id] = embeddings;
 
@@ -118,15 +126,14 @@ class _ManageUserPageState extends State<ManageUserPage> with RouteAware {
               faceEmbeddings: embeddings,
               embedding: embeddings.first,
             );
-            _userService.addUser(updatedUser).then((_) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text("User embeddings updated!")),
-              );
-              setState(() {});
-            });
+            await _userService.addUser(updatedUser);
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text("✅ User embeddings updated!")),
+            );
+            setState(() {});
           } else {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text("Please capture all 3 valid photos")),
+              const SnackBar(content: Text("❌ Please capture all 3 valid photos")),
             );
           }
         },
@@ -199,7 +206,9 @@ class _ManageUserPageState extends State<ManageUserPage> with RouteAware {
             IconButton(
               icon: Icon(isEditing ? Icons.save : Icons.edit, color: Colors.blue),
               onPressed: () {
-                if (isEditing) _updateUserName(user, _nameControllers[user.id]!.text);
+                if (isEditing) {
+                  _updateUserName(user, _nameControllers[user.id]!.text);
+                }
                 _toggleEdit(user.id);
               },
             ),

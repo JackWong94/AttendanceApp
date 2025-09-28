@@ -29,7 +29,7 @@ class NavigationService {
     final passwordController = TextEditingController();
     final authService = AuthenticationService();
 
-    final bool? verified = true;/*await showDialog<bool>(
+    final bool? verified = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Password Verification'),
@@ -55,7 +55,6 @@ class NavigationService {
         ],
       ),
     );
-    */
 
     if (verified == true) {
       // Only close drawer **after verification**

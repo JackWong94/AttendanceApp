@@ -176,4 +176,9 @@ class _WebLoginPageState extends State<WebLoginPage> {
       ),
     );
   }
+  @override
+  void dispose() {
+    CameraService.instance.disposeCamera(); // ✅ dispose when leaving
+    super.dispose();
+  }
 }
