@@ -95,14 +95,22 @@ class ExportExcelService {
   }
 
   static void addLegend(Worksheet sheet, int startRow) {
-    final cellColor = sheet.getRangeByIndex(startRow, 1);
+    // Title row
+    final titleCell = sheet.getRangeByIndex(startRow, 1);
+    titleCell.setText('Legend:');
+    titleCell.cellStyle.bold = true;
+    titleCell.cellStyle.hAlign = HAlignType.left;
+    titleCell.cellStyle.vAlign = VAlignType.center;
+
+    // Content row
+    final cellColor = sheet.getRangeByIndex(startRow + 1, 1);
     cellColor.cellStyle.backColor = '#FFA500';
     cellColor.setText('(Orange)');
 
-    final cellText = sheet.getRangeByIndex(startRow, 2);
+    final cellText = sheet.getRangeByIndex(startRow + 1, 2);
     cellText.setText('Sunday');
 
-    sheet.getRangeByIndex(startRow, 1, startRow, 2).cellStyle.borders.all.lineStyle =
+    sheet.getRangeByIndex(startRow + 1, 1, startRow + 1, 2).cellStyle.borders.all.lineStyle =
         LineStyle.thin;
   }
 
@@ -117,7 +125,7 @@ class ExportExcelService {
       conditions.add('AND(ISTEXT($colLetter$rowNum), ISNUMBER(FIND(":", $colLetter$rowNum)))');
     }
 
-    return '=IF(OR(${conditions.join(',')}),"","Absent")';
+    return '=IF(OR(${conditions.join(',')}),"Present","Absent")';
   }
 
   // === Day Attendance Export ===
@@ -189,6 +197,13 @@ class ExportExcelService {
     'SUM(${_excelColLetter(colIndex(AttendanceColumn.ot))}$firstDataRow:${_excelColLetter(colIndex(AttendanceColumn.ot))}${totalRow - 1})';
     sheet.getRangeByIndex(totalRow, colIndex(AttendanceColumn.ot))
       ..numberFormat = '0.00'
+      ..cellStyle.borders.all.lineStyle = LineStyle.thin;
+
+    final statusColLetter = _excelColLetter(colIndex(AttendanceColumn.status));
+    sheet.getRangeByIndex(totalRow, colIndex(AttendanceColumn.status))
+      ..formula =
+          'COUNTIF($statusColLetter${firstDataRow}:$statusColLetter${totalRow - 1},"Present")'
+      ..cellStyle.bold = true
       ..cellStyle.borders.all.lineStyle = LineStyle.thin;
 
     addLegend(sheet, totalRow + 2);
@@ -277,6 +292,13 @@ class ExportExcelService {
       'SUM(${_excelColLetter(colIndex(AttendanceColumn.ot))}$firstDataRow:${_excelColLetter(colIndex(AttendanceColumn.ot))}${totalRow - 1})';
       sheet.getRangeByIndex(totalRow, colIndex(AttendanceColumn.ot))
         ..numberFormat = '0.00'
+        ..cellStyle.borders.all.lineStyle = LineStyle.thin;
+
+      final statusColLetter = _excelColLetter(colIndex(AttendanceColumn.status));
+      sheet.getRangeByIndex(totalRow, colIndex(AttendanceColumn.status))
+        ..formula =
+            'COUNTIF($statusColLetter${firstDataRow}:$statusColLetter${totalRow - 1},"Present")'
+        ..cellStyle.bold = true
         ..cellStyle.borders.all.lineStyle = LineStyle.thin;
 
       addLegend(sheet, totalRow + 2);
