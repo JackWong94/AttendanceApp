@@ -106,6 +106,20 @@ class ExportExcelService {
         LineStyle.thin;
   }
 
+  /// === Status formula helper (dynamic, works for both day & month) ===
+  static String statusFormula(int rowNum) {
+    final scanStart = colIndex(AttendanceColumn.scanIn1);
+    final scanEnd = colIndex(AttendanceColumn.scanOut3);
+
+    final conditions = <String>[];
+    for (int col = scanStart; col <= scanEnd; col++) {
+      final colLetter = _excelColLetter(col);
+      conditions.add('AND(ISTEXT($colLetter$rowNum), ISNUMBER(FIND(":", $colLetter$rowNum)))');
+    }
+
+    return '=IF(OR(${conditions.join(',')}),"Present","Absent")';
+  }
+
   // === Day Attendance Export ===
   static void exportDayAttendance({
     required Map<String, Map<String, String>> attendanceMap,
@@ -126,11 +140,9 @@ class ExportExcelService {
       'Scan In 3', 'Scan Out 3',
       'Lunch (h)',
       'OT (h)',
-      'Status', // Added
+      'Status',
     ];
     addHeaderRow(sheet, headers, headerRow);
-
-    // Column widths including Status
     setColumnWidths(sheet, [25, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12]);
 
     final usersToExport = selectedUserId != null ? [selectedUserId] : userNames.keys.toList();
@@ -145,29 +157,22 @@ class ExportExcelService {
 
       final rowNum = firstDataRow + i;
 
-      // Lunch formula
       sheet.getRangeByIndex(rowNum, colIndex(AttendanceColumn.lunch))
         ..formula = '=(D$rowNum-C$rowNum)*24'
         ..numberFormat = '0.00'
         ..cellStyle.borders.all.lineStyle = LineStyle.thin;
 
-      // OT formula
       sheet.getRangeByIndex(rowNum, colIndex(AttendanceColumn.ot))
         ..formula =
             '=IF(G$rowNum<>"",(G$rowNum-TIME(17,0,0))*24,IF(E$rowNum<>"",(E$rowNum-TIME(17,0,0))*24,IF(C$rowNum<>"",(C$rowNum-TIME(17,0,0))*24,0)))'
         ..numberFormat = '0.00'
         ..cellStyle.borders.all.lineStyle = LineStyle.thin;
 
-      // Status formula (dynamic using enum)
-      final scanStart = colIndex(AttendanceColumn.scanIn1);
-      final scanEnd = colIndex(AttendanceColumn.scanOut3);
       sheet.getRangeByIndex(rowNum, colIndex(AttendanceColumn.status))
-        ..formula =
-            '=IF(COUNTIF(${_excelColLetter(scanStart)}$rowNum:${_excelColLetter(scanEnd)}$rowNum,"<>""")>0,"Present","Absent")'
+        ..formula = statusFormula(rowNum)
         ..cellStyle.borders.all.lineStyle = LineStyle.thin;
     }
 
-    // Totals for Day
     final totalRow = firstDataRow + usersToExport.length;
     sheet.getRangeByIndex(totalRow, colIndex(AttendanceColumn.scanOut3)).setText('Total');
     sheet.getRangeByIndex(totalRow, colIndex(AttendanceColumn.scanOut3)).cellStyle.bold = true;
@@ -224,11 +229,9 @@ class ExportExcelService {
         'Scan In 3', 'Scan Out 3',
         'Lunch (h)',
         'OT (h)',
-        'Status', // Added
+        'Status',
       ];
       addHeaderRow(sheet, headers, headerRow);
-
-      // Column widths including Status
       setColumnWidths(sheet, [12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12]);
 
       final days = attendanceMap[uid]?.keys.toList() ?? [];
@@ -242,25 +245,19 @@ class ExportExcelService {
 
         final rowNum = firstDataRow + j;
 
-        // Lunch formula
         sheet.getRangeByIndex(rowNum, colIndex(AttendanceColumn.lunch))
           ..formula = '=(D$rowNum-C$rowNum)*24'
           ..numberFormat = '0.00'
           ..cellStyle.borders.all.lineStyle = LineStyle.thin;
 
-        // OT formula
         sheet.getRangeByIndex(rowNum, colIndex(AttendanceColumn.ot))
           ..formula =
               '=IF(G$rowNum<>"",(G$rowNum-TIME(17,0,0))*24,IF(E$rowNum<>"",(E$rowNum-TIME(17,0,0))*24,IF(C$rowNum<>"",(C$rowNum-TIME(17,0,0))*24,0)))'
           ..numberFormat = '0.00'
           ..cellStyle.borders.all.lineStyle = LineStyle.thin;
 
-        // Status formula
-        final scanStart = colIndex(AttendanceColumn.scanIn1);
-        final scanEnd = colIndex(AttendanceColumn.scanOut3);
         sheet.getRangeByIndex(rowNum, colIndex(AttendanceColumn.status))
-          ..formula =
-              '=IF(COUNTIF(${_excelColLetter(scanStart)}$rowNum:${_excelColLetter(scanEnd)}$rowNum,"<>""")>0,"Present","Absent")'
+          ..formula = statusFormula(rowNum)
           ..cellStyle.borders.all.lineStyle = LineStyle.thin;
       }
 
@@ -292,7 +289,7 @@ class ExportExcelService {
     _saveExcelFile(workbook, fileName);
   }
 
-  // Helper to convert column index to Excel letter
+  /// Helper to convert column index to Excel letter
   static String _excelColLetter(int colIndex) {
     var dividend = colIndex;
     var colLetter = '';
