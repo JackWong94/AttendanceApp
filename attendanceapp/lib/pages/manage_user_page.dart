@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:attendanceapp/services/camera_service.dart';
 import 'package:attendanceapp/services/user_model_service.dart';
 import 'package:attendanceapp/services/attendance_model_service.dart';
+import 'package:attendanceapp/services/face_model_service.dart'; // ✅ added
 import 'package:attendanceapp/models/user_model.dart';
 import 'package:attendanceapp/widgets/face_capture_widget.dart';
 import '../main.dart'; // routeObserver
@@ -96,7 +97,6 @@ class _ManageUserPageState extends State<ManageUserPage> with RouteAware {
   Future<void> _startRecapture(UserModel user) async {
     // Always clean up before reinit
     await _cameraService.disposeCamera();
-
     await _cameraService.initCamera(forceReinitOnWeb: true);
 
     // Small delay helps especially on web so preview is ready
@@ -128,6 +128,10 @@ class _ManageUserPageState extends State<ManageUserPage> with RouteAware {
               embedding: embeddings.first,
             );
             await _userService.addUser(updatedUser);
+
+            // ✅ reload face data after updating
+            await FaceModelService.reload();
+
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text("✅ User embeddings updated!")),
             );
@@ -247,7 +251,7 @@ class _ManageUserPageState extends State<ManageUserPage> with RouteAware {
 }
 
 /// Dialog wrapper for face capture
-class FaceCaptureDialog extends StatelessWidget {
+class FaceCaptureDialog extends StatefulWidget {
   final CameraService cameraService;
   final void Function(List<Uint8List> photos, List<List<double>> embeddings) onCompleted;
 
@@ -258,21 +262,45 @@ class FaceCaptureDialog extends StatelessWidget {
   });
 
   @override
+  State<FaceCaptureDialog> createState() => _FaceCaptureDialogState();
+}
+
+class _FaceCaptureDialogState extends State<FaceCaptureDialog> {
+  List<Uint8List> _photos = [];
+  List<List<double>> _embeddings = [];
+
+  void _handleCompleted(List<Uint8List> photos, List<List<double>> embeddings) {
+    setState(() {
+      _photos = photos;
+      _embeddings = embeddings;
+    });
+    widget.onCompleted(photos, embeddings);
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final isDoneEnabled = _embeddings.length == 3;
+
     return AlertDialog(
       content: SizedBox(
         width: 400,
         height: 500,
-        child: cameraService.isInitialized
+        child: widget.cameraService.isInitialized
             ? FaceCaptureWidget(
-          cameraService: cameraService,
-          onCompleted: onCompleted,
+          cameraService: widget.cameraService,
+          onCompleted: _handleCompleted,
         )
             : const Center(child: CircularProgressIndicator()),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancel")),
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text("Done")),
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text("Cancel"),
+        ),
+        TextButton(
+          onPressed: isDoneEnabled ? () => Navigator.pop(context) : null,
+          child: const Text("Done"),
+        ),
       ],
     );
   }
