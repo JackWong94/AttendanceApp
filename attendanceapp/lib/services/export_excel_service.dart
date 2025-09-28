@@ -1,15 +1,14 @@
-import 'package:excel/excel.dart';
+import 'dart:typed_data';
 import 'dart:html' as html;
+import 'package:syncfusion_flutter_xlsio/xlsio.dart';
 import '../services/date_service.dart';
 
 class ExportExcelService {
-  /// Reusable header creator
-  static void createInfoHeader(Sheet sheet, {List<String>? lines}) {
-    final yellowStyle = CellStyle(
-      backgroundColorHex: "#FFFF00",
-      fontFamily: getFontFamily(FontFamily.Arial),
-    );
+  /// Create workbook
+  static Workbook _createWorkbook() => Workbook();
 
+  /// Info header (yellow)
+  static void createInfoHeader(Worksheet sheet, {List<String>? lines}) {
     final infoLines = lines ?? [
       'Thanks for using Attendance App!',
       'Generated data located at next sheets.',
@@ -17,112 +16,100 @@ class ExportExcelService {
     ];
 
     for (int i = 0; i < infoLines.length; i++) {
-      final cell = sheet.cell(
-        CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: i),
-      );
-      cell.value = infoLines[i];
-      cell.cellStyle = yellowStyle;
-    }
-
-    sheet.setColWidth(0, 100);
-  }
-
-  /// Bold header style
-  static CellStyle headerStyle() {
-    return CellStyle(
-      bold: true,
-      fontFamily: getFontFamily(FontFamily.Arial),
-      horizontalAlign: HorizontalAlign.Center,
-      verticalAlign: VerticalAlign.Center,
-      backgroundColorHex: "#D9E1F2", // light blue header
-    );
-  }
-
-  /// Append a row with optional bold style
-  static void appendRow(Sheet sheet, List<dynamic> values, {bool bold = false}) {
-    final rowIndex = sheet.maxRows;
-    for (var col = 0; col < values.length; col++) {
-      final cell = sheet.cell(CellIndex.indexByColumnRow(columnIndex: col, rowIndex: rowIndex));
-      cell.value = values[col];
-      if (bold) {
-        cell.cellStyle = headerStyle();
-      }
+      final cell = sheet.getRangeByIndex(i + 1, 1);
+      cell.setText(infoLines[i]);
+      cell.cellStyle.backColor = '#FFFF00';
+      cell.cellStyle.bold = true;
+      cell.cellStyle.hAlign = HAlignType.center;
+      cell.cellStyle.vAlign = VAlignType.center;
     }
   }
 
-  /// Prepare a sheet with headers and column widths
-  static Sheet prepareSheet(
-      Excel excel,
-      String sheetName,
-      List<String> headers, {
-        Map<int, double>? columnWidths,
-      }) {
-    final sheet = excel[sheetName];
-    appendRow(sheet, headers, bold: true);
-
-    if (columnWidths != null) {
-      columnWidths.forEach((index, width) {
-        sheet.setColWidth(index, width);
-      });
+  /// Header row style (bold, blue)
+  static void addHeaderRow(Worksheet sheet, List<String> headers) {
+    for (int i = 0; i < headers.length; i++) {
+      final cell = sheet.getRangeByIndex(1, i + 1);
+      cell.setText(headers[i]);
+      cell.cellStyle.bold = true;
+      cell.cellStyle.backColor = '#D9E1F2';
+      cell.cellStyle.hAlign = HAlignType.center;
+      cell.cellStyle.vAlign = VAlignType.center;
+      cell.cellStyle.borders.all.lineStyle = LineStyle.thin;
     }
-
-    return sheet;
   }
 
-  /// Export single day attendance
+  /// Append data row
+  static void appendRow(Worksheet sheet, int rowIndex, List<dynamic> values, {bool alternate = false}) {
+    for (int i = 0; i < values.length; i++) {
+      final cell = sheet.getRangeByIndex(rowIndex, i + 1);
+      final val = values[i];
+      cell.setText((val is String && val.toUpperCase() == 'N/A') ? '' : val.toString());
+      cell.cellStyle.backColor = alternate ? '#F2F2F2' : '#FFFFFF';
+      cell.cellStyle.borders.all.lineStyle = LineStyle.thin;
+      cell.cellStyle.hAlign = HAlignType.left;
+      cell.cellStyle.vAlign = VAlignType.center;
+    }
+  }
+
+  /// Set column widths
+  static void setColumnWidths(Worksheet sheet, List<double> widths) {
+    for (int i = 0; i < widths.length; i++) {
+      // In Syncfusion, columns are 1-based
+      final range = sheet.getRangeByIndex(1, i + 1);
+      range.columnWidth = widths[i];
+    }
+  }
+
+  /// Export day attendance
   static void exportDayAttendance({
     required Map<String, Map<String, String>> attendanceMap,
     required Map<String, String> userNames,
     required DateTime selectedDate,
     String? selectedUserId,
   }) {
-    final excel = Excel.createExcel();
-    createInfoHeader(excel['Sheet1']);
+    final workbook = _createWorkbook();
+    final sheet = workbook.worksheets[0];
+    sheet.name = 'Attendance';
 
-    final sheet = prepareSheet(
-      excel,
-      'Attendance',
-      ['User', 'Scan In 1', 'Scan In 2', 'Scan In 3', 'Scan Out 1', 'Scan Out 2', 'Scan Out 3'],
-      columnWidths: {0: 20, 1: 15, 2: 15, 3: 15, 4: 15, 5: 15, 6: 15},
-    );
+    createInfoHeader(sheet);
+    addHeaderRow(sheet, ['User', 'Scan In 1', 'Scan In 2', 'Scan In 3', 'Scan Out 1', 'Scan Out 2', 'Scan Out 3']);
+    setColumnWidths(sheet, [25, 15, 15, 15, 15, 15, 15]);
 
     final usersToExport = selectedUserId != null ? [selectedUserId] : userNames.keys.toList();
     final dateStr = DateService.toStorageDate(selectedDate);
 
-    for (var uid in usersToExport) {
+    for (int i = 0; i < usersToExport.length; i++) {
+      final uid = usersToExport[i];
       final record = attendanceMap[uid]?[dateStr]?.split('|') ?? List.filled(6, '');
-      appendRow(sheet, [userNames[uid] ?? uid, ...record]);
+      appendRow(sheet, i + 2, [userNames[uid] ?? uid, ...record], alternate: i % 2 != 0);
     }
 
-    _saveExcelFile(excel, 'attendance-${DateService.toStorageDate(selectedDate)}.xlsx');
+    _saveExcelFile(workbook, 'attendance-${DateService.toStorageDate(selectedDate)}.xlsx');
   }
 
-  /// Export monthly attendance
+  /// Export month attendance
   static void exportMonthAttendance({
     required Map<String, Map<String, String>> attendanceMap,
     required Map<String, String> userNames,
     DateTime? selectedDate,
     String? selectedUserId,
   }) {
-    final excel = Excel.createExcel();
-    createInfoHeader(excel['Sheet1']);
-
+    final workbook = _createWorkbook();
     final usersToExport = selectedUserId != null ? [selectedUserId] : attendanceMap.keys.toList();
 
     for (var uid in usersToExport) {
       final sheetName = userNames[uid] ?? uid;
+      final sheet = workbook.worksheets.addWithName(sheetName);
 
-      final sheet = prepareSheet(
-        excel,
-        sheetName,
-        ['Date', 'Scan In 1', 'Scan In 2', 'Scan In 3', 'Scan Out 1', 'Scan Out 2', 'Scan Out 3'],
-        columnWidths: {0: 20, 1: 15, 2: 15, 3: 15, 4: 15, 5: 15, 6: 15},
-      );
+      createInfoHeader(sheet);
+      addHeaderRow(sheet, ['Date', 'Scan In 1', 'Scan In 2', 'Scan In 3', 'Scan Out 1', 'Scan Out 2', 'Scan Out 3']);
+      setColumnWidths(sheet, [20, 15, 15, 15, 15, 15, 15]);
 
       final days = attendanceMap[uid]?.keys.toList() ?? [];
-      for (var day in days) {
+      for (int i = 0; i < days.length; i++) {
+        final day = days[i];
         final record = attendanceMap[uid]?[day]?.split('|') ?? List.filled(6, '');
-        appendRow(sheet, [day, ...record]);
+        appendRow(sheet, i + 2, [day, ...record], alternate: i % 2 != 0);
       }
     }
 
@@ -130,15 +117,15 @@ class ExportExcelService {
         ? 'attendance-${DateService.toMonthString(selectedDate)}.xlsx'
         : 'attendance.xlsx';
 
-    _saveExcelFile(excel, fileName);
+    _saveExcelFile(workbook, fileName);
   }
 
   /// Save Excel file in browser
-  static void _saveExcelFile(Excel excel, String fileName) {
-    final fileBytes = excel.encode();
-    if (fileBytes == null) return;
+  static void _saveExcelFile(Workbook workbook, String fileName) {
+    final List<int> bytes = workbook.saveAsStream();
+    workbook.dispose();
 
-    final blob = html.Blob([fileBytes]);
+    final blob = html.Blob([Uint8List.fromList(bytes)]);
     final url = html.Url.createObjectUrlFromBlob(blob);
     final anchor = html.AnchorElement(href: url)
       ..setAttribute('download', fileName)
