@@ -25,9 +25,6 @@ class MyApp extends StatelessWidget {
       title: 'Attendance App',
       debugShowCheckedModeBanner: false,
       home: const WebLoginPage(),
-      routes: {
-        '/login': (_) => const LoginUserPage(),
-      },
       navigatorObservers: [routeObserver], // ✅ add this
     );
   }
