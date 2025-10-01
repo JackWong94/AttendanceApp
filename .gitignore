@@ -75,3 +75,5 @@ app.*.map.json
 
 /firebase_config.json
 attendanceapp/build/
+
+.idea/caches/deviceStreaming.xml
