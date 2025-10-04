@@ -44,7 +44,7 @@ class CameraService {
       );
 
       if (kIsWeb) {
-        // Web needs a short delay
+        // Web needs a short delay (Tested 200 optimum value)
         await Future.delayed(const Duration(milliseconds: 200));
       }
 
