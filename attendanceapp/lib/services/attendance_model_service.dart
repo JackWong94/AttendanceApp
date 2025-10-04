@@ -26,6 +26,10 @@ class AttendanceModelService {
     return _instance!;
   }
 
+  static void init({required String tenantId}) {
+    _instance = AttendanceModelService._internal(tenantId);
+  }
+
   /// Set attendance (create or update deterministically)
   Future<void> setAttendance(Attendance attendance) async {
     if (attendance.id.isEmpty) {

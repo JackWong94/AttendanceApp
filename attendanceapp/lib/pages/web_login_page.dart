@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:attendanceapp/pages/login_user_page.dart';
 import 'package:attendanceapp/services/authentication_service.dart';
 import 'package:attendanceapp/services/user_model_service.dart';
+import 'package:attendanceapp/services/attendance_model_service.dart';
 import 'package:attendanceapp/services/camera_service.dart';
 import 'package:attendanceapp/services/face_model_service.dart';
 import 'package:attendanceapp/services/tenant_model_service.dart';
@@ -72,6 +73,7 @@ class _WebLoginPageState extends State<WebLoginPage> {
 
       // 3️⃣ Initialize user service
       UserModelService.init(tenantId: tenant.tenantId);
+      AttendanceModelService.init(tenantId: tenant.tenantId);
 
       // 4️⃣ Init camera & face recognition
       await CameraService.instance.initCamera(forceReinitOnWeb: true);
