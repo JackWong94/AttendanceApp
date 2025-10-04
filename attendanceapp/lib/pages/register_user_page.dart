@@ -135,10 +135,7 @@ class _RegisterUserPageState extends State<RegisterUserPage> {
         const SnackBar(content: Text("User registered successfully!")),
       );
 
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const LoginUserPage()),
-      );
+      Navigator.pop(context);
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Error registering user: $e")),
@@ -188,10 +185,7 @@ class _RegisterUserPageState extends State<RegisterUserPage> {
                         label: const Text("Save User"),
                       ),
                       ElevatedButton.icon(
-                        onPressed: () => Navigator.pushReplacement(
-                          context,
-                          MaterialPageRoute(builder: (_) => const LoginUserPage()),
-                        ),
+                        onPressed: () => Navigator.pop(context),
                         icon: const Icon(Icons.cancel),
                         label: const Text("Cancel"),
                         style:
