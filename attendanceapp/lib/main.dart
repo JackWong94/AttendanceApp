@@ -9,9 +9,20 @@ final RouteObserver<ModalRoute<void>> routeObserver = RouteObserver<ModalRoute<v
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  final opts = DefaultFirebaseOptions.currentPlatform;
+
+  /*
+  Do not enable this in unless debugging for security reasons
+  printX('🔑 API Key: ${opts.apiKey}');
+  printX('🆔 App ID: ${opts.appId}');
+  printX('📂 Project ID: ${opts.projectId}');
+  printX('📤 Messaging Sender ID: ${opts.messagingSenderId}');
+  printX('📦 Storage Bucket: ${opts.storageBucket}');
+  printX('🌐 Auth Domain: ${opts.authDomain}');
+  printX('📊 Measurement ID: ${opts.measurementId}');
+   */
+
+  await Firebase.initializeApp(options: opts);
 
   //await runMigrationScript(); DO NOT REMOVE OR RUN IT UNLESS YOU KNOW WHAT YOU ARE DOING
   runApp(const MyApp());
