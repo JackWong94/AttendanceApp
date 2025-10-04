@@ -99,9 +99,6 @@ class _ManageUserPageState extends State<ManageUserPage> with RouteAware {
     await _cameraService.disposeCamera();
     await _cameraService.initCamera(forceReinitOnWeb: true);
 
-    // Small delay helps especially on web so preview is ready
-    await Future.delayed(const Duration(milliseconds: 500));
-
     if (!_cameraService.isInitialized) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("⚠️ Camera failed to initialize")),

@@ -4,23 +4,31 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 class CameraService {
+  // Singleton setup
   CameraService._privateConstructor();
   static final CameraService instance = CameraService._privateConstructor();
 
-  CameraController? controller;
-  Future<void>? initializeFuture;
+  CameraController? _controller;
+  Future<void>? _initializeFuture;
 
-  bool get isInitialized => controller != null && controller!.value.isInitialized;
+  // Optional debug toggle
+  static const bool _debug = true;
 
+  /// Public getters
+  CameraController? get controller => _controller;
+  Future<void>? get initializeFuture => _initializeFuture;
+  bool get isInitialized => _controller != null && _controller!.value.isInitialized;
+
+  /// Initialize camera
   Future<void> initCamera({bool forceReinitOnWeb = false}) async {
     try {
-      if (forceReinitOnWeb || controller != null) {
+      if (forceReinitOnWeb || _controller != null) {
         await disposeCamera();
       }
 
       final cameras = await availableCameras();
       if (cameras.isEmpty) {
-        debugPrint("⚠️ No cameras available");
+        if (_debug) debugPrint("⚠️ No cameras available");
         return;
       }
 
@@ -29,39 +37,40 @@ class CameraService {
         orElse: () => cameras.first,
       );
 
-      controller = CameraController(
+      _controller = CameraController(
         frontCamera,
         ResolutionPreset.medium,
         enableAudio: false,
       );
 
       if (kIsWeb) {
-        // Web needs a small delay
+        // Web needs a short delay
         await Future.delayed(const Duration(milliseconds: 200));
       }
 
-      initializeFuture = controller!.initialize();
-      await initializeFuture;
+      _initializeFuture = _controller!.initialize();
+      await _initializeFuture;
 
-      debugPrint("✅ Camera initialized");
+      if (_debug) debugPrint("✅ Camera initialized");
     } catch (e) {
-      debugPrint("❌ Camera init error: $e");
-      controller = null;
-      initializeFuture = null;
+      if (_debug) debugPrint("❌ Camera init error: $e");
+      _controller = null;
+      _initializeFuture = null;
     }
   }
 
+  /// Dispose camera cleanly
   Future<void> disposeCamera() async {
     try {
-      if (controller != null) {
-        await controller!.dispose();
-        debugPrint("🗑️ Camera disposed");
+      if (_controller != null) {
+        await _controller!.dispose();
+        if (_debug) debugPrint("🗑️ Camera disposed");
       }
     } catch (e) {
-      debugPrint("❌ Error disposing camera: $e");
+      if (_debug) debugPrint("❌ Error disposing camera: $e");
     } finally {
-      controller = null;
-      initializeFuture = null;
+      _controller = null;
+      _initializeFuture = null;
     }
   }
 }
