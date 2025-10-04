@@ -78,7 +78,7 @@ class _WebLoginPageState extends State<WebLoginPage> {
       // 4️⃣ Init camera & face recognition
       await CameraService.instance.initCamera(forceReinitOnWeb: true);
       await FaceModelService.initialize();
-      await FaceModelService.warmUp();
+      FaceModelService.warmUp();
 
       // 5️⃣ Navigate
       if (mounted) {
