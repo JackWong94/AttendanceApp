@@ -21,7 +21,7 @@ class _WebLoginPageState extends State<WebLoginPage> {
   final AuthenticationService _authService = AuthenticationService();
 
   bool _isLoading = false;
-  bool _checkingSession = true; // ✅ show loading screen while checking saved login
+  bool _checkingSession = true; // show loading screen while checking saved login
 
   @override
   void initState() {
@@ -74,7 +74,7 @@ class _WebLoginPageState extends State<WebLoginPage> {
       UserModelService.init(tenantId: tenant.tenantId);
 
       // 4️⃣ Init camera & face recognition
-      await CameraService.instance.initCamera(forceReinitOnWeb: true); // ✅ fixed
+      await CameraService.instance.initCamera(forceReinitOnWeb: true);
       await FaceModelService.initialize();
       await FaceModelService.warmUp();
 
