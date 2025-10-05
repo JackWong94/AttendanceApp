@@ -15,7 +15,7 @@ String getModelPath({String modelsFolder = "models"}) {
 }
 
 /// Load face-api.js models
-Future<void> loadModels({int retries = 5, int delayMs = 1}) async {
+Future<void> loadModels({int retries = 20, int delayMs = 50}) async {
   // Wait until window.faceapi exists
   for (var i = 0; i < retries; i++) {
     if (js_util.hasProperty(html.window, 'faceapi')) break;
@@ -29,7 +29,6 @@ Future<void> loadModels({int retries = 5, int delayMs = 1}) async {
   try {
     final faceapi = js_util.getProperty(html.window, 'faceapi');
 
-    // === CHANGE 1: use getProperty instead of [] ===
     final nets = js_util.getProperty(faceapi, 'nets');
 
     final modelPath = getModelPath();
@@ -100,17 +99,6 @@ Future<List<double>> computeFaceDescriptorSafe(html.ImageElement img) async {
     })],
   );
   print("Step 1: TinyFaceDetector options created");
-
-  // Step 1.5: Download image for debugging
-  /*
-  try {
-    final anchor = html.AnchorElement(href: img.src)
-      ..download = "debug_face.png"
-      ..click();
-    print("Step 1.5: Debug image downloaded");
-  } catch (e) {
-    print("Warning: Failed to download debug image: $e");
-  }*/
 
   try {
     // Step 2–4: Run pipeline in one chain (face -> landmarks -> descriptor)
