@@ -38,5 +38,14 @@
 </head>
 <body>
   <script src="flutter_bootstrap.js" defer></script>
+  <!-- ✅ Register the service worker -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/service_worker.js').then(
+        (reg) => console.log('✅ Service worker registered', reg),
+        (err) => console.warn('⚠️ Service worker registration failed', err)
+      );
+    }
+  </script>
 </body>
 </html>

@@ -7,7 +7,7 @@ import 'package:attendanceapp/configs_and_tools/debug.dart';
 class WebFaceApi {
   static Debug debug = Debug(module: "web_face_api", enable: true);
 
-  static const String _cacheVersion = "v5"; // increment when models change
+  static const String _cacheVersion = "v1"; // increment when models change
   static final Map<String, List<double>> _descriptorCache = {};
 
   // IndexedDB database for offline descriptor caching
@@ -30,7 +30,8 @@ class WebFaceApi {
             }
           });
 
-      _db = await js_util.promiseToFuture(request);
+      // ✅ FIX: do NOT use promiseToFuture here, just await the native Future
+      _db = await request;
       debug.log("IndexedDB initialized");
     } catch (e) {
       debug.log("⚠️ IndexedDB initialization failed: $e");
@@ -43,12 +44,12 @@ class WebFaceApi {
     try {
       await _initDB();
       if (_db == null) return; // no offline storage available
-      final txn =
-      js_util.callMethod(_db, 'transaction', [_descriptorStore, 'readwrite']);
-      final store = js_util.callMethod(txn, 'objectStore', [_descriptorStore]);
-      js_util.callMethod(store, 'put', [value, key]);
-      await js_util.promiseToFuture(
-          js_util.getProperty(txn, 'done') ?? js_util.getProperty(txn, 'completed'));
+
+      final txn = _db.transaction(_descriptorStore, 'readwrite');
+      final store = txn.objectStore(_descriptorStore);
+      store.put(value, key);
+
+      await txn.completed;
     } catch (e) {
       debug.log("⚠️ Failed to save descriptor to IndexedDB: $e");
     }
@@ -59,11 +60,11 @@ class WebFaceApi {
     try {
       await _initDB();
       if (_db == null) return null;
-      final txn =
-      js_util.callMethod(_db, 'transaction', [_descriptorStore, 'readonly']);
-      final store = js_util.callMethod(txn, 'objectStore', [_descriptorStore]);
-      final request = js_util.callMethod(store, 'get', [key]);
-      final result = await js_util.promiseToFuture(request);
+
+      final txn = _db.transaction(_descriptorStore, 'readonly');
+      final store = txn.objectStore(_descriptorStore);
+      final result = await store.getObject(key);
+
       return result as String?;
     } catch (e) {
       debug.log("⚠️ IndexedDB read failed: $e");
