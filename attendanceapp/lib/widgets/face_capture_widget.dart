@@ -2,7 +2,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:attendanceapp/services/camera_service.dart';
-import 'package:attendanceapp/services/web_face_api.dart' as webFaceApi;
+import 'package:attendanceapp/web_face_api.dart' as webFaceApi;
 
 /// Callback when the capture sequence finishes
 typedef FaceCaptureCallback = void Function(

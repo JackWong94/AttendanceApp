@@ -1,6 +1,6 @@
 import 'dart:math';
 import 'dart:typed_data';
-import 'package:attendanceapp/services/web_face_api.dart' as webFaceApi;
+import 'package:attendanceapp/web_face_api.dart' as webFaceApi;
 import 'package:attendanceapp/services/face_model_service.dart';
 import 'package:attendanceapp/services/user_model_service.dart';
 import 'package:attendanceapp/models/user_model.dart';

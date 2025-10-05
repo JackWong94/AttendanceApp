@@ -2,7 +2,7 @@ import 'dart:typed_data';
 import 'dart:async';
 import 'dart:html' as html;
 import 'package:flutter/services.dart' show rootBundle;
-import 'web_face_api.dart' as webFaceApi;
+import '../web_face_api.dart' as webFaceApi;
 import 'user_model_service.dart';
 import '../models/user_model.dart';
 
