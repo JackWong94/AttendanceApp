@@ -7,8 +7,31 @@ import 'package:attendanceapp/configs_and_tools/debug.dart';
 class WebFaceApi {
   static Debug debug = Debug(module: "web_face_api", enable: true);
 
+  /// Current version of the face model / cache
+  static const String _cacheVersion = "v4"; // increment this when models change
+
   /// Cache descriptors to skip recomputation
   static final Map<String, List<double>> _descriptorCache = {};
+
+  /// Check cache version and clear if outdated
+  static void _checkCacheVersion() {
+    final storedVersion = html.window.localStorage['faceCacheVersion'];
+
+    if (storedVersion == null) {
+      // First-time initialization
+      html.window.localStorage['faceCacheVersion'] = _cacheVersion;
+      debug.log("Initial cache version stored as $_cacheVersion");
+      return;
+    }
+
+    if (storedVersion != _cacheVersion) {
+      debug.log("Stored cache version: $storedVersion, Latest cache version: $_cacheVersion");
+      debug.log("Cache version changed. Clearing old descriptor cache...");
+      _descriptorCache.clear();
+      html.window.localStorage['faceCacheVersion'] = _cacheVersion;
+      debug.log("Cache version updated to $_cacheVersion");
+    }
+  }
 
   /// Determine the model path dynamically
   static String getModelPath({String modelsFolder = "models"}) {
@@ -20,6 +43,8 @@ class WebFaceApi {
 
   /// Load face-api.js models
   static Future<void> loadModels({int retries = 20, int delayMs = 50}) async {
+    _checkCacheVersion(); // ensure cache version
+
     debug.timeStart("loadModels");
 
     for (var i = 0; i < retries; i++) {
@@ -54,6 +79,8 @@ class WebFaceApi {
 
   /// Convert Uint8List bytes to a fully loaded HTML ImageElement
   static Future<html.ImageElement> uint8ListToImage(Uint8List bytes) async {
+    _checkCacheVersion(); // ensure cache version
+
     final blob = html.Blob([bytes]);
     final url = html.Url.createObjectUrlFromBlob(blob);
     final img = html.ImageElement(src: url);
@@ -65,6 +92,8 @@ class WebFaceApi {
 
   /// Resize image using Canvas (web) and return a Future<ImageElement>
   static Future<html.ImageElement> resizeImage(html.ImageElement img, int width, int height) {
+    _checkCacheVersion(); // ensure cache version
+
     final canvas = html.CanvasElement(width: width, height: height);
     canvas.context2D.drawImageScaled(img, 0, 0, width, height);
 
@@ -77,6 +106,8 @@ class WebFaceApi {
       html.ImageElement img, {
         String? cacheKey,
       }) async {
+    _checkCacheVersion(); // ensure cache version
+
     // Return cached descriptor if available
     if (cacheKey != null && _descriptorCache.containsKey(cacheKey)) {
       debug.log("Returning cached descriptor for $cacheKey");
