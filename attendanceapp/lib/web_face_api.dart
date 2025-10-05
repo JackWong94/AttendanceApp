@@ -7,33 +7,100 @@ import 'package:attendanceapp/configs_and_tools/debug.dart';
 class WebFaceApi {
   static Debug debug = Debug(module: "web_face_api", enable: true);
 
-  /// Current version of the face model / cache
-  static const String _cacheVersion = "v4"; // increment this when models change
-
-  /// Cache descriptors to skip recomputation
+  static const String _cacheVersion = "v5"; // increment when models change
   static final Map<String, List<double>> _descriptorCache = {};
 
-  /// Check cache version and clear if outdated
-  static void _checkCacheVersion() {
-    final storedVersion = html.window.localStorage['faceCacheVersion'];
+  // IndexedDB database for offline descriptor caching
+  static dynamic _db;
+  static const String _dbName = "FaceApiCacheDB";
+  static const String _descriptorStore = "descriptors";
 
-    if (storedVersion == null) {
-      // First-time initialization
-      html.window.localStorage['faceCacheVersion'] = _cacheVersion;
-      debug.log("Initial cache version stored as $_cacheVersion");
-      return;
-    }
+  /// Initialize IndexedDB safely
+  static Future<void> _initDB() async {
+    if (_db != null) return;
 
-    if (storedVersion != _cacheVersion) {
-      debug.log("Stored cache version: $storedVersion, Latest cache version: $_cacheVersion");
-      debug.log("Cache version changed. Clearing old descriptor cache...");
-      _descriptorCache.clear();
-      html.window.localStorage['faceCacheVersion'] = _cacheVersion;
-      debug.log("Cache version updated to $_cacheVersion");
+    try {
+      final request = html.window.indexedDB!.open(_dbName, version: 1,
+          onUpgradeNeeded: (e) {
+            final db =
+            js_util.getProperty(js_util.getProperty(e, 'target'), 'result');
+            if (!js_util.callMethod(
+                js_util.getProperty(db, 'objectStoreNames'), 'contains', [_descriptorStore])) {
+              js_util.callMethod(db, 'createObjectStore', [_descriptorStore]);
+            }
+          });
+
+      _db = await js_util.promiseToFuture(request);
+      debug.log("IndexedDB initialized");
+    } catch (e) {
+      debug.log("⚠️ IndexedDB initialization failed: $e");
+      _db = null; // fallback to online mode
     }
   }
 
-  /// Determine the model path dynamically
+  /// Put descriptor to IndexedDB
+  static Future<void> _putToDB(String key, String value) async {
+    try {
+      await _initDB();
+      if (_db == null) return; // no offline storage available
+      final txn =
+      js_util.callMethod(_db, 'transaction', [_descriptorStore, 'readwrite']);
+      final store = js_util.callMethod(txn, 'objectStore', [_descriptorStore]);
+      js_util.callMethod(store, 'put', [value, key]);
+      await js_util.promiseToFuture(
+          js_util.getProperty(txn, 'done') ?? js_util.getProperty(txn, 'completed'));
+    } catch (e) {
+      debug.log("⚠️ Failed to save descriptor to IndexedDB: $e");
+    }
+  }
+
+  /// Get descriptor from IndexedDB
+  static Future<String?> _getFromDB(String key) async {
+    try {
+      await _initDB();
+      if (_db == null) return null;
+      final txn =
+      js_util.callMethod(_db, 'transaction', [_descriptorStore, 'readonly']);
+      final store = js_util.callMethod(txn, 'objectStore', [_descriptorStore]);
+      final request = js_util.callMethod(store, 'get', [key]);
+      final result = await js_util.promiseToFuture(request);
+      return result as String?;
+    } catch (e) {
+      debug.log("⚠️ IndexedDB read failed: $e");
+      return null;
+    }
+  }
+
+  /// Check cache version
+  static Future<void> _checkCacheVersion() async {
+    try {
+      await _initDB();
+      if (_db == null) return; // skip version check if no DB
+
+      final storedVersion = await _getFromDB('cacheVersion');
+      if (storedVersion == null) {
+        await _putToDB('cacheVersion', _cacheVersion);
+        debug.log("Initial cache version stored as $_cacheVersion");
+        return;
+      }
+      if (storedVersion != _cacheVersion) {
+        debug.log("Cache version changed. Clearing old cache...");
+        _descriptorCache.clear();
+        final txn =
+        js_util.callMethod(_db, 'transaction', [_descriptorStore, 'readwrite']);
+        final store = js_util.callMethod(txn, 'objectStore', [_descriptorStore]);
+        js_util.callMethod(store, 'clear', []);
+        await js_util.promiseToFuture(
+            js_util.getProperty(txn, 'done') ?? js_util.getProperty(txn, 'completed'));
+        await _putToDB('cacheVersion', _cacheVersion);
+        debug.log("Cache version updated to $_cacheVersion");
+      }
+    } catch (e) {
+      debug.log("⚠️ Cache version check failed: $e");
+    }
+  }
+
+  /// Determine model path
   static String getModelPath({String modelsFolder = "models"}) {
     final path = html.window.location.pathname ?? "/";
     final normalizedPath = path.endsWith("/") ? path : "$path/";
@@ -41,84 +108,88 @@ class WebFaceApi {
     return "$normalizedPath$modelsFolder/";
   }
 
-  /// Load face-api.js models
+  /// Load models from network
   static Future<void> loadModels({int retries = 20, int delayMs = 50}) async {
-    _checkCacheVersion(); // ensure cache version
+    await _checkCacheVersion();
 
     debug.timeStart("loadModels");
 
-    // Wait for faceapi to be available
     for (var i = 0; i < retries; i++) {
       if (js_util.hasProperty(html.window, 'faceapi')) break;
       await Future.delayed(Duration(milliseconds: delayMs));
     }
-
     if (!js_util.hasProperty(html.window, 'faceapi')) {
-      throw Exception("Face-api.js not loaded after $retries attempts!");
+      throw Exception("Face-api.js not loaded!");
     }
 
-    try {
-      final faceapi = js_util.getProperty(html.window, 'faceapi');
-      final nets = js_util.getProperty(faceapi, 'nets');
-      final modelPath = getModelPath();
+    final faceapi = js_util.getProperty(html.window, 'faceapi');
+    final nets = js_util.getProperty(faceapi, 'nets');
+    final modelNames = [
+      'ssdMobilenetv1',
+      'faceLandmark68Net',
+      'faceRecognitionNet',
+      'tinyFaceDetector'
+    ];
+    final modelPath = getModelPath();
 
-      // Load all models in parallel
-      await Future.wait([
-        js_util.promiseToFuture(
-            js_util.callMethod(js_util.getProperty(nets, 'ssdMobilenetv1'), 'loadFromUri', [modelPath])),
-        js_util.promiseToFuture(
-            js_util.callMethod(js_util.getProperty(nets, 'faceLandmark68Net'), 'loadFromUri', [modelPath])),
-        js_util.promiseToFuture(
-            js_util.callMethod(js_util.getProperty(nets, 'faceRecognitionNet'), 'loadFromUri', [modelPath])),
-        js_util.promiseToFuture(
-            js_util.callMethod(js_util.getProperty(nets, 'tinyFaceDetector'), 'loadFromUri', [modelPath])),
-      ]);
-
-      debug.log("Models loaded successfully");
-      debug.timeEnd("loadModels");
-    } catch (e) {
-      debug.log("Error loading Face-api.js models: $e");
+    for (final netName in modelNames) {
+      await js_util.promiseToFuture(js_util.callMethod(
+          js_util.getProperty(nets, netName), 'loadFromUri', [modelPath]));
+      debug.log("$netName loaded from $modelPath");
     }
+
+    debug.timeEnd("loadModels");
   }
 
-  /// Convert Uint8List bytes to a fully loaded HTML ImageElement
+  /// Convert Uint8List to ImageElement
   static Future<html.ImageElement> uint8ListToImage(Uint8List bytes) async {
-    _checkCacheVersion(); // ensure cache version
-
     final blob = html.Blob([bytes]);
     final url = html.Url.createObjectUrlFromBlob(blob);
     final img = html.ImageElement(src: url);
-
-    await js_util.promiseToFuture<void>(js_util.callMethod(img, 'decode', []));
+    await js_util.promiseToFuture(js_util.callMethod(img, 'decode', []));
     html.Url.revokeObjectUrl(url);
     return img;
   }
 
-  /// Resize image using Canvas (web) and return a Future<ImageElement>
-  static Future<html.ImageElement> resizeImage(html.ImageElement img, int width, int height) {
-    _checkCacheVersion(); // ensure cache version
-
+  /// Resize image
+  static Future<html.ImageElement> resizeImage(
+      html.ImageElement img, int width, int height) async {
     final canvas = html.CanvasElement(width: width, height: height);
     canvas.context2D.drawImageScaled(img, 0, 0, width, height);
-
     final resizedImg = html.ImageElement(src: canvas.toDataUrl());
-    return js_util.promiseToFuture<void>(js_util.callMethod(resizedImg, 'decode', [])).then((_) => resizedImg);
+    await js_util.promiseToFuture(js_util.callMethod(resizedImg, 'decode', []));
+    return resizedImg;
   }
 
-  /// Compute face embedding with TinyFaceDetector
+  /// Compute face descriptor safely (in-memory + IndexedDB + fallback)
   static Future<List<double>> computeFaceDescriptorSafe(
-      html.ImageElement img, {
-        String? cacheKey,
-      }) async {
-    _checkCacheVersion(); // ensure cache version
+      html.ImageElement img, {String? cacheKey}) async {
+    await _checkCacheVersion();
 
-    // Return cached descriptor if available
+    // Check in-memory cache
     if (cacheKey != null && _descriptorCache.containsKey(cacheKey)) {
-      debug.log("Returning cached descriptor for $cacheKey");
+      debug.log("Returning cached descriptor for $cacheKey (memory)");
       return _descriptorCache[cacheKey]!;
     }
 
-    debug.timeStart("Step 1");
+    // Try IndexedDB (offline)
+    if (cacheKey != null) {
+      try {
+        final stored = await _getFromDB(cacheKey);
+        if (stored != null) {
+          final descriptor =
+          (stored.split(',')).map((e) => double.parse(e)).toList();
+          _descriptorCache[cacheKey] = descriptor;
+          debug.log("Returning cached descriptor for $cacheKey (IndexedDB)");
+          return descriptor;
+        }
+      } catch (e) {
+        debug.log("⚠️ Failed to get from offline cache: $e");
+      }
+    }
+
+    // Fallback to online compute
+    debug.log("Falling back to online face descriptor computation...");
     final faceapi = js_util.getProperty(html.window, 'faceapi');
     if (faceapi == null) throw Exception("Face-api.js not loaded");
 
@@ -126,10 +197,7 @@ class WebFaceApi {
       js_util.getProperty(faceapi, 'TinyFaceDetectorOptions'),
       [js_util.jsify({'inputSize': 160, 'scoreThreshold': 0.1})],
     );
-    debug.log("Step 1: TinyFaceDetector options created");
-    debug.timeEnd("Step 1");
 
-    debug.timeStart("Step 2-4");
     final detectionWithDescriptor = await js_util.promiseToFuture(
       js_util.callMethod(
         js_util.callMethod(
@@ -141,22 +209,22 @@ class WebFaceApi {
         [],
       ),
     );
-    debug.log("Step 2–4: Run pipeline in one chain (face -> landmarks -> descriptor)");
-    debug.timeEnd("Step 2-4");
 
-    if (detectionWithDescriptor == null) throw Exception("Pipeline failed: no descriptor result");
+    if (detectionWithDescriptor == null) {
+      throw Exception("No descriptor detected");
+    }
 
-    debug.timeStart("Step 5");
-    final descriptorJs = js_util.getProperty(detectionWithDescriptor, 'descriptor');
-    if (descriptorJs == null) throw Exception("Descriptor property missing");
-    debug.timeEnd("Step 5");
-
+    final descriptorJs =
+    js_util.getProperty(detectionWithDescriptor, 'descriptor');
     final descriptor = (descriptorJs as List).map((e) => e as double).toList();
 
-    // Store in cache
-    if (cacheKey != null) _descriptorCache[cacheKey] = descriptor;
+    // Save to cache if possible
+    if (cacheKey != null) {
+      _descriptorCache[cacheKey] = descriptor;
+      await _putToDB(cacheKey, descriptor.join(','));
+    }
 
-    debug.log("Pipeline complete: Descriptor computed");
+    debug.log("Descriptor computed for ${cacheKey ?? 'unknown'}");
     return descriptor;
   }
 }
