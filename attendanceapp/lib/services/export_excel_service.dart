@@ -95,14 +95,14 @@ class ExportExcelService {
   }
 
   static void addLegend(Worksheet sheet, int startRow) {
-    // Title row
+    // Add legend section below the table
     final titleCell = sheet.getRangeByIndex(startRow, 1);
     titleCell.setText('Legend:');
     titleCell.cellStyle.bold = true;
     titleCell.cellStyle.hAlign = HAlignType.left;
     titleCell.cellStyle.vAlign = VAlignType.center;
 
-    // Content row
+    // Orange = Sunday
     final cellColor = sheet.getRangeByIndex(startRow + 1, 1);
     cellColor.cellStyle.backColor = '#FFA500';
     cellColor.setText('(Orange)');
@@ -115,6 +115,8 @@ class ExportExcelService {
   }
 
   /// === Status formula helper (dynamic, works for both day & month) ===
+  /// → Checks if any scan-in/out cell contains a valid time (“:”)
+  /// → Returns "Present" if found, otherwise "Absent"
   static String statusFormula(int rowNum) {
     final scanStart = colIndex(AttendanceColumn.scanIn1);
     final scanEnd = colIndex(AttendanceColumn.scanOut3);
@@ -141,6 +143,7 @@ class ExportExcelService {
 
     createInfoHeader(sheet, 'Attendance on ${DateService.toStorageDate(selectedDate)}');
 
+    // Column headers for daily report
     final headers = [
       'User',
       'Scan In 1', 'Scan Out 1',
@@ -165,40 +168,48 @@ class ExportExcelService {
 
       final rowNum = firstDataRow + i;
 
+      // 🧮 Formula for Lunch (h): =(D - C) * 24 hours
       sheet.getRangeByIndex(rowNum, colIndex(AttendanceColumn.lunch))
         ..formula = '=(D$rowNum-C$rowNum)*24'
         ..numberFormat = '0.00'
         ..cellStyle.borders.all.lineStyle = LineStyle.thin;
 
+      // 🧮 Formula for OT (h): Compare scan times with 5 PM (17:00)
+      //    Checks Scan Out 3 → Scan Out 2 → Scan Out 1, whichever exists first
       sheet.getRangeByIndex(rowNum, colIndex(AttendanceColumn.ot))
         ..formula =
             '=IF(G$rowNum<>"",(G$rowNum-TIME(17,0,0))*24,IF(E$rowNum<>"",(E$rowNum-TIME(17,0,0))*24,IF(C$rowNum<>"",(C$rowNum-TIME(17,0,0))*24,0)))'
         ..numberFormat = '0.00'
         ..cellStyle.borders.all.lineStyle = LineStyle.thin;
 
+      // ✅ Status = Present / Absent based on any valid scan
       sheet.getRangeByIndex(rowNum, colIndex(AttendanceColumn.status))
         ..formula = statusFormula(rowNum)
         ..cellStyle.borders.all.lineStyle = LineStyle.thin;
     }
 
+    // 🧾 Add total row (sum of lunch/OT, count of Present)
     final totalRow = firstDataRow + usersToExport.length;
     sheet.getRangeByIndex(totalRow, colIndex(AttendanceColumn.scanOut3)).setText('Total');
     sheet.getRangeByIndex(totalRow, colIndex(AttendanceColumn.scanOut3)).cellStyle.bold = true;
     sheet.getRangeByIndex(totalRow, colIndex(AttendanceColumn.scanOut3))
         .cellStyle.borders.all.lineStyle = LineStyle.thin;
 
+    // 🧮 SUM of all Lunch hours
     sheet.getRangeByIndex(totalRow, colIndex(AttendanceColumn.lunch)).formula =
     'SUM(${_excelColLetter(colIndex(AttendanceColumn.lunch))}$firstDataRow:${_excelColLetter(colIndex(AttendanceColumn.lunch))}${totalRow - 1})';
     sheet.getRangeByIndex(totalRow, colIndex(AttendanceColumn.lunch))
       ..numberFormat = '0.00'
       ..cellStyle.borders.all.lineStyle = LineStyle.thin;
 
+    // 🧮 SUM of all OT hours
     sheet.getRangeByIndex(totalRow, colIndex(AttendanceColumn.ot)).formula =
     'SUM(${_excelColLetter(colIndex(AttendanceColumn.ot))}$firstDataRow:${_excelColLetter(colIndex(AttendanceColumn.ot))}${totalRow - 1})';
     sheet.getRangeByIndex(totalRow, colIndex(AttendanceColumn.ot))
       ..numberFormat = '0.00'
       ..cellStyle.borders.all.lineStyle = LineStyle.thin;
 
+    // 🧮 COUNT how many users are "Present"
     final statusColLetter = _excelColLetter(colIndex(AttendanceColumn.status));
     sheet.getRangeByIndex(totalRow, colIndex(AttendanceColumn.status))
       ..formula =
@@ -237,6 +248,7 @@ class ExportExcelService {
       final monthStr = selectedDate != null ? DateService.toMonthString(selectedDate) : '';
       createInfoHeader(sheet, '$sheetName Attendance for $monthStr');
 
+      // Column headers for monthly report
       final headers = [
         'Date',
         'Scan In 1', 'Scan Out 1',
@@ -260,40 +272,47 @@ class ExportExcelService {
 
         final rowNum = firstDataRow + j;
 
+        // 🧮 Formula for Lunch (h): =(D - C) * 24 hours
         sheet.getRangeByIndex(rowNum, colIndex(AttendanceColumn.lunch))
           ..formula = '=(D$rowNum-C$rowNum)*24'
           ..numberFormat = '0.00'
           ..cellStyle.borders.all.lineStyle = LineStyle.thin;
 
+        // 🧮 Formula for OT (h): same logic as daily (based on 17:00)
         sheet.getRangeByIndex(rowNum, colIndex(AttendanceColumn.ot))
           ..formula =
               '=IF(G$rowNum<>"",(G$rowNum-TIME(17,0,0))*24,IF(E$rowNum<>"",(E$rowNum-TIME(17,0,0))*24,IF(C$rowNum<>"",(C$rowNum-TIME(17,0,0))*24,0)))'
           ..numberFormat = '0.00'
           ..cellStyle.borders.all.lineStyle = LineStyle.thin;
 
+        // ✅ Status (Present/Absent)
         sheet.getRangeByIndex(rowNum, colIndex(AttendanceColumn.status))
           ..formula = statusFormula(rowNum)
           ..cellStyle.borders.all.lineStyle = LineStyle.thin;
       }
 
+      // 🧾 Add totals for monthly sheet
       final totalRow = firstDataRow + days.length;
       sheet.getRangeByIndex(totalRow, colIndex(AttendanceColumn.scanOut3)).setText('Total');
       sheet.getRangeByIndex(totalRow, colIndex(AttendanceColumn.scanOut3)).cellStyle.bold = true;
       sheet.getRangeByIndex(totalRow, colIndex(AttendanceColumn.scanOut3))
           .cellStyle.borders.all.lineStyle = LineStyle.thin;
 
+      // 🧮 SUM of all Lunch hours
       sheet.getRangeByIndex(totalRow, colIndex(AttendanceColumn.lunch)).formula =
       'SUM(${_excelColLetter(colIndex(AttendanceColumn.lunch))}$firstDataRow:${_excelColLetter(colIndex(AttendanceColumn.lunch))}${totalRow - 1})';
       sheet.getRangeByIndex(totalRow, colIndex(AttendanceColumn.lunch))
         ..numberFormat = '0.00'
         ..cellStyle.borders.all.lineStyle = LineStyle.thin;
 
+      // 🧮 SUM of all OT hours
       sheet.getRangeByIndex(totalRow, colIndex(AttendanceColumn.ot)).formula =
       'SUM(${_excelColLetter(colIndex(AttendanceColumn.ot))}$firstDataRow:${_excelColLetter(colIndex(AttendanceColumn.ot))}${totalRow - 1})';
       sheet.getRangeByIndex(totalRow, colIndex(AttendanceColumn.ot))
         ..numberFormat = '0.00'
         ..cellStyle.borders.all.lineStyle = LineStyle.thin;
 
+      // 🧮 COUNT Present days for that user
       final statusColLetter = _excelColLetter(colIndex(AttendanceColumn.status));
       sheet.getRangeByIndex(totalRow, colIndex(AttendanceColumn.status))
         ..formula =
@@ -311,7 +330,7 @@ class ExportExcelService {
     _saveExcelFile(workbook, fileName);
   }
 
-  /// Helper to convert column index to Excel letter
+  /// Helper to convert column index to Excel letter (e.g., 1 → A, 27 → AA)
   static String _excelColLetter(int colIndex) {
     var dividend = colIndex;
     var colLetter = '';
@@ -323,6 +342,7 @@ class ExportExcelService {
     return colLetter;
   }
 
+  // Save file to browser (Web)
   static void _saveExcelFile(Workbook workbook, String fileName) {
     final List<int> bytes = workbook.saveAsStream();
     workbook.dispose();
