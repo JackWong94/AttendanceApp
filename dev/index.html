@@ -1,24 +1,11 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <!--
-    If you are serving your web app in a path other than the root, change the
-    href value below to reflect the base path you are serving from.
-
-    The path provided below has to start and end with a slash "/" in order for
-    it to work correctly.
-
-    For more details:
-    * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
-
-    This is a placeholder for base href that will be replaced by the value of
-    the `--base-href` argument provided to `flutter build`.
-  -->
   <base href="/AttendanceApp/dev/">
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="A new Flutter project.">
+  <meta name="description" content="Attendance App - Face Recognition System">
 
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
@@ -27,16 +14,60 @@
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
   <!-- Favicon -->
-  <link rel="icon" type="image/png" href="favicon.png"/>
-  <!-- Face API JS (local UMD) -->
-  <script src="js/face-api.min.js"></script>
-  <script>
-    console.log("faceapi test:", window.faceapi);
-  </script>
+  <link rel="icon" type="image/png" href="favicon.png" />
+
   <title>attendanceapp</title>
   <link rel="manifest" href="manifest.json">
+
+  <!-- ✅ face-api.js (local or CDN) -->
+  <script src="js/face-api.min.js"></script>
+
+  <!-- ✅ Face model preloader -->
+  <script>
+    (async function () {
+      console.log("🧠 Initializing face-api.js model loader...");
+
+      // Safety check
+      if (typeof faceapi === "undefined") {
+        console.error("❌ face-api.js not found! Ensure js/face-api.min.js is accessible.");
+        return;
+      }
+
+      const modelPath = window.location.origin + "/models/";
+
+      try {
+        console.time("[face-api] loadModels");
+        await Promise.all([
+          faceapi.nets.ssdMobilenetv1.loadFromUri(modelPath),
+          faceapi.nets.faceLandmark68Net.loadFromUri(modelPath),
+          faceapi.nets.faceRecognitionNet.loadFromUri(modelPath),
+          faceapi.nets.tinyFaceDetector.loadFromUri(modelPath),
+        ]);
+        console.timeEnd("[face-api] loadModels");
+
+        // Mark global flag
+        window.faceApiModelsLoaded = true;
+        window.dispatchEvent(new Event("faceApiModelsReady"));
+        console.log("✅ face-api.js models fully loaded from:", modelPath);
+      } catch (err) {
+        console.error("⚠️ Failed to load face-api.js models:", err);
+      }
+    })();
+  </script>
 </head>
+
 <body>
-  <script src="flutter_bootstrap.js" defer></script>
+<!-- Flutter app -->
+<script src="flutter_bootstrap.js" defer></script>
+
+<!-- ✅ Register Service Worker for caching -->
+<script>
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("/service_worker.js").then(
+      (reg) => console.log("✅ Service worker registered", reg),
+      (err) => console.warn("⚠️ Service worker registration failed", err)
+    );
+  }
+</script>
 </body>
 </html>
