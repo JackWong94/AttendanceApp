@@ -172,7 +172,7 @@ class _ManageUserPageState extends State<ManageUserPage> with RouteAware {
     try {
       await AttendanceModelService.instance.deleteAllAttendanceForUser(user.id);
       await UserModelService.instance.deleteUser(user.id);
-
+      await FaceModelService.reload();
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("User and attendance deleted successfully!")),
       );
