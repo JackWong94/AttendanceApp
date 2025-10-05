@@ -47,6 +47,7 @@ class WebFaceApi {
 
     debug.timeStart("loadModels");
 
+    // Wait for faceapi to be available
     for (var i = 0; i < retries; i++) {
       if (js_util.hasProperty(html.window, 'faceapi')) break;
       await Future.delayed(Duration(milliseconds: delayMs));
@@ -61,14 +62,17 @@ class WebFaceApi {
       final nets = js_util.getProperty(faceapi, 'nets');
       final modelPath = getModelPath();
 
-      await js_util.promiseToFuture(
-          js_util.callMethod(js_util.getProperty(nets, 'ssdMobilenetv1'), 'loadFromUri', [modelPath]));
-      await js_util.promiseToFuture(
-          js_util.callMethod(js_util.getProperty(nets, 'faceLandmark68Net'), 'loadFromUri', [modelPath]));
-      await js_util.promiseToFuture(
-          js_util.callMethod(js_util.getProperty(nets, 'faceRecognitionNet'), 'loadFromUri', [modelPath]));
-      await js_util.promiseToFuture(
-          js_util.callMethod(js_util.getProperty(nets, 'tinyFaceDetector'), 'loadFromUri', [modelPath]));
+      // Load all models in parallel
+      await Future.wait([
+        js_util.promiseToFuture(
+            js_util.callMethod(js_util.getProperty(nets, 'ssdMobilenetv1'), 'loadFromUri', [modelPath])),
+        js_util.promiseToFuture(
+            js_util.callMethod(js_util.getProperty(nets, 'faceLandmark68Net'), 'loadFromUri', [modelPath])),
+        js_util.promiseToFuture(
+            js_util.callMethod(js_util.getProperty(nets, 'faceRecognitionNet'), 'loadFromUri', [modelPath])),
+        js_util.promiseToFuture(
+            js_util.callMethod(js_util.getProperty(nets, 'tinyFaceDetector'), 'loadFromUri', [modelPath])),
+      ]);
 
       debug.log("Models loaded successfully");
       debug.timeEnd("loadModels");
