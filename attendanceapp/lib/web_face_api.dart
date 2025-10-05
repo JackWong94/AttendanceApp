@@ -4,110 +4,97 @@ import 'dart:js_util' as js_util;
 import 'dart:async';
 import 'package:attendanceapp/configs_and_tools/debug.dart';
 
-Debug debug = Debug(module: "web_face_api", enable: true);
+class WebFaceApi {
+  static Debug debug = Debug(module: "web_face_api", enable: true);
 
-/// Determine the model path dynamically
-String getModelPath({String modelsFolder = "models"}) {
-  final path = html.window.location.pathname ?? "/";
-  final normalizedPath = path.endsWith("/") ? path : "$path/";
+  /// Cache descriptors to skip recomputation
+  static final Map<String, List<double>> _descriptorCache = {};
 
-  // If the path already ends with models folder, return as-is
-  if (normalizedPath.endsWith("$modelsFolder/")) return normalizedPath;
-
-  return "$normalizedPath$modelsFolder/";
-}
-
-/// Load face-api.js models
-Future<void> loadModels({int retries = 20, int delayMs = 50}) async {
-  debug.timeStart("loadModels");
-  // Wait until window.faceapi exists
-  for (var i = 0; i < retries; i++) {
-    if (js_util.hasProperty(html.window, 'faceapi')) break;
-    await Future.delayed(Duration(milliseconds: delayMs));
+  /// Determine the model path dynamically
+  static String getModelPath({String modelsFolder = "models"}) {
+    final path = html.window.location.pathname ?? "/";
+    final normalizedPath = path.endsWith("/") ? path : "$path/";
+    if (normalizedPath.endsWith("$modelsFolder/")) return normalizedPath;
+    return "$normalizedPath$modelsFolder/";
   }
 
-  if (!js_util.hasProperty(html.window, 'faceapi')) {
-    throw Exception("Face-api.js not loaded after $retries attempts!");
+  /// Load face-api.js models
+  static Future<void> loadModels({int retries = 20, int delayMs = 50}) async {
+    debug.timeStart("loadModels");
+
+    for (var i = 0; i < retries; i++) {
+      if (js_util.hasProperty(html.window, 'faceapi')) break;
+      await Future.delayed(Duration(milliseconds: delayMs));
+    }
+
+    if (!js_util.hasProperty(html.window, 'faceapi')) {
+      throw Exception("Face-api.js not loaded after $retries attempts!");
+    }
+
+    try {
+      final faceapi = js_util.getProperty(html.window, 'faceapi');
+      final nets = js_util.getProperty(faceapi, 'nets');
+      final modelPath = getModelPath();
+
+      await js_util.promiseToFuture(
+          js_util.callMethod(js_util.getProperty(nets, 'ssdMobilenetv1'), 'loadFromUri', [modelPath]));
+      await js_util.promiseToFuture(
+          js_util.callMethod(js_util.getProperty(nets, 'faceLandmark68Net'), 'loadFromUri', [modelPath]));
+      await js_util.promiseToFuture(
+          js_util.callMethod(js_util.getProperty(nets, 'faceRecognitionNet'), 'loadFromUri', [modelPath]));
+      await js_util.promiseToFuture(
+          js_util.callMethod(js_util.getProperty(nets, 'tinyFaceDetector'), 'loadFromUri', [modelPath]));
+
+      debug.log("Models loaded successfully");
+      debug.timeEnd("loadModels");
+    } catch (e) {
+      debug.log("Error loading Face-api.js models: $e");
+    }
   }
 
-  try {
+  /// Convert Uint8List bytes to a fully loaded HTML ImageElement
+  static Future<html.ImageElement> uint8ListToImage(Uint8List bytes) async {
+    final blob = html.Blob([bytes]);
+    final url = html.Url.createObjectUrlFromBlob(blob);
+    final img = html.ImageElement(src: url);
+
+    await js_util.promiseToFuture<void>(js_util.callMethod(img, 'decode', []));
+    html.Url.revokeObjectUrl(url);
+    return img;
+  }
+
+  /// Resize image using Canvas (web) and return a Future<ImageElement>
+  static Future<html.ImageElement> resizeImage(html.ImageElement img, int width, int height) {
+    final canvas = html.CanvasElement(width: width, height: height);
+    canvas.context2D.drawImageScaled(img, 0, 0, width, height);
+
+    final resizedImg = html.ImageElement(src: canvas.toDataUrl());
+    return js_util.promiseToFuture<void>(js_util.callMethod(resizedImg, 'decode', [])).then((_) => resizedImg);
+  }
+
+  /// Compute face embedding with TinyFaceDetector
+  static Future<List<double>> computeFaceDescriptorSafe(
+      html.ImageElement img, {
+        String? cacheKey,
+      }) async {
+    // Return cached descriptor if available
+    if (cacheKey != null && _descriptorCache.containsKey(cacheKey)) {
+      debug.log("Returning cached descriptor for $cacheKey");
+      return _descriptorCache[cacheKey]!;
+    }
+
+    debug.timeStart("Step 1");
     final faceapi = js_util.getProperty(html.window, 'faceapi');
+    if (faceapi == null) throw Exception("Face-api.js not loaded");
 
-    final nets = js_util.getProperty(faceapi, 'nets');
-
-    final modelPath = getModelPath();
-
-    await js_util.promiseToFuture(
-        js_util.callMethod(js_util.getProperty(nets, 'ssdMobilenetv1'), 'loadFromUri', [modelPath])
+    final options = js_util.callConstructor(
+      js_util.getProperty(faceapi, 'TinyFaceDetectorOptions'),
+      [js_util.jsify({'inputSize': 160, 'scoreThreshold': 0.1})],
     );
-    await js_util.promiseToFuture(
-        js_util.callMethod(js_util.getProperty(nets, 'faceLandmark68Net'), 'loadFromUri', [modelPath])
-    );
-    await js_util.promiseToFuture(
-        js_util.callMethod(js_util.getProperty(nets, 'faceRecognitionNet'), 'loadFromUri', [modelPath])
-    );
-    await js_util.promiseToFuture(
-        js_util.callMethod(js_util.getProperty(nets, 'tinyFaceDetector'), 'loadFromUri', [modelPath])
-    );
-    debug.log("Models loaded successfully");
-    debug.timeEnd("loadModels");
-  } catch (e) {
-    debug.log("Error loading Face-api.js models: $e");
-  }
-}
+    debug.log("Step 1: TinyFaceDetector options created");
+    debug.timeEnd("Step 1");
 
-// Convert Uint8List bytes to a fully loaded HTML ImageElement (web)
-Future<html.ImageElement> uint8ListToImage(Uint8List bytes) async {
-  final blob = html.Blob([bytes]);
-  final url = html.Url.createObjectUrlFromBlob(blob);
-
-  final img = html.ImageElement(src: url);
-
-  // Wait until the image is fully loaded using decode() -> JS Promise -> Dart Future
-  await js_util.promiseToFuture<void>(js_util.callMethod(img, 'decode', []));
-
-  // Free the object URL after loading
-  html.Url.revokeObjectUrl(url);
-
-  return img;
-}
-
-// Resize image using Canvas (web) and return a Future<ImageElement>
-Future<html.ImageElement> resizeImage(html.ImageElement img, int width, int height) {
-  final canvas = html.CanvasElement(width: width, height: height);
-  canvas.context2D.drawImageScaled(img, 0, 0, width, height);
-
-  final resizedImg = html.ImageElement(src: canvas.toDataUrl());
-
-  // Use JS Promise to Future instead of Completer
-  final promise = js_util.promiseToFuture<void>(
-    js_util.callMethod(
-      resizedImg, 'decode', [], // decode() returns a Promise that resolves when the image is ready
-    ),
-  );
-
-  return promise.then((_) => resizedImg);
-}
-
-/// Compute face embedding with TinyFaceDetector (all-in-one chain)
-Future<List<double>> computeFaceDescriptorSafe(html.ImageElement img) async {
-  debug.timeStart("Step 1");
-  final faceapi = js_util.getProperty(html.window, 'faceapi');
-  if (faceapi == null) throw Exception("Step 0: face-api.js not loaded");
-
-  // Step 1: TinyFaceDetector options
-  final options = js_util.callConstructor(
-    js_util.getProperty(faceapi, 'TinyFaceDetectorOptions'),
-    [js_util.jsify({
-      'inputSize': 160,
-      'scoreThreshold': 0.1,
-    })],
-  );
-  debug.log("Step 1: TinyFaceDetector options created");
-  debug.timeEnd("Step 1");
-  debug.timeStart("Step 2-4");
-  try {
-    // Step 2–4: Run pipeline in one chain (face -> landmarks -> descriptor)
+    debug.timeStart("Step 2-4");
     final detectionWithDescriptor = await js_util.promiseToFuture(
       js_util.callMethod(
         js_util.callMethod(
@@ -121,20 +108,20 @@ Future<List<double>> computeFaceDescriptorSafe(html.ImageElement img) async {
     );
     debug.log("Step 2–4: Run pipeline in one chain (face -> landmarks -> descriptor)");
     debug.timeEnd("Step 2-4");
-    if (detectionWithDescriptor == null) {
-      throw Exception("Pipeline failed: no descriptor result");
-    }
-    debug.log("Pipeline complete: Descriptor computed");
+
+    if (detectionWithDescriptor == null) throw Exception("Pipeline failed: no descriptor result");
+
     debug.timeStart("Step 5");
-    // Step 5: Extract descriptor
     final descriptorJs = js_util.getProperty(detectionWithDescriptor, 'descriptor');
     if (descriptorJs == null) throw Exception("Descriptor property missing");
-    debug.log("Step 5: Extract descriptor and loaded successfully");
     debug.timeEnd("Step 5");
-    return (descriptorJs as List).map((e) => e as double).toList();
-  } catch (e) {
-    debug.log("Error in pipeline: $e");
-    rethrow;
+
+    final descriptor = (descriptorJs as List).map((e) => e as double).toList();
+
+    // Store in cache
+    if (cacheKey != null) _descriptorCache[cacheKey] = descriptor;
+
+    debug.log("Pipeline complete: Descriptor computed");
+    return descriptor;
   }
 }
-

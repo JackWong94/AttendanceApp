@@ -10,11 +10,13 @@ class FaceRecognitionService {
   /// Returns a UserModel if matched, otherwise null
   static Future<UserModel?> recognizeUser(Uint8List photoBytes) async {
     // Step 1: Convert bytes to image
-    final img = await webFaceApi.uint8ListToImage(photoBytes);
-    final resized = await webFaceApi.resizeImage(img, 160, 160);
+    final img = await webFaceApi.WebFaceApi.uint8ListToImage(photoBytes);
+    final resized = await webFaceApi.WebFaceApi.resizeImage(img, 160, 160);
 
     // Step 2: Compute face descriptor
-    final descriptor = await webFaceApi.computeFaceDescriptorSafe(resized);
+    final descriptor = await webFaceApi.WebFaceApi.computeFaceDescriptorSafe(
+      resized,
+    );
     if (descriptor.isEmpty) return null;
 
     // Step 3: Compare with embeddings

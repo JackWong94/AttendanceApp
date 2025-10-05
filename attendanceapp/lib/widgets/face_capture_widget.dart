@@ -43,9 +43,11 @@ class _FaceCaptureWidgetState extends State<FaceCaptureWidget> {
       final picture = await widget.cameraService.controller!.takePicture();
       final bytes = await picture.readAsBytes();
 
-      final img = await webFaceApi.uint8ListToImage(bytes);
-      final resizedImg = await webFaceApi.resizeImage(img, 160, 160);
-      final descriptor = await webFaceApi.computeFaceDescriptorSafe(resizedImg);
+      // ✅ Updated WebFaceApi calls
+      final img = await webFaceApi.WebFaceApi.uint8ListToImage(bytes);
+      final resizedImg = await webFaceApi.WebFaceApi.resizeImage(img, 160, 160);
+      final descriptor =
+      await webFaceApi.WebFaceApi.computeFaceDescriptorSafe(resizedImg);
 
       if (descriptor.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -117,8 +119,8 @@ class _FaceCaptureWidgetState extends State<FaceCaptureWidget> {
             child: Wrap(
               spacing: 4,
               children: _capturedPhotos
-                  .map((bytes) => Image.memory(bytes,
-                  width: 80, height: 80, fit: BoxFit.cover))
+                  .map((bytes) =>
+                  Image.memory(bytes, width: 80, height: 80, fit: BoxFit.cover))
                   .toList(),
             ),
           ),
