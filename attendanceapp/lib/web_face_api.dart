@@ -2,6 +2,9 @@ import 'dart:typed_data';
 import 'dart:html' as html;
 import 'dart:js_util' as js_util;
 import 'dart:async';
+import 'package:attendanceapp/configs_and_tools/debug.dart';
+
+Debug debug = Debug(module: "web_face_api", enable: true);
 
 /// Determine the model path dynamically
 String getModelPath({String modelsFolder = "models"}) {
@@ -16,6 +19,7 @@ String getModelPath({String modelsFolder = "models"}) {
 
 /// Load face-api.js models
 Future<void> loadModels({int retries = 20, int delayMs = 50}) async {
+  debug.timeStart("loadModels");
   // Wait until window.faceapi exists
   for (var i = 0; i < retries; i++) {
     if (js_util.hasProperty(html.window, 'faceapi')) break;
@@ -45,10 +49,10 @@ Future<void> loadModels({int retries = 20, int delayMs = 50}) async {
     await js_util.promiseToFuture(
         js_util.callMethod(js_util.getProperty(nets, 'tinyFaceDetector'), 'loadFromUri', [modelPath])
     );
-
-    print("Models loaded successfully");
+    debug.log("Models loaded successfully");
+    debug.timeEnd("loadModels");
   } catch (e) {
-    print("Error loading Face-api.js models: $e");
+    debug.log("Error loading Face-api.js models: $e");
   }
 }
 
@@ -87,6 +91,7 @@ Future<html.ImageElement> resizeImage(html.ImageElement img, int width, int heig
 
 /// Compute face embedding with TinyFaceDetector (all-in-one chain)
 Future<List<double>> computeFaceDescriptorSafe(html.ImageElement img) async {
+  debug.timeStart("Step 1");
   final faceapi = js_util.getProperty(html.window, 'faceapi');
   if (faceapi == null) throw Exception("Step 0: face-api.js not loaded");
 
@@ -98,8 +103,9 @@ Future<List<double>> computeFaceDescriptorSafe(html.ImageElement img) async {
       'scoreThreshold': 0.1,
     })],
   );
-  print("Step 1: TinyFaceDetector options created");
-
+  debug.log("Step 1: TinyFaceDetector options created");
+  debug.timeEnd("Step 1");
+  debug.timeStart("Step 2-4");
   try {
     // Step 2–4: Run pipeline in one chain (face -> landmarks -> descriptor)
     final detectionWithDescriptor = await js_util.promiseToFuture(
@@ -113,19 +119,21 @@ Future<List<double>> computeFaceDescriptorSafe(html.ImageElement img) async {
         [],
       ),
     );
-
+    debug.log("Step 2–4: Run pipeline in one chain (face -> landmarks -> descriptor)");
+    debug.timeEnd("Step 2-4");
     if (detectionWithDescriptor == null) {
       throw Exception("Pipeline failed: no descriptor result");
     }
-    print("Pipeline complete: Descriptor computed");
-
+    debug.log("Pipeline complete: Descriptor computed");
+    debug.timeStart("Step 5");
     // Step 5: Extract descriptor
     final descriptorJs = js_util.getProperty(detectionWithDescriptor, 'descriptor');
     if (descriptorJs == null) throw Exception("Descriptor property missing");
-
+    debug.log("Step 5: Extract descriptor and loaded successfully");
+    debug.timeEnd("Step 5");
     return (descriptorJs as List).map((e) => e as double).toList();
   } catch (e) {
-    print("Error in pipeline: $e");
+    debug.log("Error in pipeline: $e");
     rethrow;
   }
 }
