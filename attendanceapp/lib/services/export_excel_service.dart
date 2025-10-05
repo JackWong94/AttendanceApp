@@ -128,6 +128,16 @@ class ExportExcelService {
     return '=IF(OR(${conditions.join(',')}),"Present","Absent")';
   }
 
+  // === Helper for OT formula (17:00 weekdays, 18:00 weekends) ===
+  static String otFormula(int rowNum, DateTime date) {
+    final timeStr = (date.weekday == DateTime.saturday || date.weekday == DateTime.sunday)
+        ? 'TIME(18,0,0)'
+        : 'TIME(17,0,0)';
+    return '=IF(G$rowNum<>"",MAX((G$rowNum-$timeStr)*24,0),'
+        'IF(E$rowNum<>"",MAX((E$rowNum-$timeStr)*24,0),'
+        'IF(C$rowNum<>"",MAX((C$rowNum-$timeStr)*24,0),0)))';
+  }
+
   // === Day Attendance Export ===
   static void exportDayAttendance({
     required Map<String, Map<String, String>> attendanceMap,
@@ -170,9 +180,9 @@ class ExportExcelService {
         ..numberFormat = '0.00'
         ..cellStyle.borders.all.lineStyle = LineStyle.thin;
 
+      // ✅ Smart OT formula
       sheet.getRangeByIndex(rowNum, colIndex(AttendanceColumn.ot))
-        ..formula =
-            '=IF(G$rowNum<>"",(G$rowNum-TIME(17,0,0))*24,IF(E$rowNum<>"",(E$rowNum-TIME(17,0,0))*24,IF(C$rowNum<>"",(C$rowNum-TIME(17,0,0))*24,0)))'
+        ..formula = otFormula(rowNum, selectedDate)
         ..numberFormat = '0.00'
         ..cellStyle.borders.all.lineStyle = LineStyle.thin;
 
@@ -265,9 +275,9 @@ class ExportExcelService {
           ..numberFormat = '0.00'
           ..cellStyle.borders.all.lineStyle = LineStyle.thin;
 
+        // ✅ Smart OT formula (uses actual day)
         sheet.getRangeByIndex(rowNum, colIndex(AttendanceColumn.ot))
-          ..formula =
-              '=IF(G$rowNum<>"",(G$rowNum-TIME(17,0,0))*24,IF(E$rowNum<>"",(E$rowNum-TIME(17,0,0))*24,IF(C$rowNum<>"",(C$rowNum-TIME(17,0,0))*24,0)))'
+          ..formula = otFormula(rowNum, dt)
           ..numberFormat = '0.00'
           ..cellStyle.borders.all.lineStyle = LineStyle.thin;
 
