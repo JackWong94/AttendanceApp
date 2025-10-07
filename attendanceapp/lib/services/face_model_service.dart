@@ -51,7 +51,6 @@ class FaceModelService {
       // Compute descriptor with caching to skip repeated steps next time
       await webFaceApi.WebFaceApi.computeFaceDescriptorSafe(
         dummyImage,
-        cacheKey: "warmup_face",
       );
       print("Face model warm-up complete");
     } catch (e) {

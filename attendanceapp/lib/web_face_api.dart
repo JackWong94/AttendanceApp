@@ -8,9 +8,6 @@ class WebFaceApi {
   static Debug debug = Debug(module: "web_face_api", enable: true);
 
   static const String _cacheVersion = "v1"; // increment when models change
-  static final Map<String, List<double>> _descriptorCache = {};
-
-  // IndexedDB database for offline descriptor caching
   static dynamic _db;
   static const String _dbName = "FaceApiCacheDB";
   static const String _descriptorStore = "descriptors";
@@ -30,45 +27,11 @@ class WebFaceApi {
             }
           });
 
-      // ✅ FIX: do NOT use promiseToFuture here, just await the native Future
       _db = await request;
       debug.log("IndexedDB initialized");
     } catch (e) {
       debug.log("⚠️ IndexedDB initialization failed: $e");
       _db = null; // fallback to online mode
-    }
-  }
-
-  /// Put descriptor to IndexedDB
-  static Future<void> _putToDB(String key, String value) async {
-    try {
-      await _initDB();
-      if (_db == null) return; // no offline storage available
-
-      final txn = _db.transaction(_descriptorStore, 'readwrite');
-      final store = txn.objectStore(_descriptorStore);
-      store.put(value, key);
-
-      await txn.completed;
-    } catch (e) {
-      debug.log("⚠️ Failed to save descriptor to IndexedDB: $e");
-    }
-  }
-
-  /// Get descriptor from IndexedDB
-  static Future<String?> _getFromDB(String key) async {
-    try {
-      await _initDB();
-      if (_db == null) return null;
-
-      final txn = _db.transaction(_descriptorStore, 'readonly');
-      final store = txn.objectStore(_descriptorStore);
-      final result = await store.getObject(key);
-
-      return result as String?;
-    } catch (e) {
-      debug.log("⚠️ IndexedDB read failed: $e");
-      return null;
     }
   }
 
@@ -78,22 +41,29 @@ class WebFaceApi {
       await _initDB();
       if (_db == null) return; // skip version check if no DB
 
-      final storedVersion = await _getFromDB('cacheVersion');
-      if (storedVersion == null) {
-        await _putToDB('cacheVersion', _cacheVersion);
+      final txn = _db.transaction(_descriptorStore, 'readonly');
+      final store = txn.objectStore(_descriptorStore);
+      final result = await store.getObject('cacheVersion');
+
+      if (result == null) {
+        final txn2 = _db.transaction(_descriptorStore, 'readwrite');
+        txn2.objectStore(_descriptorStore).put(_cacheVersion, 'cacheVersion');
+        await txn2.completed;
         debug.log("Initial cache version stored as $_cacheVersion");
         return;
       }
-      if (storedVersion != _cacheVersion) {
+
+      if (result != _cacheVersion) {
         debug.log("Cache version changed. Clearing old cache...");
-        _descriptorCache.clear();
-        final txn =
+        final txn3 =
         js_util.callMethod(_db, 'transaction', [_descriptorStore, 'readwrite']);
-        final store = js_util.callMethod(txn, 'objectStore', [_descriptorStore]);
-        js_util.callMethod(store, 'clear', []);
+        final store3 = js_util.callMethod(txn3, 'objectStore', [_descriptorStore]);
+        js_util.callMethod(store3, 'clear', []);
         await js_util.promiseToFuture(
-            js_util.getProperty(txn, 'done') ?? js_util.getProperty(txn, 'completed'));
-        await _putToDB('cacheVersion', _cacheVersion);
+            js_util.getProperty(txn3, 'done') ?? js_util.getProperty(txn3, 'completed'));
+        final txn4 = _db.transaction(_descriptorStore, 'readwrite');
+        txn4.objectStore(_descriptorStore).put(_cacheVersion, 'cacheVersion');
+        await txn4.completed;
         debug.log("Cache version updated to $_cacheVersion");
       }
     } catch (e) {
@@ -162,35 +132,14 @@ class WebFaceApi {
     return resizedImg;
   }
 
-  /// Compute face descriptor safely (in-memory + IndexedDB + fallback)
+  /// Compute face descriptor (no cache)
   static Future<List<double>> computeFaceDescriptorSafe(
-      html.ImageElement img, {String? cacheKey}) async {
+      html.ImageElement img, {String? debugKey}) async {
     await _checkCacheVersion();
 
-    // Check in-memory cache
-    if (cacheKey != null && _descriptorCache.containsKey(cacheKey)) {
-      debug.log("Returning cached descriptor for $cacheKey (memory)");
-      return _descriptorCache[cacheKey]!;
-    }
+    debug.log("Computing descriptor for ${debugKey ?? 'unknown'}...");
+    debug.timeStart("computeFaceDescriptor");
 
-    // Try IndexedDB (offline)
-    if (cacheKey != null) {
-      try {
-        final stored = await _getFromDB(cacheKey);
-        if (stored != null) {
-          final descriptor =
-          (stored.split(',')).map((e) => double.parse(e)).toList();
-          _descriptorCache[cacheKey] = descriptor;
-          debug.log("Returning cached descriptor for $cacheKey (IndexedDB)");
-          return descriptor;
-        }
-      } catch (e) {
-        debug.log("⚠️ Failed to get from offline cache: $e");
-      }
-    }
-
-    // Fallback to online compute
-    debug.log("Falling back to online face descriptor computation...");
     final faceapi = js_util.getProperty(html.window, 'faceapi');
     if (faceapi == null) throw Exception("Face-api.js not loaded");
 
@@ -212,20 +161,16 @@ class WebFaceApi {
     );
 
     if (detectionWithDescriptor == null) {
-      throw Exception("No descriptor detected");
+      throw Exception("No face descriptor detected");
     }
 
     final descriptorJs =
     js_util.getProperty(detectionWithDescriptor, 'descriptor');
     final descriptor = (descriptorJs as List).map((e) => e as double).toList();
 
-    // Save to cache if possible
-    if (cacheKey != null) {
-      _descriptorCache[cacheKey] = descriptor;
-      await _putToDB(cacheKey, descriptor.join(','));
-    }
+    debug.timeEnd("computeFaceDescriptor");
+    debug.log("Descriptor computed successfully for ${debugKey ?? 'unknown'}");
 
-    debug.log("Descriptor computed for ${cacheKey ?? 'unknown'}");
     return descriptor;
   }
 }
