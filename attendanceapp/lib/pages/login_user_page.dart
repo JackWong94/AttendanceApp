@@ -257,9 +257,12 @@ class _LoginUserPageState extends State<LoginUserPage> with RouteAware {
 
             return Column(
               children: [
-                const DrawerHeader(
-                  decoration: BoxDecoration(color: Colors.blue),
-                  child: Text(
+                Container(
+                  width: double.infinity,
+                  color: Colors.blue,
+                  padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 16),
+                  alignment: Alignment.centerLeft,
+                  child: const Text(
                     "Settings",
                     style: TextStyle(color: Colors.white, fontSize: 20),
                   ),
