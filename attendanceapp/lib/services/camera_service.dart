@@ -43,7 +43,7 @@ class CameraService {
       );
 
       if (kIsWeb) {
-        await Future.delayed(const Duration(milliseconds: 0)); // short delay for web
+        await Future.delayed(const Duration(milliseconds: 200)); // short delay for web
       }
 
       _initializeFuture = _controller!.initialize();
