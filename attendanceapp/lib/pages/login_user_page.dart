@@ -16,6 +16,8 @@ import 'package:camera/camera.dart';
 import 'package:attendanceapp/services/tenant_model_service.dart';
 import 'package:intl/intl.dart'; // add at the top
 import 'package:attendanceapp/services/face_model_service.dart';
+import 'package:package_info_plus/package_info_plus.dart';
+
 class LoginUserPage extends StatefulWidget {
   const LoginUserPage({super.key});
 
@@ -246,33 +248,70 @@ class _LoginUserPageState extends State<LoginUserPage> with RouteAware {
     return Scaffold(
       appBar: AppBar(title: Text(TenantModelService.instance.currentTenantName)),
       endDrawer: Drawer(
-        child: ListView(
-          children: [
-            const DrawerHeader(
-              decoration: BoxDecoration(color: Colors.blue),
-              child: Text("Settings", style: TextStyle(color: Colors.white, fontSize: 20)),
-            ),
-            ListTile(
-              leading: const Icon(Icons.person_add),
-              title: const Text("Register New User"),
-              onTap: () => NavigationService.goToRegisterUser(context),
-            ),
-            ListTile(
-              leading: const Icon(Icons.assignment),
-              title: const Text("Attendance"),
-              onTap: () => NavigationService.goToAttendance(context),
-            ),
-            ListTile(
-              leading: const Icon(Icons.manage_accounts),
-              title: const Text("Manage User"),
-              onTap: () => NavigationService.goToManageUser(context),
-            ),
-            ListTile(
-              leading: const Icon(Icons.logout),
-              title: const Text("Log out"),
-              onTap: () => NavigationService.logOut(context),
-            ),
-          ],
+        child: FutureBuilder<PackageInfo>(
+          future: PackageInfo.fromPlatform(),
+          builder: (context, snapshot) {
+            final versionText = snapshot.hasData
+                ? "Version ${snapshot.data!.version}"
+                : "Loading version...";
+
+            return Column(
+              children: [
+                const DrawerHeader(
+                  decoration: BoxDecoration(color: Colors.blue),
+                  child: Text(
+                    "Settings",
+                    style: TextStyle(color: Colors.white, fontSize: 20),
+                  ),
+                ),
+                Expanded(
+                  child: ListView(
+                    children: [
+                      ListTile(
+                        leading: const Icon(Icons.person_add),
+                        title: const Text("Register New User"),
+                        onTap: () => NavigationService.goToRegisterUser(context),
+                      ),
+                      ListTile(
+                        leading: const Icon(Icons.assignment),
+                        title: const Text("Attendance"),
+                        onTap: () => NavigationService.goToAttendance(context),
+                      ),
+                      ListTile(
+                        leading: const Icon(Icons.manage_accounts),
+                        title: const Text("Manage User"),
+                        onTap: () => NavigationService.goToManageUser(context),
+                      ),
+                      ListTile(
+                        leading: const Icon(Icons.logout),
+                        title: const Text("Log out"),
+                        onTap: () => NavigationService.logOut(context),
+                      ),
+                    ],
+                  ),
+                ),
+
+                // ✅ Version text at bottom center
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 16, top: 8),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Divider(thickness: 1),
+                      Text(
+                        versionText,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            );
+          },
         ),
       ),
       body: Column(
