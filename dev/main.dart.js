@@ -48793,11 +48793,9 @@ break
 case 5:return A.w(null,r)
 case 1:return A.v(p.at(-1),r)}})
 return A.x($async$lq,r)},
-ta(){var s=0,r=A.y(t.H),q=[],p=this,o,n,m
+ta(){var s=0,r=A.y(t.H),q=[],p=this,o,n
 var $async$ta=A.z(function(a,b){if(a===1)return A.v(b,r)
-while(true)switch(s){case 0:try{n=p.a
-if(n!=null){n.l()
-A.At().$1("\ud83d\uddd1\ufe0f Camera disposed")}}catch(l){o=A.a6(l)
+while(true)switch(s){case 0:try{if(p.a!=null)A.At().$1("\ud83d\uddd1\ufe0f Camera disposed")}catch(m){o=A.a6(m)
 A.At().$1("\u274c Error disposing camera: "+A.k(o))}finally{p.b=p.a=null}return A.w(null,r)}})
 return A.x($async$ta,r)}}
 A.a8P.prototype={
