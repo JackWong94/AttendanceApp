@@ -4,8 +4,6 @@ import 'package:attendanceapp/pages/login_user_page.dart';
 import 'package:attendanceapp/services/authentication_service.dart';
 import 'package:attendanceapp/services/user_model_service.dart';
 import 'package:attendanceapp/services/attendance_model_service.dart';
-import 'package:attendanceapp/services/camera_service.dart';
-import 'package:attendanceapp/services/face_model_service.dart';
 import 'package:attendanceapp/services/tenant_model_service.dart';
 
 class WebLoginPage extends StatefulWidget {
@@ -75,12 +73,7 @@ class _WebLoginPageState extends State<WebLoginPage> {
       UserModelService.init(tenantId: tenant.tenantId);
       AttendanceModelService.init(tenantId: tenant.tenantId);
 
-      // 4️⃣ Init camera & face recognition
-      await CameraService.instance.initCamera(forceReinitOnWeb: true);
-      await FaceModelService.initialize();
-      FaceModelService.warmUp();
-
-      // 5️⃣ Navigate
+      // 4️⃣ Navigate
       if (mounted) {
         Navigator.pushReplacement(
           context,
@@ -180,7 +173,6 @@ class _WebLoginPageState extends State<WebLoginPage> {
   }
   @override
   void dispose() {
-    CameraService.instance.disposeCamera(); // ✅ dispose when leaving
     super.dispose();
   }
 }

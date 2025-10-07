@@ -15,7 +15,7 @@ import '../main.dart'; // routeObserver
 import 'package:camera/camera.dart';
 import 'package:attendanceapp/services/tenant_model_service.dart';
 import 'package:intl/intl.dart'; // add at the top
-
+import 'package:attendanceapp/services/face_model_service.dart';
 class LoginUserPage extends StatefulWidget {
   const LoginUserPage({super.key});
 
@@ -37,7 +37,12 @@ class _LoginUserPageState extends State<LoginUserPage> with RouteAware {
   @override
   void initState() {
     super.initState();
-    _initCamera();
+    _initApp();
+  }
+
+  Future<void> _initApp() async {
+    await _initCamera();
+    await _initFaceModel();
   }
 
   @override
@@ -60,8 +65,13 @@ class _LoginUserPageState extends State<LoginUserPage> with RouteAware {
     _initCamera();
     setState(() {});
   }
-
-  void _initCamera() async {
+  Future<void> _initFaceModel() async {
+    print("Initializing face recognition models...");
+    await FaceModelService.initialize();
+    await FaceModelService.warmUp();
+    print("Face recognition models ready");
+  }
+  Future<void> _initCamera() async {
     _cameraTimedOut = false;
 
     // ✅ Always dispose first on web before reinit
