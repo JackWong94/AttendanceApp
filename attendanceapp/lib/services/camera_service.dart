@@ -19,45 +19,44 @@ class CameraService {
   Future<void>? get initializeFuture => _initializeFuture;
   bool get isInitialized => _controller != null && _controller!.value.isInitialized;
 
-  /// Initialize camera
+  CameraDescription? _cachedCamera;
+
   Future<void> initCamera({bool forceReinitOnWeb = false}) async {
     try {
       if (forceReinitOnWeb || _controller != null) {
         await disposeCamera();
       }
 
+      // Only fetch cameras once
       final cameras = await availableCameras();
-      if (cameras.isEmpty) {
-        if (_debug) debugPrint("⚠️ No cameras available");
-        return;
-      }
 
-      final frontCamera = cameras.firstWhere(
+      // Cache the selected camera
+      _cachedCamera ??= cameras.firstWhere(
             (c) => c.lensDirection == CameraLensDirection.front,
         orElse: () => cameras.first,
       );
 
       _controller = CameraController(
-        frontCamera,
-        ResolutionPreset.medium,
+        _cachedCamera!,
+        ResolutionPreset.low, // faster init
         enableAudio: false,
       );
 
       if (kIsWeb) {
-        // Web needs a short delay (Tested 200 optimum value)
-        await Future.delayed(const Duration(milliseconds: 200));
+        await Future.delayed(const Duration(milliseconds: 0)); // short delay for web
       }
 
       _initializeFuture = _controller!.initialize();
       await _initializeFuture;
 
-      if (_debug) debugPrint("✅ Camera initialized");
+      if (_debug) debugPrint("✅ Camera initialized quickly");
     } catch (e) {
       if (_debug) debugPrint("❌ Camera init error: $e");
       _controller = null;
       _initializeFuture = null;
     }
   }
+
 
   /// Dispose camera cleanly
   Future<void> disposeCamera() async {
