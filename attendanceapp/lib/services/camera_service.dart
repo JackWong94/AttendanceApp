@@ -62,7 +62,7 @@ class CameraService {
   Future<void> disposeCamera() async {
     try {
       if (_controller != null) {
-        //_controller!.dispose();
+        _controller!.dispose();
         if (_debug) debugPrint("🗑️ Camera disposed");
       }
     } catch (e) {
