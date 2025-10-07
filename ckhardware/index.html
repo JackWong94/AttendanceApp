@@ -55,16 +55,37 @@
 </head>
 
 <body>
-<!-- Flutter app -->
+<!-- ✅ Flutter app -->
 <script src="flutter_bootstrap.js" defer></script>
 
-<!-- ✅ Service Worker registration -->
+<!-- ✅ Smart Service Worker registration with auto-update -->
 <script>
   if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.register("/service_worker.js").then(
-      (reg) => console.log("✅ Service worker registered", reg),
-      (err) => console.warn("⚠️ Service worker registration failed", err)
-    );
+    navigator.serviceWorker.register("/service_worker.js").then((reg) => {
+      console.log("✅ Service worker registered", reg);
+
+      // Detect when a new version of the service worker is found
+      reg.onupdatefound = () => {
+        const newWorker = reg.installing;
+        newWorker.onstatechange = () => {
+          if (newWorker.state === "installed") {
+            if (navigator.serviceWorker.controller) {
+              console.log("🔄 New version detected — activating...");
+              newWorker.postMessage({ type: "SKIP_WAITING" });
+            }
+          }
+        };
+      };
+    }).catch((err) => console.warn("⚠️ Service worker registration failed", err));
+
+    // Reload automatically when new service worker takes control
+    let refreshing = false;
+    navigator.serviceWorker.addEventListener("controllerchange", () => {
+      if (refreshing) return;
+      refreshing = true;
+      console.log("♻️ Reloading to activate new version...");
+      window.location.reload();
+    });
   }
 </script>
 
