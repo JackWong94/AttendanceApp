@@ -27,6 +27,7 @@ class LoginUserPage extends StatefulWidget {
 
 class _LoginUserPageState extends State<LoginUserPage> with RouteAware {
   // ✅ use singleton instance instead of constructor
+  static const String appVersion = "Version: 1.0.1";
   final CameraService _cameraService = CameraService.instance;
   final AttendanceService _attendanceService = AttendanceService();
   bool _scanInProgress = false;
@@ -269,9 +270,7 @@ class _LoginUserPageState extends State<LoginUserPage> with RouteAware {
         child: FutureBuilder<PackageInfo>(
           future: PackageInfo.fromPlatform(),
           builder: (context, snapshot) {
-            final versionText = snapshot.hasData
-                ? "Version ${snapshot.data!.version}"
-                : "Loading version...";
+            final versionText = appVersion;
 
             return Column(
               children: [
