@@ -19,8 +19,16 @@ class FaceRecognitionService {
     );
     if (descriptor.isEmpty) return null;
 
+    // ✅ Normalize the query embedding
+    final normalizedQuery = _normalize(descriptor);
+
+    // ✅ Normalize all stored embeddings before comparison
+    final normalizedEmbeddings = FaceModelService.embeddings.map(
+          (userId, embedding) => MapEntry(userId, _normalize(embedding)),
+    );
+
     // Step 3: Compare with embeddings
-    final userId = _findBestMatch(descriptor, FaceModelService.embeddings);
+    final userId = _findBestMatch(normalizedQuery, normalizedEmbeddings);
     if (userId == null) return null;
 
     // Step 4: Load full UserModel from UserModelService
@@ -33,7 +41,7 @@ class FaceRecognitionService {
       List<double> query, Map<String, List<double>> embeddings) {
     String? bestUserId;
     double bestDistance = double.infinity;
-    const threshold = 0.5; // adjust threshold as needed
+    const threshold = 0.40; // adjust threshold as needed
 
     embeddings.forEach((userId, embedding) {
       final dist = _euclideanDistance(query, embedding);
@@ -45,6 +53,13 @@ class FaceRecognitionService {
 
     print("Best match = $bestUserId (distance: $bestDistance)");
     return bestDistance < threshold ? bestUserId : null;
+  }
+
+  /// ✅ Normalize embedding to unit vector (for fair distance comparison)
+  static List<double> _normalize(List<double> v) {
+    final norm = sqrt(v.fold(0, (sum, x) => sum + x * x));
+    if (norm == 0) return v;
+    return v.map((x) => x / norm).toList();
   }
 
   static double _euclideanDistance(List<double> a, List<double> b) {
