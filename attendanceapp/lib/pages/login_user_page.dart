@@ -30,7 +30,6 @@ class _LoginUserPageState extends State<LoginUserPage> with RouteAware {
   final CameraService _cameraService = CameraService.instance;
   final AttendanceService _attendanceService = AttendanceService();
   bool _scanInProgress = false;
-  bool _cameraTimedOut = false;
   Timer? _cameraTimer;
   OverlayEntry? _overlayEntry;
 
@@ -74,22 +73,12 @@ class _LoginUserPageState extends State<LoginUserPage> with RouteAware {
     print("Face recognition models ready");
   }
   Future<void> _initCamera() async {
-    _cameraTimedOut = false;
 
     // ✅ Always dispose first on web before reinit
     await _cameraService.disposeCamera();
 
     _cameraService.initCamera(forceReinitOnWeb: true).then((_) {
       if (mounted) setState(() {});
-    });
-
-    _cameraTimer?.cancel();
-    _cameraTimer = Timer(const Duration(minutes: 1), () {
-      if (mounted && !_cameraService.isInitialized) {
-        setState(() {
-          _cameraTimedOut = true;
-        });
-      }
     });
   }
 
