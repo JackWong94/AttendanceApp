@@ -2,7 +2,9 @@ import 'dart:async';
 import 'package:camera/camera.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:attendanceapp/configs_and_tools/debug.dart';
 
+Debug debug = Debug(module: "camera_service", enable: true);
 class CameraService {
   // Singleton setup
   CameraService._privateConstructor();
@@ -43,15 +45,21 @@ class CameraService {
       );
 
       if (kIsWeb) {
-        await Future.delayed(const Duration(milliseconds: 200)); // short delay for web
+        int retries = 0;
+        while (retries < 10) {
+          debug.log("⏳  Waiting for camera stream... Try $retries");
+          if (cameras.isNotEmpty) break; // ✅ camera stream ready
+          await Future.delayed(const Duration(milliseconds: 50));
+          retries++;
+        }
       }
 
       _initializeFuture = _controller!.initialize();
       await _initializeFuture;
 
-      if (_debug) debugPrint("✅ Camera initialized quickly");
+      if (_debug) debug.log("✅  Camera initialized quickly");
     } catch (e) {
-      if (_debug) debugPrint("❌ Camera init error: $e");
+      if (_debug) debug.log("❌ Camera init error: $e");
       _controller = null;
       _initializeFuture = null;
     }
@@ -63,10 +71,10 @@ class CameraService {
     try {
       if (_controller != null) {
         _controller!.dispose();
-        if (_debug) debugPrint("🗑️ Camera disposed");
+        if (_debug) debug.log("🗑️Camera disposed");
       }
     } catch (e) {
-      if (_debug) debugPrint("❌ Error disposing camera: $e");
+      if (_debug) debug.log("❌ Error disposing camera: $e");
     } finally {
       _controller = null;
       _initializeFuture = null;
