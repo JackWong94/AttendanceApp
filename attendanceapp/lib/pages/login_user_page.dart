@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:attendanceapp/widgets/camera_placeholder.dart';
 import 'package:attendanceapp/pages/web_login_page.dart';
 import 'package:attendanceapp/pages/register_user_page.dart';
 import 'package:attendanceapp/pages/attendance_page.dart';
@@ -371,10 +370,6 @@ class _LoginUserPageState extends State<LoginUserPage> with RouteAware {
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return const Center(child: CircularProgressIndicator());
-                  } else if (snapshot.hasError) {
-                    return const CameraPlaceholder(
-                      message: "Camera error or not supported on this platform",
-                    );
                   } else if (_cameraService.controller != null &&
                       _cameraService.controller!.value.isInitialized) {
                     return Padding(

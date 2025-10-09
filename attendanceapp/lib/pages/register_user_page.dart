@@ -7,7 +7,6 @@ import 'package:attendanceapp/services/face_model_service.dart';
 import 'package:attendanceapp/services/user_model_service.dart';
 import 'package:attendanceapp/models/user_model.dart';
 import 'package:attendanceapp/pages/login_user_page.dart';
-import 'package:attendanceapp/widgets/camera_placeholder.dart';
 import 'package:attendanceapp/widgets/face_capture_widget.dart';
 
 class RegisterUserPage extends StatefulWidget {
