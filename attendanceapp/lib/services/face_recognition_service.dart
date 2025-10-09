@@ -33,7 +33,7 @@ class FaceRecognitionService {
       List<double> query, Map<String, List<double>> embeddings) {
     String? bestUserId;
     double bestDistance = double.infinity;
-    const threshold = 0.5; // adjust threshold as needed
+    const threshold = 0.4; // adjust threshold as needed
 
     embeddings.forEach((userId, embedding) {
       final dist = _euclideanDistance(query, embedding);
