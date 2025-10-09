@@ -26,7 +26,7 @@ class LoginUserPage extends StatefulWidget {
 
 class _LoginUserPageState extends State<LoginUserPage> with RouteAware {
   // ✅ use singleton instance instead of constructor
-  static const String appVersion = "Version: 1.0.1";
+  static const String appVersion = "Version: 1.0.0";
   final CameraService _cameraService = CameraService.instance;
   final AttendanceService _attendanceService = AttendanceService();
   bool _scanInProgress = false;
