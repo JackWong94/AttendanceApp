@@ -48,8 +48,8 @@ class CameraService {
         int retries = 0;
         while (retries < 10) {
           debug.log("⏳  Waiting for camera stream... Try $retries");
+          await Future.delayed(const Duration(milliseconds: 100));
           if (cameras.isNotEmpty) break; // ✅ camera stream ready
-          await Future.delayed(const Duration(milliseconds: 50));
           retries++;
         }
       }

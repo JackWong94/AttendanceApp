@@ -177,28 +177,6 @@ class _LoginUserPageState extends State<LoginUserPage> with RouteAware {
     _scanInProgress = true;
 
     try {
-      // ✅ Check if camera is ready first
-      if (!_cameraService.isInitialized) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Camera not ready, reinitializing...")),
-        );
-
-        await _initCamera(); // 🔁 Reinitialize the camera
-
-        // Give it a short moment to complete UI rebuild
-        await Future.delayed(const Duration(seconds: 1));
-
-        if (!_cameraService.isInitialized) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("Failed to initialize camera. Please try again.")),
-          );
-          return;
-        }
-
-        // ✅ Force a rebuild
-        if (mounted) setState(() {});
-      }
-
       // ✅ Continue scanning flow
       final user = await _detectPerson();
       if (user == null) return;
