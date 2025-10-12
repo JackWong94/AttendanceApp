@@ -13,7 +13,7 @@ import 'package:attendanceapp/models/user_model.dart';
 import '../main.dart'; // routeObserver
 import 'package:camera/camera.dart';
 import 'package:attendanceapp/services/tenant_model_service.dart';
-import 'package:intl/intl.dart'; // add at the top
+import 'package:intl/intl.dart';
 import 'package:attendanceapp/services/face_model_service.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
@@ -24,8 +24,8 @@ class LoginUserPage extends StatefulWidget {
   State<LoginUserPage> createState() => _LoginUserPageState();
 }
 
-class _LoginUserPageState extends State<LoginUserPage> with RouteAware {
-  // ✅ use singleton instance instead of constructor
+class _LoginUserPageState extends State<LoginUserPage>
+    with RouteAware, SingleTickerProviderStateMixin {
   static const String appVersion = "Version: 1.0.0";
   final CameraService _cameraService = CameraService.instance;
   final AttendanceService _attendanceService = AttendanceService();
@@ -33,12 +33,24 @@ class _LoginUserPageState extends State<LoginUserPage> with RouteAware {
   Timer? _cameraTimer;
   OverlayEntry? _overlayEntry;
 
+  late AnimationController _scanController;
+  late Animation<double> _scanAnimation;
+
   UserModel? _detectedUser;
 
   @override
   void initState() {
     super.initState();
     _initApp();
+
+    // ✅ Beam animation controller
+    _scanController =
+    AnimationController(vsync: this, duration: const Duration(seconds: 2))
+      ..repeat(reverse: true);
+
+    _scanAnimation = Tween<double>(begin: 0, end: 1).animate(
+      CurvedAnimation(parent: _scanController, curve: Curves.easeInOut),
+    );
   }
 
   Future<void> _initApp() async {
@@ -57,7 +69,8 @@ class _LoginUserPageState extends State<LoginUserPage> with RouteAware {
     _cameraTimer?.cancel();
     routeObserver.unsubscribe(this);
     _removeOverlay();
-    _cameraService.disposeCamera(); // ✅ ensure cleanup
+    _cameraService.disposeCamera();
+    _scanController.dispose();
     super.dispose();
   }
 
@@ -66,15 +79,15 @@ class _LoginUserPageState extends State<LoginUserPage> with RouteAware {
     _initCamera();
     setState(() {});
   }
+
   Future<void> _initFaceModel() async {
     print("Initializing face recognition models...");
     await FaceModelService.initialize();
     await FaceModelService.warmUp();
     print("Face recognition models ready");
   }
-  Future<void> _initCamera() async {
 
-    // ✅ Always dispose first on web before reinit
+  Future<void> _initCamera() async {
     await _cameraService.disposeCamera();
 
     _cameraService.initCamera(forceReinitOnWeb: true).then((_) {
@@ -151,7 +164,8 @@ class _LoginUserPageState extends State<LoginUserPage> with RouteAware {
                       const SizedBox(height: 20),
                       const Text(
                         "Tap anywhere to close",
-                        style: TextStyle(color: Colors.white70, fontSize: 16),
+                        style:
+                        TextStyle(color: Colors.white70, fontSize: 16),
                         textAlign: TextAlign.center,
                       ),
                     ],
@@ -174,10 +188,9 @@ class _LoginUserPageState extends State<LoginUserPage> with RouteAware {
 
   Future<void> _handleScanFlow({required bool isScanIn}) async {
     if (_scanInProgress) return;
-    _scanInProgress = true;
+    setState(() => _scanInProgress = true);
 
     try {
-      // ✅ Continue scanning flow
       final user = await _detectPerson();
       if (user == null) return;
       _detectedUser = user;
@@ -188,7 +201,7 @@ class _LoginUserPageState extends State<LoginUserPage> with RouteAware {
         SnackBar(content: Text("Error during scan: $e")),
       );
     } finally {
-      _scanInProgress = false;
+      setState(() => _scanInProgress = false);
     }
   }
 
@@ -242,7 +255,8 @@ class _LoginUserPageState extends State<LoginUserPage> with RouteAware {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(TenantModelService.instance.currentTenantName)),
+      appBar:
+      AppBar(title: Text(TenantModelService.instance.currentTenantName)),
       endDrawer: Drawer(
         child: FutureBuilder<PackageInfo>(
           future: PackageInfo.fromPlatform(),
@@ -254,7 +268,8 @@ class _LoginUserPageState extends State<LoginUserPage> with RouteAware {
                 Container(
                   width: double.infinity,
                   color: Colors.blue,
-                  padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 16),
+                  padding: const EdgeInsets.symmetric(
+                      vertical: 40, horizontal: 16),
                   alignment: Alignment.centerLeft,
                   child: const Text(
                     "Settings",
@@ -267,17 +282,20 @@ class _LoginUserPageState extends State<LoginUserPage> with RouteAware {
                       ListTile(
                         leading: const Icon(Icons.person_add),
                         title: const Text("Register New User"),
-                        onTap: () => NavigationService.goToRegisterUser(context),
+                        onTap: () =>
+                            NavigationService.goToRegisterUser(context),
                       ),
                       ListTile(
                         leading: const Icon(Icons.assignment),
                         title: const Text("Attendance"),
-                        onTap: () => NavigationService.goToAttendance(context),
+                        onTap: () =>
+                            NavigationService.goToAttendance(context),
                       ),
                       ListTile(
                         leading: const Icon(Icons.manage_accounts),
                         title: const Text("Manage User"),
-                        onTap: () => NavigationService.goToManageUser(context),
+                        onTap: () =>
+                            NavigationService.goToManageUser(context),
                       ),
                       ListTile(
                         leading: const Icon(Icons.logout),
@@ -287,8 +305,6 @@ class _LoginUserPageState extends State<LoginUserPage> with RouteAware {
                     ],
                   ),
                 ),
-
-                // ✅ Version text at bottom center
                 Padding(
                   padding: const EdgeInsets.only(bottom: 16, top: 8),
                   child: Column(
@@ -326,13 +342,17 @@ class _LoginUserPageState extends State<LoginUserPage> with RouteAware {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     ElevatedButton.icon(
-                      onPressed: () => _handleScanFlow(isScanIn: true),
+                      onPressed: _scanInProgress
+                          ? null
+                          : () => _handleScanFlow(isScanIn: true),
                       icon: const Icon(Icons.login),
                       label: const Text("Scan In"),
                     ),
                     const SizedBox(width: 20),
                     ElevatedButton.icon(
-                      onPressed: () => _handleScanFlow(isScanIn: false),
+                      onPressed: _scanInProgress
+                          ? null
+                          : () => _handleScanFlow(isScanIn: false),
                       icon: const Icon(Icons.logout),
                       label: const Text("Scan Out"),
                     ),
@@ -353,8 +373,39 @@ class _LoginUserPageState extends State<LoginUserPage> with RouteAware {
                     return Padding(
                       padding: const EdgeInsets.all(24.0),
                       child: AspectRatio(
-                        aspectRatio: _cameraService.controller!.value.aspectRatio,
-                        child: CameraPreview(_cameraService.controller!),
+                        aspectRatio:
+                        _cameraService.controller!.value.aspectRatio,
+                        child: Stack(
+                          children: [
+                            CameraPreview(_cameraService.controller!),
+                            // ✅ Light green beam overlay when scanning
+                            if (_scanInProgress)
+                              AnimatedBuilder(
+                                animation: _scanAnimation,
+                                builder: (context, child) {
+                                  return Positioned(
+                                    top: _scanAnimation.value * MediaQuery.of(context).size.height * 0.4,
+                                    left: 0,
+                                    right: 0,
+                                    child: Container(
+                                      height: 6,
+                                      decoration: const BoxDecoration(
+                                        gradient: LinearGradient(
+                                          colors: [
+                                            Colors.greenAccent,
+                                            Colors.lightGreen,
+                                            Colors.greenAccent,
+                                          ],
+                                          begin: Alignment.centerLeft,
+                                          end: Alignment.centerRight,
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                          ],
+                        ),
                       ),
                     );
                   } else {
