@@ -359,40 +359,31 @@ class _LoginUserPageState extends State<LoginUserPage>
           ),
           Expanded(
             child: Center(
-              child: FutureBuilder<void>(
-                future: _cameraService.initializeFuture,
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
-                  } else if (_cameraService.controller != null &&
-                      _cameraService.controller!.value.isInitialized) {
-                    return Padding(
-                      padding: const EdgeInsets.all(24.0),
-                      child: AspectRatio(
-                        aspectRatio:
-                        _cameraService.controller!.value.aspectRatio,
-                        child: Stack(
-                          children: [
-                            CameraPreview(_cameraService.controller!),
-                            // ✅ Inside your build (camera preview overlay)
-                            if (_scanInProgress)
-                              const ScanBeam(
-                                active: true,
-                                topPadding: 120,
-                                bottomPadding: 340,
-                                duration: Duration(seconds: 2),
-                              ),
-                          ],
-                        ),
+              child: _cameraService.controller != null &&
+                  _cameraService.controller!.value.isInitialized
+                  ? AspectRatio(
+                aspectRatio: _cameraService.controller!.value.aspectRatio,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    CameraPreview(_cameraService.controller!),
+                    if (_scanInProgress)
+                      const ScanBeam(
+                        active: true,
+                        topPadding: 120,
+                        bottomPadding: 340,
+                        duration: Duration(seconds: 2),
                       ),
-                    );
-                  } else {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-                },
+                  ],
+                ),
+              )
+                  : const Center(
+                // ✅ Prevent null crash if camera not ready
+                child: CircularProgressIndicator(),
               ),
             ),
           ),
+
           const SizedBox(height: 30),
         ],
       ),
