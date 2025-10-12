@@ -17,6 +17,7 @@ import 'package:intl/intl.dart';
 import 'package:attendanceapp/services/face_model_service.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:attendanceapp/utils/snackbar_helper.dart';
+import 'package:attendanceapp/utils/exit_interceptor.dart';
 import 'package:attendanceapp/widgets/scan_beam.dart';
 
 class LoginUserPage extends StatefulWidget {
@@ -250,152 +251,154 @@ class _LoginUserPageState extends State<LoginUserPage>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar:
-      AppBar(title: Text(TenantModelService.instance.currentTenantName)),
-      endDrawer: Drawer(
-        child: FutureBuilder<PackageInfo>(
-          future: PackageInfo.fromPlatform(),
-          builder: (context, snapshot) {
-            final versionText = appVersion;
+    return ExitInterceptor(
+        child: Scaffold(
+          appBar:
+          AppBar(title: Text(TenantModelService.instance.currentTenantName)),
+          endDrawer: Drawer(
+            child: FutureBuilder<PackageInfo>(
+              future: PackageInfo.fromPlatform(),
+              builder: (context, snapshot) {
+                final versionText = appVersion;
 
-            return Column(
-              children: [
-                Container(
-                  width: double.infinity,
-                  color: Colors.blue,
-                  padding:
-                  const EdgeInsets.symmetric(vertical: 40, horizontal: 16),
-                  alignment: Alignment.centerLeft,
-                  child: const Text(
-                    "Settings",
-                    style: TextStyle(color: Colors.white, fontSize: 20),
-                  ),
-                ),
-                Expanded(
-                  child: ListView(
-                    children: [
-                      ListTile(
-                        leading: const Icon(Icons.person_add),
-                        title: const Text("Register New User"),
-                        onTap: () =>
-                            NavigationService.goToRegisterUser(context),
-                      ),
-                      ListTile(
-                        leading: const Icon(Icons.assignment),
-                        title: const Text("Attendance"),
-                        onTap: () =>
-                            NavigationService.goToAttendance(context),
-                      ),
-                      ListTile(
-                        leading: const Icon(Icons.manage_accounts),
-                        title: const Text("Manage User"),
-                        onTap: () =>
-                            NavigationService.goToManageUser(context),
-                      ),
-                      ListTile(
-                        leading: const Icon(Icons.logout),
-                        title: const Text("Log out"),
-                        onTap: () => NavigationService.logOut(context),
-                      ),
-                    ],
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 16, top: 8),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Divider(thickness: 1),
-                      Text(
-                        versionText,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            );
-          },
-        ),
-      ),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              children: [
-                const Text(
-                  "Welcome! Please scan to login/logout",
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 30),
-                Row(
-                  mainAxisSize: MainAxisSize.min,
+                return Column(
                   children: [
-                    ElevatedButton.icon(
-                      onPressed: _scanInProgress
-                          ? null
-                          : () => _handleScanFlow(isScanIn: true),
-                      icon: const Icon(Icons.login),
-                      label: const Text("Scan In"),
+                    Container(
+                      width: double.infinity,
+                      color: Colors.blue,
+                      padding:
+                      const EdgeInsets.symmetric(vertical: 40, horizontal: 16),
+                      alignment: Alignment.centerLeft,
+                      child: const Text(
+                        "Settings",
+                        style: TextStyle(color: Colors.white, fontSize: 20),
+                      ),
                     ),
-                    const SizedBox(width: 20),
-                    ElevatedButton.icon(
-                      onPressed: _scanInProgress
-                          ? null
-                          : () => _handleScanFlow(isScanIn: false),
-                      icon: const Icon(Icons.logout),
-                      label: const Text("Scan Out"),
+                    Expanded(
+                      child: ListView(
+                        children: [
+                          ListTile(
+                            leading: const Icon(Icons.person_add),
+                            title: const Text("Register New User"),
+                            onTap: () =>
+                                NavigationService.goToRegisterUser(context),
+                          ),
+                          ListTile(
+                            leading: const Icon(Icons.assignment),
+                            title: const Text("Attendance"),
+                            onTap: () =>
+                                NavigationService.goToAttendance(context),
+                          ),
+                          ListTile(
+                            leading: const Icon(Icons.manage_accounts),
+                            title: const Text("Manage User"),
+                            onTap: () =>
+                                NavigationService.goToManageUser(context),
+                          ),
+                          ListTile(
+                            leading: const Icon(Icons.logout),
+                            title: const Text("Log out"),
+                            onTap: () => NavigationService.logOut(context),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 16, top: 8),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Divider(thickness: 1),
+                          Text(
+                            versionText,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+          body: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  children: [
+                    const Text(
+                      "Welcome! Please scan to login/logout",
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 30),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        ElevatedButton.icon(
+                          onPressed: _scanInProgress
+                              ? null
+                              : () => _handleScanFlow(isScanIn: true),
+                          icon: const Icon(Icons.login),
+                          label: const Text("Scan In"),
+                        ),
+                        const SizedBox(width: 20),
+                        ElevatedButton.icon(
+                          onPressed: _scanInProgress
+                              ? null
+                              : () => _handleScanFlow(isScanIn: false),
+                          icon: const Icon(Icons.logout),
+                          label: const Text("Scan Out"),
+                        ),
+                      ],
                     ),
                   ],
                 ),
-              ],
-            ),
-          ),
-          Expanded(
-            child: Center(
-              child: FutureBuilder<void>(
-                future: _cameraService.initializeFuture,
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
-                  } else if (_cameraService.controller != null &&
-                      _cameraService.controller!.value.isInitialized) {
-                    return Padding(
-                      padding: const EdgeInsets.all(24.0),
-                      child: AspectRatio(
-                        aspectRatio:
-                        _cameraService.controller!.value.aspectRatio,
-                        child: Stack(
-                          children: [
-                            CameraPreview(_cameraService.controller!),
-                            // ✅ Inside your build (camera preview overlay)
-                            if (_scanInProgress)
-                              const ScanBeam(
-                                active: true,
-                                topPadding: 120,
-                                bottomPadding: 340,
-                                duration: Duration(seconds: 2),
-                              ),
-                          ],
-                        ),
-                      ),
-                    );
-                  } else {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-                },
               ),
-            ),
+              Expanded(
+                child: Center(
+                  child: FutureBuilder<void>(
+                    future: _cameraService.initializeFuture,
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return const Center(child: CircularProgressIndicator());
+                      } else if (_cameraService.controller != null &&
+                          _cameraService.controller!.value.isInitialized) {
+                        return Padding(
+                          padding: const EdgeInsets.all(24.0),
+                          child: AspectRatio(
+                            aspectRatio:
+                            _cameraService.controller!.value.aspectRatio,
+                            child: Stack(
+                              children: [
+                                CameraPreview(_cameraService.controller!),
+                                // ✅ Inside your build (camera preview overlay)
+                                if (_scanInProgress)
+                                  const ScanBeam(
+                                    active: true,
+                                    topPadding: 120,
+                                    bottomPadding: 340,
+                                    duration: Duration(seconds: 2),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        );
+                      } else {
+                        return const Center(child: CircularProgressIndicator());
+                      }
+                    },
+                  ),
+                ),
+              ),
+              const SizedBox(height: 30),
+            ],
           ),
-          const SizedBox(height: 30),
-        ],
-      ),
+        ),
     );
   }
 }
