@@ -359,27 +359,30 @@ class _LoginUserPageState extends State<LoginUserPage>
           ),
           Expanded(
             child: Center(
-              child: _cameraService.controller != null &&
-                  _cameraService.controller!.value.isInitialized
-                  ? AspectRatio(
-                aspectRatio: _cameraService.controller!.value.aspectRatio,
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    CameraPreview(_cameraService.controller!),
-                    if (_scanInProgress)
-                      const ScanBeam(
-                        active: true,
-                        topPadding: 120,
-                        bottomPadding: 340,
-                        duration: Duration(seconds: 2),
-                      ),
-                  ],
-                ),
-              )
-                  : const Center(
-                // ✅ Prevent null crash if camera not ready
-                child: CircularProgressIndicator(),
+              child: Padding(
+                padding: const EdgeInsets.all(24.0), // ✅ same as your previous layout
+                child: _cameraService.controller != null &&
+                    _cameraService.controller!.value.isInitialized
+                    ? AspectRatio(
+                  aspectRatio: _cameraService.controller!.value.aspectRatio,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(12), // optional rounded corners
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        CameraPreview(_cameraService.controller!),
+                        if (_scanInProgress)
+                          const ScanBeam(
+                            active: true,
+                            topPadding: 120,
+                            bottomPadding: 340,
+                            duration: Duration(seconds: 2),
+                          ),
+                      ],
+                    ),
+                  ),
+                )
+                    : const Center(child: CircularProgressIndicator()),
               ),
             ),
           ),
