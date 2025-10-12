@@ -17,6 +17,7 @@ import 'package:intl/intl.dart';
 import 'package:attendanceapp/services/face_model_service.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:attendanceapp/utils/snackbar_helper.dart';
+import 'package:attendanceapp/widgets/scan_beam.dart';
 
 class LoginUserPage extends StatefulWidget {
   const LoginUserPage({super.key});
@@ -375,68 +376,11 @@ class _LoginUserPageState extends State<LoginUserPage>
                             CameraPreview(_cameraService.controller!),
                             // ✅ Inside your build (camera preview overlay)
                             if (_scanInProgress)
-                              AnimatedBuilder(
-                                animation: _scanAnimation,
-                                builder: (context, child) {
-                                  final height = MediaQuery.of(context).size.height;
-
-                                  // ✅ define top/bottom padding range
-                                  const double topPadding = 80;   // beam won’t go above this
-                                  const double bottomPadding = 340; // beam won’t go below this
-
-                                  // ✅ calculate available space for movement
-                                  final availableHeight = height - topPadding - bottomPadding;
-
-                                  // ✅ beam position based on animation progress within safe range
-                                  final beamY = topPadding + _scanAnimation.value * availableHeight;
-
-                                  return Stack(
-                                    children: [
-                                      // Main beam
-                                      Positioned(
-                                        top: beamY,
-                                        left: 0,
-                                        right: 0,
-                                        child: Container(
-                                          height: 4,
-                                          decoration: const BoxDecoration(
-                                            gradient: LinearGradient(
-                                              colors: [
-                                                Colors.transparent,
-                                                Colors.greenAccent,
-                                                Colors.lightGreenAccent,
-                                                Colors.greenAccent,
-                                                Colors.transparent,
-                                              ],
-                                              begin: Alignment.centerLeft,
-                                              end: Alignment.centerRight,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-
-                                      // Optional faint side lines
-                                      Positioned(
-                                        top: beamY - 8,
-                                        left: 0,
-                                        right: 0,
-                                        child: Container(
-                                          height: 1,
-                                          color: Colors.greenAccent.withOpacity(0.3),
-                                        ),
-                                      ),
-                                      Positioned(
-                                        top: beamY + 8,
-                                        left: 0,
-                                        right: 0,
-                                        child: Container(
-                                          height: 1,
-                                          color: Colors.greenAccent.withOpacity(0.3),
-                                        ),
-                                      ),
-                                    ],
-                                  );
-                                },
+                              const ScanBeam(
+                                active: true,
+                                topPadding: 120,
+                                bottomPadding: 340,
+                                duration: Duration(seconds: 2),
                               ),
                           ],
                         ),
