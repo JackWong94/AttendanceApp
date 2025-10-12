@@ -43,13 +43,15 @@ class _LoginUserPageState extends State<LoginUserPage>
     super.initState();
     _initApp();
 
-    // ✅ Beam animation controller
-    _scanController =
-    AnimationController(vsync: this, duration: const Duration(seconds: 2))
-      ..repeat(reverse: true);
+    // ✅ Beam animation controller (always start top → bottom → top)
+    _scanController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 2),
+    )..repeat(reverse: true);
 
-    _scanAnimation = Tween<double>(begin: 0, end: 1).animate(
-      CurvedAnimation(parent: _scanController, curve: Curves.easeInOut),
+    _scanAnimation = CurvedAnimation(
+      parent: _scanController,
+      curve: Curves.linear
     );
   }
 
@@ -152,13 +154,15 @@ class _LoginUserPageState extends State<LoginUserPage>
                     children: [
                       Text(
                         "Hello, ${user.name}",
-                        style: const TextStyle(color: Colors.white, fontSize: 24),
+                        style:
+                        const TextStyle(color: Colors.white, fontSize: 24),
                         textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: 20),
                       Text(
                         "${isScanIn ? 'Signed In' : 'Signed Out'} at $formattedTime",
-                        style: const TextStyle(color: Colors.white, fontSize: 20),
+                        style:
+                        const TextStyle(color: Colors.white, fontSize: 20),
                         textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: 20),
@@ -238,7 +242,7 @@ class _LoginUserPageState extends State<LoginUserPage>
         SnackBar(
           content: Text(message),
           backgroundColor: success ? Colors.green : Colors.red,
-          duration: const Duration(seconds: 2),
+          duration: const Duration(seconds: 1), // ⏱️ shorter
         ),
       );
     } catch (e) {
@@ -246,7 +250,7 @@ class _LoginUserPageState extends State<LoginUserPage>
         SnackBar(
           content: Text("❌ Error scanning attendance: $e"),
           backgroundColor: Colors.red,
-          duration: const Duration(seconds: 2),
+          duration: const Duration(seconds: 1), // ⏱️ shorter
         ),
       );
     }
@@ -268,8 +272,8 @@ class _LoginUserPageState extends State<LoginUserPage>
                 Container(
                   width: double.infinity,
                   color: Colors.blue,
-                  padding: const EdgeInsets.symmetric(
-                      vertical: 40, horizontal: 16),
+                  padding:
+                  const EdgeInsets.symmetric(vertical: 40, horizontal: 16),
                   alignment: Alignment.centerLeft,
                   child: const Text(
                     "Settings",
@@ -378,29 +382,68 @@ class _LoginUserPageState extends State<LoginUserPage>
                         child: Stack(
                           children: [
                             CameraPreview(_cameraService.controller!),
-                            // ✅ Light green beam overlay when scanning
+                            // ✅ Inside your build (camera preview overlay)
                             if (_scanInProgress)
                               AnimatedBuilder(
                                 animation: _scanAnimation,
                                 builder: (context, child) {
-                                  return Positioned(
-                                    top: _scanAnimation.value * MediaQuery.of(context).size.height * 0.4,
-                                    left: 0,
-                                    right: 0,
-                                    child: Container(
-                                      height: 6,
-                                      decoration: const BoxDecoration(
-                                        gradient: LinearGradient(
-                                          colors: [
-                                            Colors.greenAccent,
-                                            Colors.lightGreen,
-                                            Colors.greenAccent,
-                                          ],
-                                          begin: Alignment.centerLeft,
-                                          end: Alignment.centerRight,
+                                  final height = MediaQuery.of(context).size.height;
+
+                                  // ✅ define top/bottom padding range
+                                  const double topPadding = 80;   // beam won’t go above this
+                                  const double bottomPadding = 340; // beam won’t go below this
+
+                                  // ✅ calculate available space for movement
+                                  final availableHeight = height - topPadding - bottomPadding;
+
+                                  // ✅ beam position based on animation progress within safe range
+                                  final beamY = topPadding + _scanAnimation.value * availableHeight;
+
+                                  return Stack(
+                                    children: [
+                                      // Main beam
+                                      Positioned(
+                                        top: beamY,
+                                        left: 0,
+                                        right: 0,
+                                        child: Container(
+                                          height: 4,
+                                          decoration: const BoxDecoration(
+                                            gradient: LinearGradient(
+                                              colors: [
+                                                Colors.transparent,
+                                                Colors.greenAccent,
+                                                Colors.lightGreenAccent,
+                                                Colors.greenAccent,
+                                                Colors.transparent,
+                                              ],
+                                              begin: Alignment.centerLeft,
+                                              end: Alignment.centerRight,
+                                            ),
+                                          ),
                                         ),
                                       ),
-                                    ),
+
+                                      // Optional faint side lines
+                                      Positioned(
+                                        top: beamY - 8,
+                                        left: 0,
+                                        right: 0,
+                                        child: Container(
+                                          height: 1,
+                                          color: Colors.greenAccent.withOpacity(0.3),
+                                        ),
+                                      ),
+                                      Positioned(
+                                        top: beamY + 8,
+                                        left: 0,
+                                        right: 0,
+                                        child: Container(
+                                          height: 1,
+                                          color: Colors.greenAccent.withOpacity(0.3),
+                                        ),
+                                      ),
+                                    ],
                                   );
                                 },
                               ),
