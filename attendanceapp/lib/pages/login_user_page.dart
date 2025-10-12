@@ -16,6 +16,7 @@ import 'package:attendanceapp/services/tenant_model_service.dart';
 import 'package:intl/intl.dart';
 import 'package:attendanceapp/services/face_model_service.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:attendanceapp/utils/snackbar_helper.dart';
 
 class LoginUserPage extends StatefulWidget {
   const LoginUserPage({super.key});
@@ -100,9 +101,7 @@ class _LoginUserPageState extends State<LoginUserPage>
   Future<UserModel?> _detectPerson() async {
     try {
       if (!_cameraService.isInitialized) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Camera not ready")),
-        );
+        SnackBarHelper.show(context, "Camera not ready");
         return null;
       }
 
@@ -111,17 +110,13 @@ class _LoginUserPageState extends State<LoginUserPage>
 
       final user = await FaceRecognitionService.recognizeUser(bytes);
       if (user == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("❌ Face not recognized")),
-        );
+        SnackBarHelper.show(context, "❌ Face not recognized");
         return null;
       }
       return user;
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error during detection: $e")),
-      );
-      return null;
+        SnackBarHelper.show(context, "Error during detection: $e");
+        return null;
     }
   }
 
@@ -238,20 +233,16 @@ class _LoginUserPageState extends State<LoginUserPage>
         );
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(message),
-          backgroundColor: success ? Colors.green : Colors.red,
-          duration: const Duration(seconds: 1), // ⏱️ shorter
-        ),
+      SnackBarHelper.show(
+        context,
+        message,
+        backgroundColor: success ? Colors.green : Colors.red,
       );
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("❌ Error scanning attendance: $e"),
-          backgroundColor: Colors.red,
-          duration: const Duration(seconds: 1), // ⏱️ shorter
-        ),
+      SnackBarHelper.show(
+        context,
+        "❌ Error scanning attendance: $e",
+        backgroundColor: Colors.red,
       );
     }
   }
