@@ -55,22 +55,51 @@
 </head>
 
 <body>
-<!-- Flutter app -->
+<!-- ✅ Flutter app -->
 <script src="flutter_bootstrap.js" defer></script>
 
-<!-- ✅ Service Worker registration -->
+<!-- ✅ Smart Service Worker registration with auto-update and forced refresh -->
 <script>
   if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.register("/service_worker.js").then(
-      (reg) => console.log("✅ Service worker registered", reg),
-      (err) => console.warn("⚠️ Service worker registration failed", err)
-    );
+    // 🔥 1. Force update any old service workers before starting Flutter
+    navigator.serviceWorker.getRegistrations().then((registrations) => {
+      for (let reg of registrations) {
+        reg.update().then(() => console.log("♻️ Updated old service worker:", reg));
+      }
+    });
+
+    // 🔥 2. Register service worker as usual
+    navigator.serviceWorker
+      .register("/service_worker.js")
+      .then((reg) => {
+        console.log("✅ Service worker registered", reg);
+
+        // Detect new SW version
+        reg.onupdatefound = () => {
+          const newWorker = reg.installing;
+          newWorker.onstatechange = () => {
+            if (newWorker.state === "installed" && navigator.serviceWorker.controller) {
+              console.log("🔄 New version detected — activating...");
+              newWorker.postMessage({ type: "SKIP_WAITING" });
+            }
+          };
+        };
+      })
+      .catch((err) => console.warn("⚠️ Service worker registration failed", err));
+
+    // 🔥 3. Auto reload once new version takes control
+    let refreshing = false;
+    navigator.serviceWorker.addEventListener("controllerchange", () => {
+      if (refreshing) return;
+      refreshing = true;
+      console.log("♻️ Reloading to activate new version...");
+      window.location.reload();
+    });
   }
 </script>
 
 <!-- ✅ Fallback loader + manual refresh if Flutter fails to start -->
 <script>
-  // Create a basic "loading" view immediately
   const loadingDiv = document.createElement("div");
   loadingDiv.innerHTML = `
     <div id="fallback"
@@ -86,7 +115,6 @@
   `;
   document.body.appendChild(loadingDiv);
 
-  // If app still not loaded after 10 seconds → show manual refresh message
   const timeout = setTimeout(() => {
     document.getElementById("fallback").innerHTML = `
       <p style="font-size:18px;color:#d32f2f;">⚠️ App failed to load.</p>
@@ -99,13 +127,11 @@
     `;
   }, 10000);
 
-  // Remove the fallback once Flutter successfully boots
   window.addEventListener('flutter-first-frame', () => {
     clearTimeout(timeout);
     loadingDiv.remove();
   });
 
-  // Allow manual refresh immediately
   document.getElementById("refreshBtn").addEventListener("click", () => {
     window.location.reload(true);
   });
