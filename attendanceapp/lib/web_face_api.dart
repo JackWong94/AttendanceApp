@@ -72,11 +72,18 @@ class WebFaceApi {
   }
 
   /// Determine model path
-  static String getModelPath({String modelsFolder = "models"}) {
-    final path = html.window.location.pathname ?? "/";
-    final normalizedPath = path.endsWith("/") ? path : "$path/";
-    if (normalizedPath.endsWith("$modelsFolder/")) return normalizedPath;
-    return "$normalizedPath$modelsFolder/";
+  static String getModelPath() {
+    final baseUrl = html.window.location.origin;
+    final candidates = [
+      "$baseUrl/AttendanceApp/ckhardware/models/",
+      "$baseUrl/ckhardware/models/",
+      "$baseUrl/models/",
+    ];
+    for (final url in candidates) {
+      // just return first match — or you could test with a HEAD request if needed
+      return url;
+    }
+    return "$baseUrl/models/";
   }
 
   /// Load models from network
