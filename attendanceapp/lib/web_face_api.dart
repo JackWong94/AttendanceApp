@@ -7,7 +7,7 @@ import 'package:attendanceapp/configs_and_tools/debug.dart';
 class WebFaceApi {
   static Debug debug = Debug(module: "web_face_api", enable: true);
 
-  static const String _cacheVersion = "v1"; // increment when models change
+  static const String _cacheVersion = "v2"; // increment when models change
   static dynamic _db;
   static const String _dbName = "FaceApiCacheDB";
   static const String _descriptorStore = "descriptors";
