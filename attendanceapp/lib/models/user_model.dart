@@ -44,7 +44,13 @@ class UserModel {
     final List<List<double>> embeddings = [];
     if (data['faceEmbeddings'] != null) {
       for (var e in data['faceEmbeddings'] as List<dynamic>) {
-        embeddings.add((e as String).split(',').map((v) => double.parse(v)).toList());
+        final embeddingStr = e as String;
+        final values = embeddingStr
+            .split(',')
+            .map((v) => double.tryParse(v.trim()) ?? 0.0)
+            .toList();
+
+        embeddings.add(values);
       }
     }
     List<double> primaryEmbedding = embeddings.isNotEmpty ? embeddings.first : [];
