@@ -99,21 +99,6 @@
     }
   });
 </script>
-
-<!-- ✅ Service Worker registration (GitHub Pages safe) -->
-<script>
-  (async function () {
-    if ('serviceWorker' in navigator) {
-      try {
-        const swUrl = `${window.location.origin}${window.location.pathname.replace(/index\.html$/, '')}service_worker.js`;
-        const reg = await navigator.serviceWorker.register(swUrl);
-        console.log("✅ Service Worker registered:", reg.scope);
-      } catch (err) {
-        console.warn("⚠️ Service Worker registration failed:", err);
-      }
-    }
-  })();
-</script>
 <script>
   window.addEventListener('error', function(e) {
     console.error('🌋 Global error:', e.message, e.filename, e.lineno);
