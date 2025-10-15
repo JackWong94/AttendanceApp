@@ -35,25 +35,50 @@ class UserModel {
     return {
       'name': name,
       'employeeId': employeeId,
-      'faceEmbeddings': faceEmbeddings.map((e) => e.join(',')).toList(),
+      // Store as arrays instead of comma-separated strings
+      'faceEmbeddings': faceEmbeddings,
     };
   }
 
   static UserModel fromDocument(DocumentSnapshot<Map<String, dynamic>> doc) {
-    final data = doc.data()!;
+    final data = doc.data();
+    if (data == null) {
+      throw Exception("⚠️ Empty user document: ${doc.id}");
+    }
+
     final List<List<double>> embeddings = [];
+
     if (data['faceEmbeddings'] != null) {
       for (var e in data['faceEmbeddings'] as List<dynamic>) {
-        final embeddingStr = e as String;
-        final values = embeddingStr
-            .split(',')
-            .map((v) => double.tryParse(v.trim()) ?? 0.0)
-            .toList();
+        // ✅ Case 1: Already stored as List<num> (new format)
+        if (e is List) {
+          final numeric = e
+              .where((v) => v is num)
+              .map((v) => (v as num).toDouble())
+              .toList();
+          if (numeric.isNotEmpty) embeddings.add(numeric);
+        }
 
-        embeddings.add(values);
+        // ✅ Case 2: Old format (comma-separated string)
+        else if (e is String) {
+          final values = e
+              .split(',')
+              .map((s) => double.tryParse(s.trim()))
+              .where((v) => v != null && v.isFinite)
+              .map((v) => v!)
+              .toList();
+          if (values.isNotEmpty) embeddings.add(values);
+        }
+
+        // ✅ Unknown format (debug log only)
+        else {
+          print("⚠️ Unknown embedding format for ${doc.id}: $e");
+        }
       }
     }
-    List<double> primaryEmbedding = embeddings.isNotEmpty ? embeddings.first : [];
+
+    // ✅ Pick the first embedding as "primary" if exists
+    final List<double> primaryEmbedding = embeddings.isNotEmpty ? embeddings.first : [];
 
     return UserModel(
       id: doc.id,
