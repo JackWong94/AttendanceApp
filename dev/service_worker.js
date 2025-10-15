@@ -1,11 +1,15 @@
-const CACHE_NAME = 'attendanceapp-cache-v1';
-const MODEL_CACHE = 'faceapi-model-cache-v1';
+// ====== CONFIG ======
+const CACHE_VERSION = 'v3';
+const APP_CACHE = `attendanceapp-cache-${CACHE_VERSION}`;
+const MODEL_CACHE = `faceapi-model-cache-${CACHE_VERSION}`;
 
-// Detect current base path (e.g., /AttendanceApp/ckhardware/)
-const BASE_PATH = self.location.pathname.replace(/service_worker\.js$/, '').replace(/\/$/, '');
-console.log('[ServiceWorker] Base path detected:', BASE_PATH);
+// Detect current base path (e.g., /attendanceapp/ or /)
+const BASE_PATH = self.location.pathname
+  .replace(/service_worker\.js$/, '')
+  .replace(/\/$/, '');
+console.log('[SW] Base path:', BASE_PATH);
 
-// Files to always cache (your Flutter app shell)
+// Core Flutter/Web app files
 const CORE_ASSETS = [
   `${BASE_PATH}/`,
   `${BASE_PATH}/index.html`,
@@ -15,10 +19,10 @@ const CORE_ASSETS = [
   `${BASE_PATH}/favicon.png`,
   `${BASE_PATH}/icons/Icon-192.png`,
   `${BASE_PATH}/icons/Icon-512.png`,
-  `${BASE_PATH}/js/face-api.min.js`
+  `${BASE_PATH}/js/face-api.min.js`,
 ];
 
-// Face-api models (relative to each base path)
+// Face-api models
 const MODEL_FILES = [
   `${BASE_PATH}/models/ssd_mobilenetv1_model-weights_manifest.json`,
   `${BASE_PATH}/models/face_landmark_68_model-weights_manifest.json`,
@@ -27,17 +31,16 @@ const MODEL_FILES = [
   `${BASE_PATH}/models/ssd_mobilenetv1_model-shard1`,
   `${BASE_PATH}/models/face_landmark_68_model-shard1`,
   `${BASE_PATH}/models/face_recognition_model-shard1`,
-  `${BASE_PATH}/models/tiny_face_detector_model-shard1`
+  `${BASE_PATH}/models/tiny_face_detector_model-shard1`,
 ];
 
-// Install event → pre-cache models + core app files
+// ====== INSTALL ======
 self.addEventListener('install', (event) => {
-  console.log('[ServiceWorker] Install for base:', BASE_PATH);
+  console.log('[SW] Installing...');
   event.waitUntil(
     (async () => {
-      const cache = await caches.open(CACHE_NAME);
-      await cache.addAll(CORE_ASSETS);
-
+      const appCache = await caches.open(APP_CACHE);
+      await appCache.addAll(CORE_ASSETS);
       const modelCache = await caches.open(MODEL_CACHE);
       await modelCache.addAll(MODEL_FILES);
     })()
@@ -45,52 +48,61 @@ self.addEventListener('install', (event) => {
   self.skipWaiting();
 });
 
-// Activate event → clean up old caches
+// ====== ACTIVATE ======
 self.addEventListener('activate', (event) => {
-  console.log('[ServiceWorker] Activate');
+  console.log('[SW] Activating...');
   event.waitUntil(
-    caches.keys().then((keys) => {
-      return Promise.all(
+    caches.keys().then((keys) =>
+      Promise.all(
         keys
-          .filter((key) => key !== CACHE_NAME && key !== MODEL_CACHE)
-          .map((key) => caches.delete(key))
-      );
-    })
+          .filter((k) => k !== APP_CACHE && k !== MODEL_CACHE)
+          .map((k) => {
+            console.log('[SW] Deleting old cache:', k);
+            return caches.delete(k);
+          })
+      )
+    )
   );
   self.clients.claim();
 });
 
-// Fetch handler → serve from cache first
+// ====== FETCH ======
 self.addEventListener('fetch', (event) => {
-  const request = event.request;
-  const url = new URL(request.url);
+  const req = event.request;
+  const url = new URL(req.url);
 
-  // Prefer model cache for /models/
+  // Serve model files from model cache
   if (url.pathname.includes('/models/')) {
     event.respondWith(
-      caches.open(MODEL_CACHE).then((cache) => {
-        return cache.match(request).then((response) => {
-          return (
-            response ||
-            fetch(request).then((netRes) => {
-              cache.put(request, netRes.clone());
-              return netRes;
-            })
-          );
-        });
+      caches.open(MODEL_CACHE).then(async (cache) => {
+        const cached = await cache.match(req);
+        if (cached) return cached;
+
+        try {
+          const netRes = await fetch(req);
+          cache.put(req, netRes.clone());
+          return netRes;
+        } catch (e) {
+          console.warn('[SW] Model fetch failed:', e);
+          return new Response('Offline: model not available', { status: 503 });
+        }
       })
     );
     return;
   }
 
-  // Otherwise, use app cache
+  // Otherwise: cache-first for core files, network fallback
   event.respondWith(
-    caches.match(request).then((response) => {
+    caches.match(req).then((cached) => {
       return (
-        response ||
-        fetch(request).then((netRes) => {
-          return netRes;
-        })
+        cached ||
+        fetch(req)
+          .then((netRes) => netRes)
+          .catch(() => {
+            if (req.mode === 'navigate') {
+              return caches.match(`${BASE_PATH}/index.html`);
+            }
+          })
       );
     })
   );
