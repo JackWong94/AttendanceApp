@@ -164,9 +164,31 @@ class WebFaceApi {
       throw Exception("No face descriptor detected");
     }
 
-    final descriptorJs =
-    js_util.getProperty(detectionWithDescriptor, 'descriptor');
-    final descriptor = (descriptorJs as List).map((e) => e as double).toList();
+    final descriptorJs = js_util.getProperty(detectionWithDescriptor, 'descriptor');
+
+    List<double> descriptor = [];
+
+    if (descriptorJs != null) {
+      // Handle both JS Array and Float32Array
+      if (descriptorJs is List) {
+        descriptor = descriptorJs.map((e) {
+          final val = e;
+          if (val is num) return val.toDouble();
+          return 0.0;
+        }).toList();
+      } else if (js_util.hasProperty(descriptorJs, 'length')) {
+        // Convert from Float32Array to Dart List<double>
+        final length = js_util.getProperty(descriptorJs, 'length') as int;
+        descriptor = List.generate(length, (i) {
+          final val = js_util.getProperty(descriptorJs, i);
+          return (val is num) ? val.toDouble() : 0.0;
+        });
+      } else {
+        print('⚠️ descriptorJs is not a List or Float32Array: $descriptorJs');
+      }
+    } else {
+      print('⚠️ descriptorJs is null for this face');
+    }
 
     debug.timeEnd("computeFaceDescriptor");
     debug.log("Descriptor computed successfully for ${debugKey ?? 'unknown'}");
