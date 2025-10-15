@@ -32,7 +32,8 @@
         return;
       }
 
-      const modelPath = window.location.origin + "/models/";
+      // 👇 FIXED: use pathname, not origin (works for GitHub Pages subfolder)
+      const modelPath = window.location.origin + window.location.pathname.replace(/index\.html$/, '') + "models/";
 
       try {
         console.time("[face-api] loadModels");
@@ -57,16 +58,6 @@
 <body>
 <!-- ✅ Flutter app entry -->
 <script src="flutter_bootstrap.js" defer></script>
-
-<!-- ✅ Register your custom service worker -->
-<script>
-  if ("serviceWorker" in navigator) {
-    navigator.serviceWorker
-      .register("/service_worker.js")
-      .then(() => console.log("✅ Service worker registered"))
-      .catch((err) => console.warn("⚠️ Service worker registration failed:", err));
-  }
-</script>
 
 <!-- ✅ Simple fallback loader -->
 <script>
@@ -107,6 +98,21 @@
       window.location.reload(true);
     }
   });
+</script>
+
+<!-- ✅ Service Worker registration (GitHub Pages safe) -->
+<script>
+  (async function () {
+    if ('serviceWorker' in navigator) {
+      try {
+        const swUrl = `${window.location.origin}${window.location.pathname.replace(/index\.html$/, '')}service_worker.js`;
+        const reg = await navigator.serviceWorker.register(swUrl);
+        console.log("✅ Service Worker registered:", reg.scope);
+      } catch (err) {
+        console.warn("⚠️ Service Worker registration failed:", err);
+      }
+    }
+  })();
 </script>
 </body>
 </html>
