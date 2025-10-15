@@ -25,7 +25,11 @@ class _WebLoginPageState extends State<WebLoginPage> {
   @override
   void initState() {
     super.initState();
-    _checkRememberedLogin();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      // Wait a tick for Firebase to fully initialize on web
+      await Future.delayed(const Duration(milliseconds: 200));
+      await _checkRememberedLogin();
+    });
   }
 
   Future<void> _checkRememberedLogin() async {
