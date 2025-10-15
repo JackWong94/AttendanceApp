@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base href="/AttendanceApp/dev/">
+
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="description" content="Attendance App - Face Recognition System">
+
+  <!-- iOS meta tags & icons -->
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="attendanceapp">
+  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="favicon.png" />
+
+  <title>attendanceapp</title>
+  <link rel="manifest" href="manifest.json">
+
+  <!-- ✅ face-api.js (local or CDN) -->
+  <script src="js/face-api.min.js"></script>
+
+  <!-- ✅ Face model preloader -->
+  <script>
+    (async function () {
+      console.log("🧠 Initializing face-api.js model loader...");
+
+      if (typeof faceapi === "undefined") {
+        console.error("❌ face-api.js not found! Ensure js/face-api.min.js is accessible.");
+        return;
+      }
+
+      const modelPath = window.location.origin + "/models/";
+
+      try {
+        console.time("[face-api] loadModels");
+        await Promise.all([
+          faceapi.nets.ssdMobilenetv1.loadFromUri(modelPath),
+          faceapi.nets.faceLandmark68Net.loadFromUri(modelPath),
+          faceapi.nets.faceRecognitionNet.loadFromUri(modelPath),
+          faceapi.nets.tinyFaceDetector.loadFromUri(modelPath),
+        ]);
+        console.timeEnd("[face-api] loadModels");
+
+        window.faceApiModelsLoaded = true;
+        window.dispatchEvent(new Event("faceApiModelsReady"));
+        console.log("✅ face-api.js models fully loaded from:", modelPath);
+      } catch (err) {
+        console.error("⚠️ Failed to load face-api.js models:", err);
+      }
+    })();
+  </script>
+</head>
+
+<body>
+<!-- ✅ Flutter app -->
+<script src="flutter_bootstrap.js" defer></script>
+
+<!-- ✅ Smart Service Worker registration with auto-update and forced refresh -->
+<script>
+  if ("serviceWorker" in navigator) {
+    // 🔥 1. Force update any old service workers before starting Flutter
+    navigator.serviceWorker.getRegistrations().then((registrations) => {
+      for (let reg of registrations) {
+        reg.update().then(() => console.log("♻️ Updated old service worker:", reg));
+      }
+    });
+
+    // 🔥 2. Register service worker as usual
+    navigator.serviceWorker
+      .register("/service_worker.js")
+      .then((reg) => {
+        console.log("✅ Service worker registered", reg);
+
+        // Detect new SW version
+        reg.onupdatefound = () => {
+          const newWorker = reg.installing;
+          newWorker.onstatechange = () => {
+            if (newWorker.state === "installed" && navigator.serviceWorker.controller) {
+              console.log("🔄 New version detected — activating...");
+              newWorker.postMessage({ type: "SKIP_WAITING" });
+            }
+          };
+        };
+      })
+      .catch((err) => console.warn("⚠️ Service worker registration failed", err));
+
+    // 🔥 3. Auto reload once new version takes control
+    let refreshing = false;
+    navigator.serviceWorker.addEventListener("controllerchange", () => {
+      if (refreshing) return;
+      refreshing = true;
+      console.log("♻️ Reloading to activate new version...");
+      window.location.reload();
+    });
+  }
+</script>
+
+<!-- ✅ Fallback loader + manual refresh if Flutter fails to start -->
+<script>
+  const loadingDiv = document.createElement("div");
+  loadingDiv.innerHTML = `
+    <div id="fallback"
+         style="display:flex;flex-direction:column;align-items:center;justify-content:center;
+                height:100vh;font-family:sans-serif;text-align:center;">
+      <p style="font-size:18px;color:#444;">🚀 Loading app, please wait...</p>
+      <button id="refreshBtn"
+              style="margin-top:16px;padding:10px 20px;font-size:16px;border-radius:8px;
+                     border:none;background:#1976d2;color:white;cursor:pointer;">
+        Refresh
+      </button>
+    </div>
+  `;
+  document.body.appendChild(loadingDiv);
+
+  const timeout = setTimeout(() => {
+    document.getElementById("fallback").innerHTML = `
+      <p style="font-size:18px;color:#d32f2f;">⚠️ App failed to load.</p>
+      <p style="color:#555;">This may happen after an update or network issue.</p>
+      <button onclick="window.location.reload(true)"
+              style="margin-top:16px;padding:10px 20px;font-size:16px;border-radius:8px;
+                     border:none;background:#1976d2;color:white;cursor:pointer;">
+        🔄 Refresh App
+      </button>
+    `;
+  }, 10000);
+
+  window.addEventListener('flutter-first-frame', () => {
+    clearTimeout(timeout);
+    loadingDiv.remove();
+  });
+
+  document.getElementById("refreshBtn").addEventListener("click", () => {
+    window.location.reload(true);
+  });
+</script>
+</body>
+</html>
