@@ -1,34 +1,38 @@
 const CACHE_NAME = 'attendanceapp-cache-v1';
 const MODEL_CACHE = 'faceapi-model-cache-v1';
 
+// Detect current base path (e.g., /AttendanceApp/ckhardware/)
+const BASE_PATH = self.location.pathname.replace(/service_worker\.js$/, '').replace(/\/$/, '');
+console.log('[ServiceWorker] Base path detected:', BASE_PATH);
+
 // Files to always cache (your Flutter app shell)
 const CORE_ASSETS = [
-  '/',
-  '/index.html',
-  '/main.dart.js',
-  '/flutter.js',
-  '/manifest.json',
-  '/favicon.png',
-  '/icons/Icon-192.png',
-  '/icons/Icon-512.png',
-  '/js/face-api.min.js'
+  `${BASE_PATH}/`,
+  `${BASE_PATH}/index.html`,
+  `${BASE_PATH}/main.dart.js`,
+  `${BASE_PATH}/flutter.js`,
+  `${BASE_PATH}/manifest.json`,
+  `${BASE_PATH}/favicon.png`,
+  `${BASE_PATH}/icons/Icon-192.png`,
+  `${BASE_PATH}/icons/Icon-512.png`,
+  `${BASE_PATH}/js/face-api.min.js`
 ];
 
-// Face-api models (adjust if filenames differ)
+// Face-api models (relative to each base path)
 const MODEL_FILES = [
-  '/models/ssd_mobilenetv1_model-weights_manifest.json',
-  '/models/face_landmark_68_model-weights_manifest.json',
-  '/models/face_recognition_model-weights_manifest.json',
-  '/models/tiny_face_detector_model-weights_manifest.json',
-  '/models/ssd_mobilenetv1_model-shard1',  // example shards, optional
-  '/models/face_landmark_68_model-shard1',
-  '/models/face_recognition_model-shard1',
-  '/models/tiny_face_detector_model-shard1'
+  `${BASE_PATH}/models/ssd_mobilenetv1_model-weights_manifest.json`,
+  `${BASE_PATH}/models/face_landmark_68_model-weights_manifest.json`,
+  `${BASE_PATH}/models/face_recognition_model-weights_manifest.json`,
+  `${BASE_PATH}/models/tiny_face_detector_model-weights_manifest.json`,
+  `${BASE_PATH}/models/ssd_mobilenetv1_model-shard1`,
+  `${BASE_PATH}/models/face_landmark_68_model-shard1`,
+  `${BASE_PATH}/models/face_recognition_model-shard1`,
+  `${BASE_PATH}/models/tiny_face_detector_model-shard1`
 ];
 
 // Install event → pre-cache models + core app files
 self.addEventListener('install', (event) => {
-  console.log('[ServiceWorker] Install');
+  console.log('[ServiceWorker] Install for base:', BASE_PATH);
   event.waitUntil(
     (async () => {
       const cache = await caches.open(CACHE_NAME);
@@ -59,9 +63,10 @@ self.addEventListener('activate', (event) => {
 // Fetch handler → serve from cache first
 self.addEventListener('fetch', (event) => {
   const request = event.request;
+  const url = new URL(request.url);
 
   // Prefer model cache for /models/
-  if (request.url.includes('/models/')) {
+  if (url.pathname.includes('/models/')) {
     event.respondWith(
       caches.open(MODEL_CACHE).then((cache) => {
         return cache.match(request).then((response) => {
