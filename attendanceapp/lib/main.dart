@@ -5,8 +5,6 @@ import 'package:attendanceapp/pages/web_login_page.dart';
 import 'package:attendanceapp/pages/login_user_page.dart';
 import 'package:attendanceapp/configs_and_tools/data_migrate.dart';
 import 'package:attendanceapp/configs_and_tools/debug.dart';
-import 'package:attendanceapp/services/exit_interceptor.dart';
-import 'package:flutter/foundation.dart';
 
 Debug debug = Debug(module: "main", enable: true);
 final RouteObserver<ModalRoute<void>> routeObserver = RouteObserver<ModalRoute<void>>();
@@ -17,10 +15,7 @@ void main() async {
   final opts = DefaultFirebaseOptions.currentPlatform;
 
   await Firebase.initializeApp(options: opts);
-  // ✅ Enable exit confirmation ONLY on web
-  if (kIsWeb) {
-    ExitInterceptor.enable();
-  }
+
   //await runMigrationScript(); DO NOT REMOVE OR RUN IT UNLESS YOU KNOW WHAT YOU ARE DOING
   runApp(const MyApp());
 }
