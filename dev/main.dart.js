@@ -8331,14 +8331,14 @@ s=l==null?9:10
 break
 case 9:f=$.yL
 k=(f&&B.lO).Ns(f,"descriptors","readwrite")
-B.Fd.Ee(J.aK2(k,"descriptors"),"v1","cacheVersion")
+B.Fd.Ee(J.aK2(k,"descriptors"),"v2","cacheVersion")
 f=J.aOp(k)
 s=11
 return A.o(f,$async$pP)
 case 11:$.kE()
 s=1
 break
-case 10:s=!J.d(l,"v1")?12:13
+case 10:s=!J.d(l,"v2")?12:13
 break
 case 12:$.kE()
 j=$.yL.transaction("descriptors","readwrite")
@@ -8350,7 +8350,7 @@ s=14
 return A.o(A.cn(f,t.z),$async$pP)
 case 14:f=$.yL
 h=(f&&B.lO).Ns(f,"descriptors","readwrite")
-B.Fd.Ee(J.aK2(h,"descriptors"),"v1","cacheVersion")
+B.Fd.Ee(J.aK2(h,"descriptors"),"v2","cacheVersion")
 f=J.aOp(h)
 s=15
 return A.o(f,$async$pP)
