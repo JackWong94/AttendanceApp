@@ -12,10 +12,13 @@ final RouteObserver<ModalRoute<void>> routeObserver = RouteObserver<ModalRoute<v
 void main() async {
   debug.log("🚀 App start");
   WidgetsFlutterBinding.ensureInitialized();
-  final opts = DefaultFirebaseOptions.currentPlatform;
-
-  await Firebase.initializeApp(options: opts);
-
+  try {
+    final opts = DefaultFirebaseOptions.currentPlatform;
+    await Firebase.initializeApp(options: opts);
+    debug.log("✅ Firebase initialized");
+  } catch (e, st) {
+    debug.log("❌ Firebase init failed: $e\n$st");
+  }
   //await runMigrationScript(); DO NOT REMOVE OR RUN IT UNLESS YOU KNOW WHAT YOU ARE DOING
   runApp(const MyApp());
 }
