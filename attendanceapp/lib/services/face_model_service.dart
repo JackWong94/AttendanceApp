@@ -47,11 +47,12 @@ class FaceModelService {
     if (_warmingUp) return;
     _warmingUp = true;
     try {
-      final dummyImage = await loadAssetImageElement('assets/warmup_face.png');
-      // Compute descriptor with caching to skip repeated steps next time
-      await webFaceApi.WebFaceApi.computeFaceDescriptorSafe(
-        dummyImage,
-      );
+      final dummyImage = await loadAssetImageElementSafe('assets/warmup_face.png');
+      if (dummyImage != null) {
+        await webFaceApi.WebFaceApi.computeFaceDescriptorSafe(dummyImage);
+      } else {
+        print("⚠️ Warm-up skipped (asset missing)");
+      }
       print("Face model warm-up complete");
     } catch (e) {
       print("Face warm-up failed: $e");
@@ -69,17 +70,18 @@ class FaceModelService {
   }
 
   // Load an asset image as HTML ImageElement
-  static Future<html.ImageElement> loadAssetImageElement(String path) async {
-    final ByteData data = await rootBundle.load(path);
-    final Uint8List bytes = data.buffer.asUint8List();
-    final blob = html.Blob([bytes]);
-    final url = html.Url.createObjectUrlFromBlob(blob);
-    final img = html.ImageElement(src: url);
-
-    final completer = Completer<html.ImageElement>();
-    img.onLoad.listen((_) => completer.complete(img));
-    img.onError.listen(
-            (event) => completer.completeError('Failed to load image: $event'));
-    return completer.future;
+  static Future<html.ImageElement?> loadAssetImageElementSafe(String path) async {
+    try {
+      final data = await rootBundle.load(path);
+      final bytes = data.buffer.asUint8List();
+      final blob = html.Blob([bytes]);
+      final url = html.Url.createObjectUrlFromBlob(blob);
+      final img = html.ImageElement(src: url);
+      await img.onLoad.first;
+      return img;
+    } catch (e, st) {
+      print("⚠️ Failed to load asset $path: $e");
+      return null;
+    }
   }
 }
