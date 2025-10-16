@@ -4,7 +4,7 @@
   <base href="/AttendanceApp/ckhardware/">
 
   <meta charset="UTF-8">
-  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta http-equiv="X-UA-Compatible" content="IE=Edge">
   <meta name="description" content="Attendance App - Face Recognition System">
 
   <!-- iOS meta tags & icons -->
@@ -19,10 +19,10 @@
   <title>attendanceapp</title>
   <link rel="manifest" href="manifest.json">
 
-  <!-- ✅ face-api.js (local or CDN) -->
+  <!-- ✅ face-api.js -->
   <script src="js/face-api.min.js"></script>
 
-  <!-- ✅ Face model preloader -->
+  <!-- ✅ Preload face-api.js models -->
   <script>
     (async function () {
       console.log("🧠 Initializing face-api.js model loader...");
@@ -32,7 +32,8 @@
         return;
       }
 
-      const modelPath = window.location.origin + "/models/";
+      // 👇 FIXED: use pathname, not origin (works for GitHub Pages subfolder)
+      const modelPath = window.location.origin + window.location.pathname.replace(/index\.html$/, '') + "models/";
 
       try {
         console.time("[face-api] loadModels");
@@ -55,50 +56,10 @@
 </head>
 
 <body>
-<!-- ✅ Flutter app -->
+<!-- ✅ Flutter app entry -->
 <script src="flutter_bootstrap.js" defer></script>
 
-<!-- ✅ Smart Service Worker registration with auto-update and forced refresh -->
-<script>
-  if ("serviceWorker" in navigator) {
-    // 🔥 1. Force update any old service workers before starting Flutter
-    navigator.serviceWorker.getRegistrations().then((registrations) => {
-      for (let reg of registrations) {
-        reg.update().then(() => console.log("♻️ Updated old service worker:", reg));
-      }
-    });
-
-    // 🔥 2. Register service worker as usual
-    navigator.serviceWorker
-      .register("/service_worker.js")
-      .then((reg) => {
-        console.log("✅ Service worker registered", reg);
-
-        // Detect new SW version
-        reg.onupdatefound = () => {
-          const newWorker = reg.installing;
-          newWorker.onstatechange = () => {
-            if (newWorker.state === "installed" && navigator.serviceWorker.controller) {
-              console.log("🔄 New version detected — activating...");
-              newWorker.postMessage({ type: "SKIP_WAITING" });
-            }
-          };
-        };
-      })
-      .catch((err) => console.warn("⚠️ Service worker registration failed", err));
-
-    // 🔥 3. Auto reload once new version takes control
-    let refreshing = false;
-    navigator.serviceWorker.addEventListener("controllerchange", () => {
-      if (refreshing) return;
-      refreshing = true;
-      console.log("♻️ Reloading to activate new version...");
-      window.location.reload();
-    });
-  }
-</script>
-
-<!-- ✅ Fallback loader + manual refresh if Flutter fails to start -->
+<!-- ✅ Simple fallback loader -->
 <script>
   const loadingDiv = document.createElement("div");
   loadingDiv.innerHTML = `
@@ -132,8 +93,18 @@
     loadingDiv.remove();
   });
 
-  document.getElementById("refreshBtn").addEventListener("click", () => {
-    window.location.reload(true);
+  document.addEventListener("click", (e) => {
+    if (e.target && e.target.id === "refreshBtn") {
+      window.location.reload(true);
+    }
+  });
+</script>
+<script>
+  window.addEventListener('error', function(e) {
+    console.error('🌋 Global error:', e.message, e.filename, e.lineno);
+  });
+  window.addEventListener('unhandledrejection', function(e) {
+    console.error('💥 Unhandled promise rejection:', e.reason);
   });
 </script>
 </body>
