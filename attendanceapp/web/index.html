@@ -2,20 +2,13 @@
 <html>
 <head>
   <base href="$FLUTTER_BASE_HREF">
-
   <meta charset="UTF-8">
-  <meta http-equiv="X-UA-Compatible" content="IE=Edge">
   <meta name="description" content="Attendance App - Face Recognition System">
-
-  <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <meta name="apple-mobile-web-app-title" content="attendanceapp">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
-
-  <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png" />
-
   <title>attendanceapp</title>
   <link rel="manifest" href="manifest.json">
 
@@ -25,16 +18,13 @@
   <!-- ✅ Preload face-api.js models -->
   <script>
     (async function () {
-      console.log("🧠 Initializing face-api.js model loader...");
-
+      console.log("🧠 Initializing face-api.js models...");
       if (typeof faceapi === "undefined") {
-        console.error("❌ face-api.js not found! Ensure js/face-api.min.js is accessible.");
+        console.error("❌ face-api.js not found!");
         return;
       }
 
-      // 👇 FIXED: use pathname, not origin (works for GitHub Pages subfolder)
       const modelPath = window.location.origin + window.location.pathname.replace(/index\.html$/, '') + "models/";
-
       try {
         console.time("[face-api] loadModels");
         await Promise.all([
@@ -44,68 +34,64 @@
           faceapi.nets.tinyFaceDetector.loadFromUri(modelPath),
         ]);
         console.timeEnd("[face-api] loadModels");
-
         window.faceApiModelsLoaded = true;
         window.dispatchEvent(new Event("faceApiModelsReady"));
-        console.log("✅ face-api.js models fully loaded from:", modelPath);
+        console.log("✅ face-api.js models loaded from:", modelPath);
       } catch (err) {
-        console.error("⚠️ Failed to load face-api.js models:", err);
+        console.error("⚠️ face-api.js model load failed:", err);
       }
     })();
   </script>
+
+  <!-- ✅ Load Firebase SDKs only (no config here) -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.3/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.3/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.3/firebase-storage.js"></script>
 </head>
 
 <body>
-<!-- ✅ Flutter app entry -->
 <script src="flutter_bootstrap.js" defer></script>
 
-<!-- ✅ Simple fallback loader -->
+<!-- Simple loader -->
 <script>
   const loadingDiv = document.createElement("div");
   loadingDiv.innerHTML = `
-    <div id="fallback"
-         style="display:flex;flex-direction:column;align-items:center;justify-content:center;
-                height:100vh;font-family:sans-serif;text-align:center;">
-      <p style="font-size:18px;color:#444;">🚀 Loading app, please wait...</p>
-      <button id="refreshBtn"
-              style="margin-top:16px;padding:10px 20px;font-size:16px;border-radius:8px;
-                     border:none;background:#1976d2;color:white;cursor:pointer;">
-        Refresh
-      </button>
-    </div>
-  `;
+    <div id="fallback" style="display:flex;flex-direction:column;align-items:center;
+    justify-content:center;height:100vh;font-family:sans-serif;">
+      <p style="font-size:18px;">🚀 Loading app...</p>
+    </div>`;
   document.body.appendChild(loadingDiv);
 
   const timeout = setTimeout(() => {
     document.getElementById("fallback").innerHTML = `
-      <p style="font-size:18px;color:#d32f2f;">⚠️ App failed to load.</p>
-      <p style="color:#555;">This may happen after an update or network issue.</p>
-      <button onclick="window.location.reload(true)"
-              style="margin-top:16px;padding:10px 20px;font-size:16px;border-radius:8px;
-                     border:none;background:#1976d2;color:white;cursor:pointer;">
-        🔄 Refresh App
-      </button>
-    `;
+      <p>⚠️ App failed to load.</p>
+      <button onclick="window.location.reload(true)">🔄 Reload</button>`;
   }, 10000);
 
   window.addEventListener('flutter-first-frame', () => {
     clearTimeout(timeout);
     loadingDiv.remove();
   });
-
-  document.addEventListener("click", (e) => {
-    if (e.target && e.target.id === "refreshBtn") {
-      window.location.reload(true);
-    }
-  });
 </script>
+
+<!-- Error monitor -->
 <script>
-  window.addEventListener('error', function(e) {
-    console.error('🌋 Global error:', e.message, e.filename, e.lineno);
-  });
-  window.addEventListener('unhandledrejection', function(e) {
-    console.error('💥 Unhandled promise rejection:', e.reason);
-  });
+  window.addEventListener('error', e =>
+    console.error('🌋 Global error:', e.message, e.filename, e.lineno)
+  );
+  window.addEventListener('unhandledrejection', e =>
+    console.error('💥 Unhandled promise rejection:', e.reason)
+  );
+</script>
+
+<!-- Optional Service Worker -->
+<script>
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('service_worker.js')
+      .then(r => console.log("✅ SW registered:", r.scope))
+      .catch(err => console.warn("⚠️ SW failed:", err));
+  }
 </script>
 </body>
 </html>
