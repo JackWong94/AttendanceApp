@@ -18,6 +18,7 @@ import 'package:attendanceapp/services/face_model_service.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:attendanceapp/utils/snackbar_helper.dart';
 import 'package:attendanceapp/widgets/scan_beam.dart';
+import 'package:attendanceapp/widgets/scan_overlay_manager.dart';
 
 class LoginUserPage extends StatefulWidget {
   const LoginUserPage({super.key});
@@ -31,9 +32,9 @@ class _LoginUserPageState extends State<LoginUserPage>
   static const String appVersion = "Version: 1.0.0";
   final CameraService _cameraService = CameraService.instance;
   final AttendanceService _attendanceService = AttendanceService();
+  final ScanOverlayManager _overlayManager = ScanOverlayManager();
   bool _scanInProgress = false;
   Timer? _cameraTimer;
-  OverlayEntry? _overlayEntry;
 
   late AnimationController _scanController;
   late Animation<double> _scanAnimation;
@@ -70,9 +71,9 @@ class _LoginUserPageState extends State<LoginUserPage>
 
   @override
   void dispose() {
+    _overlayManager.remove();
     _cameraTimer?.cancel();
     routeObserver.unsubscribe(this);
-    _removeOverlay();
     _cameraService.disposeCamera();
     _scanController.dispose();
     super.dispose();
@@ -121,71 +122,6 @@ class _LoginUserPageState extends State<LoginUserPage>
     }
   }
 
-  void _showScanOverlay({
-    required bool isScanIn,
-    required UserModel user,
-    required DateTime time,
-  }) {
-    _removeOverlay();
-
-    final formattedTime = DateFormat.Hm().format(time.toLocal());
-
-    _overlayEntry = OverlayEntry(
-      builder: (context) => Positioned.fill(
-        child: GestureDetector(
-          onTap: _removeOverlay,
-          child: Material(
-            color: Colors.black54,
-            child: Center(
-              child: FractionallySizedBox(
-                widthFactor: 0.6,
-                child: Container(
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    color: Colors.black87,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        "Hello, ${user.name}",
-                        style:
-                        const TextStyle(color: Colors.white, fontSize: 24),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 20),
-                      Text(
-                        "${isScanIn ? 'Signed In' : 'Signed Out'} at $formattedTime",
-                        style:
-                        const TextStyle(color: Colors.white, fontSize: 20),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 20),
-                      const Text(
-                        "Tap anywhere to close",
-                        style:
-                        TextStyle(color: Colors.white70, fontSize: 16),
-                        textAlign: TextAlign.center,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-
-    Overlay.of(context).insert(_overlayEntry!);
-  }
-
-  void _removeOverlay() {
-    _overlayEntry?.remove();
-    _overlayEntry = null;
-  }
-
   Future<void> _handleScanFlow({required bool isScanIn}) async {
     if (_scanInProgress) return;
     setState(() => _scanInProgress = true);
@@ -227,7 +163,8 @@ class _LoginUserPageState extends State<LoginUserPage>
       final success = message.contains("recorded successfully");
 
       if (success) {
-        _showScanOverlay(
+        _overlayManager.show(
+          context: context,
           isScanIn: isScanIn,
           user: user,
           time: now,
@@ -250,146 +187,155 @@ class _LoginUserPageState extends State<LoginUserPage>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar:
-      AppBar(title: Text(TenantModelService.instance.currentTenantName)),
-      endDrawer: Drawer(
-        child: FutureBuilder<PackageInfo>(
-          future: PackageInfo.fromPlatform(),
-          builder: (context, snapshot) {
-            final versionText = appVersion;
+    return WillPopScope(
+        onWillPop: () async {
+          if (_overlayManager.isVisible) {
+            _overlayManager.remove();
+            return false; // prevent exiting when overlay is visible
+          }
+          return true;
+        },
+        child: Scaffold(
+          appBar:
+          AppBar(title: Text(TenantModelService.instance.currentTenantName)),
+          endDrawer: Drawer(
+            child: FutureBuilder<PackageInfo>(
+              future: PackageInfo.fromPlatform(),
+              builder: (context, snapshot) {
+                final versionText = appVersion;
 
-            return Column(
-              children: [
-                Container(
-                  width: double.infinity,
-                  color: Colors.blue,
-                  padding:
-                  const EdgeInsets.symmetric(vertical: 40, horizontal: 16),
-                  alignment: Alignment.centerLeft,
-                  child: const Text(
-                    "Settings",
-                    style: TextStyle(color: Colors.white, fontSize: 20),
-                  ),
-                ),
-                Expanded(
-                  child: ListView(
-                    children: [
-                      ListTile(
-                        leading: const Icon(Icons.person_add),
-                        title: const Text("Register New User"),
-                        onTap: () =>
-                            NavigationService.goToRegisterUser(context),
-                      ),
-                      ListTile(
-                        leading: const Icon(Icons.assignment),
-                        title: const Text("Attendance"),
-                        onTap: () =>
-                            NavigationService.goToAttendance(context),
-                      ),
-                      ListTile(
-                        leading: const Icon(Icons.manage_accounts),
-                        title: const Text("Manage User"),
-                        onTap: () =>
-                            NavigationService.goToManageUser(context),
-                      ),
-                      ListTile(
-                        leading: const Icon(Icons.logout),
-                        title: const Text("Log out"),
-                        onTap: () => NavigationService.logOut(context),
-                      ),
-                    ],
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 16, top: 8),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Divider(thickness: 1),
-                      Text(
-                        versionText,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            );
-          },
-        ),
-      ),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              children: [
-                const Text(
-                  "Welcome! Please scan to login/logout",
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 30),
-                Row(
-                  mainAxisSize: MainAxisSize.min,
+                return Column(
                   children: [
-                    ElevatedButton.icon(
-                      onPressed: _scanInProgress
-                          ? null
-                          : () => _handleScanFlow(isScanIn: true),
-                      icon: const Icon(Icons.login),
-                      label: const Text("Scan In"),
+                    Container(
+                      width: double.infinity,
+                      color: Colors.blue,
+                      padding:
+                      const EdgeInsets.symmetric(vertical: 40, horizontal: 16),
+                      alignment: Alignment.centerLeft,
+                      child: const Text(
+                        "Settings",
+                        style: TextStyle(color: Colors.white, fontSize: 20),
+                      ),
                     ),
-                    const SizedBox(width: 20),
-                    ElevatedButton.icon(
-                      onPressed: _scanInProgress
-                          ? null
-                          : () => _handleScanFlow(isScanIn: false),
-                      icon: const Icon(Icons.logout),
-                      label: const Text("Scan Out"),
+                    Expanded(
+                      child: ListView(
+                        children: [
+                          ListTile(
+                            leading: const Icon(Icons.person_add),
+                            title: const Text("Register New User"),
+                            onTap: () =>
+                                NavigationService.goToRegisterUser(context),
+                          ),
+                          ListTile(
+                            leading: const Icon(Icons.assignment),
+                            title: const Text("Attendance"),
+                            onTap: () =>
+                                NavigationService.goToAttendance(context),
+                          ),
+                          ListTile(
+                            leading: const Icon(Icons.manage_accounts),
+                            title: const Text("Manage User"),
+                            onTap: () =>
+                                NavigationService.goToManageUser(context),
+                          ),
+                          ListTile(
+                            leading: const Icon(Icons.logout),
+                            title: const Text("Log out"),
+                            onTap: () => NavigationService.logOut(context),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 16, top: 8),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Divider(thickness: 1),
+                          Text(
+                            versionText,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+          body: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  children: [
+                    const Text(
+                      "Welcome! Please scan to login/logout",
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 30),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        ElevatedButton.icon(
+                          onPressed: _scanInProgress
+                              ? null
+                              : () => _handleScanFlow(isScanIn: true),
+                          icon: const Icon(Icons.login),
+                          label: const Text("Scan In"),
+                        ),
+                        const SizedBox(width: 20),
+                        ElevatedButton.icon(
+                          onPressed: _scanInProgress
+                              ? null
+                              : () => _handleScanFlow(isScanIn: false),
+                          icon: const Icon(Icons.logout),
+                          label: const Text("Scan Out"),
+                        ),
+                      ],
                     ),
                   ],
                 ),
-              ],
-            ),
-          ),
-          Expanded(
-            child: Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24.0), // ✅ same as your previous layout
-                child: _cameraService.controller != null &&
-                    _cameraService.controller!.value.isInitialized
-                    ? AspectRatio(
-                  aspectRatio: _cameraService.controller!.value.aspectRatio,
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(12), // optional rounded corners
-                    child: Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        CameraPreview(_cameraService.controller!),
-                        if (_scanInProgress)
-                          const ScanBeam(
-                            active: true,
-                            topPadding: 120,
-                            bottomPadding: 340,
-                            duration: Duration(seconds: 2),
-                          ),
-                      ],
-                    ),
-                  ),
-                )
-                    : const Center(child: CircularProgressIndicator()),
               ),
-            ),
-          ),
+              Expanded(
+                child: Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24.0), // ✅ same as your previous layout
+                    child: _cameraService.controller != null &&
+                        _cameraService.controller!.value.isInitialized
+                        ? AspectRatio(
+                      aspectRatio: _cameraService.controller!.value.aspectRatio,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(12), // optional rounded corners
+                        child: Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            CameraPreview(_cameraService.controller!),
+                            if (_scanInProgress)
+                              const ScanBeam(
+                                active: true,
+                                topPadding: 120,
+                                bottomPadding: 340,
+                                duration: Duration(seconds: 2),
+                              ),
+                          ],
+                        ),
+                      ),
+                    )
+                        : const Center(child: CircularProgressIndicator()),
+                  ),
+                ),
+              ),
 
-          const SizedBox(height: 30),
-        ],
-      ),
+              const SizedBox(height: 30),
+            ],
+          ),
+        ),
     );
   }
 }
