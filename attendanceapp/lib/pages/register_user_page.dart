@@ -179,16 +179,16 @@ class _RegisterUserPageState extends State<RegisterUserPage> {
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
                       ElevatedButton.icon(
-                        onPressed: _registerUser,
-                        icon: const Icon(Icons.save),
-                        label: const Text("Save User"),
-                      ),
-                      ElevatedButton.icon(
                         onPressed: () => Navigator.pop(context),
                         icon: const Icon(Icons.cancel),
                         label: const Text("Cancel"),
                         style:
                         ElevatedButton.styleFrom(backgroundColor: Colors.grey),
+                      ),
+                      ElevatedButton.icon(
+                        onPressed: _registerUser,
+                        icon: const Icon(Icons.save),
+                        label: const Text("Save User"),
                       ),
                     ],
                   ),
