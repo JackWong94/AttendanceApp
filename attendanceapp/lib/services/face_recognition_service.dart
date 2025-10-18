@@ -14,36 +14,49 @@ class FaceRecognitionService {
     final resized = await webFaceApi.WebFaceApi.resizeImage(img, 160, 160);
 
     // Step 2: Compute face descriptor
-    final descriptor = await webFaceApi.WebFaceApi.computeFaceDescriptorSafe(
-      resized,
-    );
+    final descriptor = await webFaceApi.WebFaceApi.computeFaceDescriptorSafe(resized);
     if (descriptor.isEmpty) return null;
 
     // Step 3: Compare with embeddings
-    final userId = _findBestMatch(descriptor, FaceModelService.embeddings);
-    if (userId == null) return null;
+    final bestUserId = _findBestMatch(descriptor, FaceModelService.embeddings);
+    if (bestUserId == null) return null;
 
     // Step 4: Load full UserModel from UserModelService
-    final user = await UserModelService.instance.getUserById(userId);
+    final user = await UserModelService.instance.getUserById(bestUserId);
     return user;
   }
 
-  /// Compare descriptor with all users, return best match userId if under threshold
-  static String? _findBestMatch(
-      List<double> query, Map<String, List<double>> embeddings) {
+  /// Compare descriptor with all users and print their distances
+  static String? _findBestMatch(List<double> query, Map<String, List<double>> embeddings) {
     String? bestUserId;
     double bestDistance = double.infinity;
     const threshold = 0.4; // adjust threshold as needed
 
+    final results = <MapEntry<String, double>>[];
+
     embeddings.forEach((userId, embedding) {
       final dist = _euclideanDistance(query, embedding);
+      results.add(MapEntry(userId, dist));
+
       if (dist < bestDistance) {
         bestDistance = dist;
         bestUserId = userId;
       }
     });
 
-    print("Best match = $bestUserId (distance: $bestDistance)");
+    // Sort by distance (best match first)
+    results.sort((a, b) => a.value.compareTo(b.value));
+
+    // Print all results clearly
+    print("🔹 Total users compared: ${results.length}");
+    for (final entry in results) {
+      final userId = entry.key;
+      final distance = entry.value.toStringAsFixed(4);
+      print("→ $userId: distance = $distance");
+    }
+
+    print("🏆 Best match = $bestUserId (distance: ${bestDistance.toStringAsFixed(4)})");
+
     return bestDistance < threshold ? bestUserId : null;
   }
 
