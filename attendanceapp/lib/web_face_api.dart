@@ -195,4 +195,96 @@ class WebFaceApi {
 
     return descriptor;
   }
+
+  /// Detect a face and return bounding box info (and landmarks if available)
+  static Future<Map<String, dynamic>?> detectFaceWithBox(html.ImageElement img) async {
+    try {
+      final faceapi = js_util.getProperty(html.window, 'faceapi');
+      if (faceapi == null) throw Exception("❌ face-api.js not loaded");
+
+      final TinyFaceDetectorOptions = js_util.getProperty(faceapi, 'TinyFaceDetectorOptions');
+      if (TinyFaceDetectorOptions == null) throw Exception("❌ TinyFaceDetectorOptions not found");
+
+      final options = js_util.callConstructor(
+        TinyFaceDetectorOptions,
+        [js_util.jsify({'inputSize': 160, 'scoreThreshold': 0.1})],
+      );
+
+      // Run face detection chain
+      final detectionPromise = js_util.callMethod(faceapi, 'detectSingleFace', [img, options]);
+      final withLandmarks = js_util.callMethod(detectionPromise, 'withFaceLandmarks', []);
+      final withDescriptor = js_util.callMethod(withLandmarks, 'withFaceDescriptor', []);
+      final detectionWithDescriptor = await js_util.promiseToFuture(withDescriptor);
+
+      if (detectionWithDescriptor == null) {
+        print('⚠️ No face detected');
+        return null;
+      }
+
+      // Extract detection safely
+      final detection = js_util.getProperty(detectionWithDescriptor, 'detection');
+      final boxObj = js_util.getProperty(detection, 'box');
+      if (boxObj == null) {
+        print('⚠️ Bounding box missing');
+        return null;
+      }
+
+      final x = (js_util.getProperty(boxObj, 'x') ?? 0).toDouble();
+      final y = (js_util.getProperty(boxObj, 'y') ?? 0).toDouble();
+      final width = (js_util.getProperty(boxObj, 'width') ?? 0).toDouble();
+      final height = (js_util.getProperty(boxObj, 'height') ?? 0).toDouble();
+      final score = (js_util.getProperty(detection, 'score') ?? 0.0).toDouble();
+
+      // 🧠 Extract landmarks correctly using getNose(), getLeftEye(), getRightEye()
+      final landmarksObj = js_util.getProperty(detectionWithDescriptor, 'landmarks');
+      Map<String, Map<String, double>> landmarks = {};
+      if (landmarksObj != null) {
+        Map<String, double> extractAvg(String methodName) {
+          final points = js_util.callMethod(landmarksObj, methodName, []);
+          if (points == null) return {};
+          final length = js_util.getProperty(points, 'length') ?? 0;
+          if (length == 0) return {};
+          double sumX = 0, sumY = 0;
+          for (int i = 0; i < length; i++) {
+            final p = js_util.getProperty(points, i);
+            sumX += (js_util.getProperty(p, 'x') ?? 0).toDouble();
+            sumY += (js_util.getProperty(p, 'y') ?? 0).toDouble();
+          }
+          return {'x': sumX / length, 'y': sumY / length};
+        }
+
+        landmarks['nose'] = extractAvg('getNose');
+        landmarks['leftEye'] = extractAvg('getLeftEye');
+        landmarks['rightEye'] = extractAvg('getRightEye');
+      }
+
+      // Extract descriptor safely
+      final descriptorJs = js_util.getProperty(detectionWithDescriptor, 'descriptor');
+      List<double> descriptor = [];
+      if (descriptorJs != null && js_util.hasProperty(descriptorJs, 'length')) {
+        final length = js_util.getProperty(descriptorJs, 'length') as int;
+        descriptor = List.generate(length, (i) {
+          final val = js_util.getProperty(descriptorJs, i);
+          return (val is num) ? val.toDouble() : 0.0;
+        });
+      }
+
+      print('✅ Face detected, score: ${score.toStringAsFixed(3)}');
+      print('📦 Box: x=$x, y=$y, w=$width, h=$height');
+      print('👃 Nose: ${landmarks['nose']}');
+      print('🧬 Descriptor length: ${descriptor.length}');
+
+      return {
+        'box': {'x': x, 'y': y, 'width': width, 'height': height},
+        'score': score,
+        'landmarks': landmarks,
+        'descriptor': descriptor,
+      };
+    } catch (e, st) {
+      print('⚠️ Face detection failed: $e');
+      print(st);
+      return null;
+    }
+  }
+
 }

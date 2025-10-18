@@ -3,8 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:attendanceapp/services/camera_service.dart';
 import 'package:attendanceapp/web_face_api.dart' as webFaceApi;
+import 'package:attendanceapp/configs_and_tools/debug.dart';
 
-/// Callback when the capture sequence finishes
+Debug debug = Debug(module: "face_capture_widget", enable: true);
 typedef FaceCaptureCallback = void Function(
     List<Uint8List> photos, List<List<double>> embeddings);
 
@@ -30,47 +31,81 @@ class _FaceCaptureWidgetState extends State<FaceCaptureWidget> {
 
   final List<String> steps = [
     "Look straight ahead",
-    "Slightly turn your head to the LEFT",
-    "Slightly turn your head to the RIGHT",
+    "Turn slightly to the LEFT",
+    "Turn slightly to the RIGHT",
   ];
 
   Future<void> _captureStep() async {
     if (_isCapturing || !widget.cameraService.isInitialized) return;
-
     setState(() => _isCapturing = true);
 
     try {
-      final picture = await widget.cameraService.controller!.takePicture();
+      final controller = widget.cameraService.controller!;
+      final picture = await controller.takePicture();
       final bytes = await picture.readAsBytes();
 
-      // ✅ Updated WebFaceApi calls
+      // Convert image and detect face + landmarks
       final img = await webFaceApi.WebFaceApi.uint8ListToImage(bytes);
       final resizedImg = await webFaceApi.WebFaceApi.resizeImage(img, 160, 160);
-      final descriptor =
-      await webFaceApi.WebFaceApi.computeFaceDescriptorSafe(resizedImg);
+      final faceData = await webFaceApi.WebFaceApi.detectFaceWithBox(resizedImg);
 
-      if (descriptor.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("No face detected in step ${_currentStep + 1}")),
-        );
-      } else {
-        _capturedPhotos.add(bytes);
-        _capturedEmbeddings.add(descriptor);
-        _currentStep++;
+      if (faceData == null || faceData['descriptor'] == null) {
+        _showMsg("No face detected in step ${_currentStep + 1}");
+        return;
       }
 
-      // If all steps captured, call the callback
-      if (_currentStep >= steps.length) {
+      // 1️⃣ Face size check
+      final box = faceData['box'];
+      final faceRatio = (box['width'] * box['height']) / (160 * 160);
+      if (faceRatio < 0.15) {
+        _showMsg("Move closer to the camera.");
+        return;
+      }
+
+      // 2️⃣ Head direction check (nose alignment)
+      final nose = faceData['landmarks']['nose'];
+      final leftEye = faceData['landmarks']['leftEye'];
+      final rightEye = faceData['landmarks']['rightEye'];
+      final midX = (leftEye['x'] + rightEye['x']) / 2;
+      final offset = nose['x'] - midX;
+
+      if (_currentStep == 0 && offset.abs() > 10) {
+        _showMsg("Face should look straight ahead.");
+        return;
+      }
+      if (_currentStep == 1 && offset > -5) {
+        _showMsg("Turn slightly more LEFT.");
+        return;
+      }
+      if (_currentStep == 2 && offset < 5) {
+        _showMsg("Turn slightly more RIGHT.");
+        return;
+      }
+
+      // ✅ Passed all checks → store this step’s photo and embedding
+      _capturedPhotos.add(bytes);
+      _capturedEmbeddings.add(List<double>.from(faceData['descriptor']));
+
+      // ✅ Proceed to next step or complete
+      if (_currentStep + 1 >= steps.length) {
+        // All steps completed
         widget.onCompleted(_capturedPhotos, _capturedEmbeddings);
+      } else {
+        // Move to next step
+        setState(() {
+          _currentStep++;
+        });
+        _showMsg("Good! Now ${steps[_currentStep]}");
       }
+
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error capturing photo: $e")),
-      );
+      _showMsg("Error capturing photo: $e");
+      debug.log("Error capturing photo: $e");
     } finally {
       setState(() => _isCapturing = false);
     }
   }
+
 
   void _resetCapture() {
     setState(() {
@@ -80,42 +115,72 @@ class _FaceCaptureWidgetState extends State<FaceCaptureWidget> {
     });
   }
 
+  void _showMsg(String msg) {
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(msg), duration: const Duration(seconds: 2)));
+  }
+
   @override
   Widget build(BuildContext context) {
+    final isAllCaptured = _currentStep >= steps.length;
+
     return Column(
       children: [
-        // Camera preview on top
+        // Camera with circular face guide
         SizedBox(
-          height: 250,
-          child: widget.cameraService.controller != null &&
-              widget.cameraService.controller!.value.isInitialized
-              ? CameraPreview(widget.cameraService.controller!)
-              : const Center(child: CircularProgressIndicator()),
+          height: 300,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              if (widget.cameraService.controller != null &&
+                  widget.cameraService.controller!.value.isInitialized)
+                CameraPreview(widget.cameraService.controller!)
+              else
+                const Center(child: CircularProgressIndicator()),
+
+              // Circular face guide overlay
+              IgnorePointer(
+                child: Container(
+                  width: 220,
+                  height: 220,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white70, width: 2),
+                    color: Colors.transparent,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
+
         const SizedBox(height: 12),
-        // Current step instruction
-        if (_currentStep < steps.length)
+        if (!isAllCaptured)
           Text(
             "Step ${_currentStep + 1}/${steps.length}: ${steps[_currentStep]}",
             style: const TextStyle(fontWeight: FontWeight.bold),
+          )
+        else
+          const Text(
+            "✅ All steps captured!",
+            style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold),
           ),
+
         const SizedBox(height: 12),
-        // Capture / Retake button
+
         ElevatedButton.icon(
           onPressed: _isCapturing
               ? null
-              : (_currentStep < steps.length ? _captureStep : _resetCapture),
-          icon: const Icon(Icons.videocam),
-          label: Text(
-            _currentStep < steps.length
-                ? "Capture Image ${_currentStep + 1}/${steps.length}"
-                : "Retake",
-          ),
+              : (isAllCaptured ? _resetCapture : _captureStep),
+          icon: Icon(isAllCaptured ? Icons.refresh : Icons.camera),
+          label: Text(isAllCaptured
+              ? "Retake Photos"
+              : "Capture ${_currentStep + 1}/${steps.length}"),
         ),
-        // Preview of captured photos
+
         if (_capturedPhotos.isNotEmpty)
           Padding(
-            padding: const EdgeInsets.only(top: 8.0),
+            padding: const EdgeInsets.only(top: 8),
             child: Wrap(
               spacing: 4,
               children: _capturedPhotos
