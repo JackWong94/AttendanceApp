@@ -70,15 +70,15 @@ class _FaceCaptureWidgetState extends State<FaceCaptureWidget> {
       final midX = (leftEye['x'] + rightEye['x']) / 2;
       final offset = nose['x'] - midX;
 
-      if (_currentStep == 0 && offset.abs() > 10) {
+      if (_currentStep == 0 && offset.abs() > 1) {
         _showMsg("Face should look straight ahead.");
         return;
       }
-      if (_currentStep == 1 && offset > -5) {
+      if (_currentStep == 1 && offset > -2) {
         _showMsg("Turn slightly more LEFT.");
         return;
       }
-      if (_currentStep == 2 && offset < 5) {
+      if (_currentStep == 2 && offset < 2) {
         _showMsg("Turn slightly more RIGHT.");
         return;
       }
