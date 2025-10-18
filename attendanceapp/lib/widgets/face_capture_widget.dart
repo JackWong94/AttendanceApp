@@ -6,6 +6,7 @@ import 'package:attendanceapp/web_face_api.dart' as webFaceApi;
 import 'package:attendanceapp/configs_and_tools/debug.dart';
 
 Debug debug = Debug(module: "face_capture_widget", enable: true);
+
 typedef FaceCaptureCallback = void Function(
     List<Uint8List> photos, List<List<double>> embeddings);
 
@@ -88,16 +89,14 @@ class _FaceCaptureWidgetState extends State<FaceCaptureWidget> {
 
       // ✅ Proceed to next step or complete
       if (_currentStep + 1 >= steps.length) {
-        // All steps completed
         widget.onCompleted(_capturedPhotos, _capturedEmbeddings);
+        setState(() {}); // refresh button state
       } else {
-        // Move to next step
         setState(() {
           _currentStep++;
         });
         _showMsg("Good! Now ${steps[_currentStep]}");
       }
-
     } catch (e) {
       _showMsg("Error capturing photo: $e");
       debug.log("Error capturing photo: $e");
@@ -106,6 +105,37 @@ class _FaceCaptureWidgetState extends State<FaceCaptureWidget> {
     }
   }
 
+  Future<void> _confirmRetake() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: const Text("Retake Photos?"),
+        content: const Text(
+          "Are you sure you want to retake all photos?\n"
+              "This will discard your current captures.",
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text("Cancel"),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.redAccent,
+            ),
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text("Yes, Retake"),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      _resetCapture();
+      _showMsg("Please start capturing again.");
+    }
+  }
 
   void _resetCapture() {
     setState(() {
@@ -122,11 +152,11 @@ class _FaceCaptureWidgetState extends State<FaceCaptureWidget> {
 
   @override
   Widget build(BuildContext context) {
-    final isAllCaptured = _currentStep >= steps.length;
+    final isAllCaptured = _capturedPhotos.length >= steps.length;
 
     return Column(
       children: [
-        // Camera with circular face guide
+        // Camera preview + face guide
         SizedBox(
           height: 300,
           child: Stack(
@@ -138,7 +168,6 @@ class _FaceCaptureWidgetState extends State<FaceCaptureWidget> {
               else
                 const Center(child: CircularProgressIndicator()),
 
-              // Circular face guide overlay
               IgnorePointer(
                 child: Container(
                   width: 220,
@@ -155,6 +184,7 @@ class _FaceCaptureWidgetState extends State<FaceCaptureWidget> {
         ),
 
         const SizedBox(height: 12),
+
         if (!isAllCaptured)
           Text(
             "Step ${_currentStep + 1}/${steps.length}: ${steps[_currentStep]}",
@@ -171,7 +201,7 @@ class _FaceCaptureWidgetState extends State<FaceCaptureWidget> {
         ElevatedButton.icon(
           onPressed: _isCapturing
               ? null
-              : (isAllCaptured ? _resetCapture : _captureStep),
+              : (isAllCaptured ? _confirmRetake : _captureStep),
           icon: Icon(isAllCaptured ? Icons.refresh : Icons.camera),
           label: Text(isAllCaptured
               ? "Retake Photos"
@@ -184,8 +214,7 @@ class _FaceCaptureWidgetState extends State<FaceCaptureWidget> {
             child: Wrap(
               spacing: 4,
               children: _capturedPhotos
-                  .map((bytes) =>
-                  Image.memory(bytes, width: 80, height: 80, fit: BoxFit.cover))
+                  .map((bytes) => Image.memory(bytes, width: 80, height: 80, fit: BoxFit.cover))
                   .toList(),
             ),
           ),
