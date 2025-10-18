@@ -150,4 +150,10 @@ class AttendanceModelService {
 
     await batch.commit();
   }
+
+  /// Clear instance (call on logout)
+  static void clear() {
+    _instance = null;
+  }
+
 }

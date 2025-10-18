@@ -6,6 +6,8 @@ import '../pages/manage_user_page.dart';
 import '../pages/web_login_page.dart';
 import 'package:attendanceapp/services/authentication_service.dart';
 import 'tenant_model_service.dart';
+import 'user_model_service.dart';
+import 'attendance_model_service.dart';
 
 class NavigationService {
   static void goToRegisterUser(BuildContext context) {
@@ -76,7 +78,9 @@ class NavigationService {
     final authService = AuthenticationService();
     try {
       await authService.signOut();
-      TenantModelService.instance.clearCurrentTenant();
+      TenantModelService.instance.clearCurrentTenant(); //Tenant class still need to be active, it just needs to be cleared
+      UserModelService.clear(); //UserModelService is not active anymore
+      AttendanceModelService.clear(); //AttendanceModelService is not active anymore
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Logout failed: $e")),
