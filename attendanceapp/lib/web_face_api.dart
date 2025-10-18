@@ -273,15 +273,6 @@ class WebFaceApi {
 
         // yaw in degrees
         yawAngle = (math.atan2(nose['x']! - midX, eyeDist) * 180 / math.pi);
-
-        // Debug log
-        if (yawAngle.abs() < 5) {
-          print("🧭 Facing front (yaw: ${yawAngle.toStringAsFixed(1)}°)");
-        } else if (yawAngle > 0) {
-          print("↪️ Turned RIGHT (yaw: ${yawAngle.toStringAsFixed(1)}°)");
-        } else {
-          print("↩️ Turned LEFT (yaw: ${yawAngle.toStringAsFixed(1)}°)");
-        }
       }
 
       // Extract descriptor safely
@@ -294,12 +285,6 @@ class WebFaceApi {
           return (val is num) ? val.toDouble() : 0.0;
         });
       }
-
-      print('✅ Face detected, score: ${score.toStringAsFixed(3)}');
-      print('📦 Box: x=$x, y=$y, w=$width, h=$height');
-      print('👃 Nose: ${landmarks['nose']}');
-      print('🧬 Descriptor length: ${descriptor.length}');
-      print('🎯 Yaw angle: ${yawAngle.toStringAsFixed(1)}°');
 
       return {
         'box': {'x': x, 'y': y, 'width': width, 'height': height},
