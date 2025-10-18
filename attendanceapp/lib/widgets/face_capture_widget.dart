@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 import 'dart:math' as math;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:attendanceapp/services/camera_service.dart';
@@ -37,14 +38,14 @@ class _FaceCaptureWidgetState extends State<FaceCaptureWidget> {
     "Turn slightly to the RIGHT",
   ];
 
-  // --- Guide geometry (in resized image coordinates)
-  // detectFaceWithBox uses a resized image of 160x160 for detection.
+  // --- Face detection coordinate space (from WebFaceApi)
   static const double _resizedSize = 160.0;
   static const double _circleCenter = _resizedSize / 2.0; // 80.0
-  static const double _circleRadius = _resizedSize / 2.0; // 80.0 (we will use fractions of this)
+  static const double _circleRadius = _resizedSize / 2.0; // 80.0 (used for logic)
 
-  // --- UI preview overlay size (pixels on screen)
-  static const double _previewCirclePx = 220.0; // this is the UI circle diameter
+  // --- UI overlay size
+  static const double _previewCirclePx = 225.0; // UI circle diameter
+  static final double _scaleFactor = _previewCirclePx / _resizedSize; // ~1.375
 
   Future<void> _captureStep() async {
     if (_isCapturing || !widget.cameraService.isInitialized) return;
@@ -55,9 +56,13 @@ class _FaceCaptureWidgetState extends State<FaceCaptureWidget> {
       final picture = await controller.takePicture();
       final bytes = await picture.readAsBytes();
 
-      // Convert image and detect face (detection runs on the resized 160x160 image)
+      // Convert to HTML image for face-api.js
       final img = await webFaceApi.WebFaceApi.uint8ListToImage(bytes);
-      final resizedImg = await webFaceApi.WebFaceApi.resizeImage(img, _resizedSize.toInt(), _resizedSize.toInt());
+      final resizedImg = await webFaceApi.WebFaceApi.resizeImage(
+        img,
+        _resizedSize.toInt(),
+        _resizedSize.toInt(),
+      );
       final faceData = await webFaceApi.WebFaceApi.detectFaceWithBox(resizedImg);
 
       if (faceData == null || faceData['descriptor'] == null) {
@@ -65,37 +70,41 @@ class _FaceCaptureWidgetState extends State<FaceCaptureWidget> {
         return;
       }
 
-      // Extract bounding box (these coordinates are in the resized 160x160 space)
+      // --- Face bounding box (in 160x160 detection space)
       final box = faceData['box'];
-      final double faceCenterX = (box['x'] ?? 0).toDouble() + (box['width'] ?? 0).toDouble() / 2.0;
-      final double faceCenterY = (box['y'] ?? 0).toDouble() + (box['height'] ?? 0).toDouble() / 2.0;
-      final double faceRadius = ((box['width'] ?? 0).toDouble() + (box['height'] ?? 0).toDouble()) / 4.0;
+      final double faceCenterX =
+          (box['x'] ?? 0).toDouble() + (box['width'] ?? 0).toDouble() / 2.0;
+      final double faceCenterY =
+          (box['y'] ?? 0).toDouble() + (box['height'] ?? 0).toDouble() / 2.0;
+      final double faceRadius =
+          ((box['width'] ?? 0).toDouble() + (box['height'] ?? 0).toDouble()) /
+              4.0;
 
-      // --- Circle fit checks (all in resized 160x160 coordinates) ---
-      // distance from resized image center
+      // --- Position check ---
       final double dx = faceCenterX - _circleCenter;
       final double dy = faceCenterY - _circleCenter;
       final double distanceFromCenter = math.sqrt(dx * dx + dy * dy);
 
-      // We consider "centered" if the face center is within 25% of the circle radius
+      // Centered if within 25% of detection circle radius
       final double centerThreshold = _circleRadius * 0.25;
       if (distanceFromCenter > centerThreshold) {
         _showMsg("Center your face inside the circle.");
         return;
       }
 
-      // Face size relative to circle radius (tuned empirically)
-      // If faceRadius is too small -> move closer. If too large -> move back.
-      if (faceRadius < _circleRadius * 0.35) {
+      // --- Face size check ---
+      debug.log("Face radius: $faceRadius");
+      debug.log("Circle radius: $_circleRadius");
+      if (faceRadius < _circleRadius * 0.5) {
         _showMsg("Move closer to the camera.");
         return;
       }
-      if (faceRadius > _circleRadius * 0.75) {
+      if (faceRadius > _circleRadius * 0.60) {
         _showMsg("Move slightly back.");
         return;
       }
 
-      // --- Head direction (yaw) check using landmarks
+      // --- Head direction (yaw) check ---
       final landmarks = faceData['landmarks'];
       if (landmarks == null ||
           landmarks['nose'] == null ||
@@ -111,28 +120,26 @@ class _FaceCaptureWidgetState extends State<FaceCaptureWidget> {
       final midX = (leftEye['x'] + rightEye['x']) / 2.0;
       final offset = (nose['x'] - midX);
 
-      // NOTE: You previously specified small numeric thresholds (e.g. -1..1 front)
-      // Those thresholds should be in the resized 160 space (they were used in your code).
-      if (_currentStep == 0 && offset.abs() > 1.0) {
+      if (_currentStep == 0 && offset.abs() > 1.5) {
         _showMsg("Face should look straight ahead.");
         return;
       }
-      if (_currentStep == 1 && offset > -2.0) {
+      if (_currentStep == 1 && offset > -2.5) {
         _showMsg("Turn slightly more LEFT.");
         return;
       }
-      if (_currentStep == 2 && offset < 2.0) {
+      if (_currentStep == 2 && offset < 2.5) {
         _showMsg("Turn slightly more RIGHT.");
         return;
       }
 
-      // Passed all checks: store photo and embedding
+      // --- Passed all checks ---
       _capturedPhotos.add(bytes);
       _capturedEmbeddings.add(List<double>.from(faceData['descriptor']));
 
       if (_currentStep + 1 >= steps.length) {
         widget.onCompleted(_capturedPhotos, _capturedEmbeddings);
-        setState(() {}); // refresh
+        setState(() {}); // refresh UI
       } else {
         setState(() {
           _currentStep++;
@@ -195,7 +202,7 @@ class _FaceCaptureWidgetState extends State<FaceCaptureWidget> {
 
     return Column(
       children: [
-        // Camera preview + face guide
+        // Camera preview + overlay
         SizedBox(
           height: 300,
           child: Stack(
@@ -207,11 +214,11 @@ class _FaceCaptureWidgetState extends State<FaceCaptureWidget> {
               else
                 const Center(child: CircularProgressIndicator()),
 
-              // Circle overlay (visual only). Detection math uses 160x160 coordinates.
+              // --- Circle overlay (scaled correctly to detection space) ---
               IgnorePointer(
                 child: Container(
-                  width: _previewCirclePx,
-                  height: _previewCirclePx,
+                  width: _circleRadius * 2 * _scaleFactor,
+                  height: _circleRadius * 2 * _scaleFactor,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     border: Border.all(color: Colors.white70, width: 2),
@@ -219,6 +226,20 @@ class _FaceCaptureWidgetState extends State<FaceCaptureWidget> {
                   ),
                 ),
               ),
+
+              // Optional: visualize face box (for debugging)
+              // if (kDebugMode && _lastFaceBox != null)
+              //   Positioned(
+              //     left: _lastFaceBox!['x'] * _scaleFactor,
+              //     top: _lastFaceBox!['y'] * _scaleFactor,
+              //     child: Container(
+              //       width: _lastFaceBox!['width'] * _scaleFactor,
+              //       height: _lastFaceBox!['height'] * _scaleFactor,
+              //       decoration: BoxDecoration(
+              //         border: Border.all(color: Colors.greenAccent, width: 1),
+              //       ),
+              //     ),
+              //   ),
 
               const Positioned(
                 bottom: 12,
