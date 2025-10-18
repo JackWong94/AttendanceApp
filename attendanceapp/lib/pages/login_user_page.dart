@@ -19,6 +19,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:attendanceapp/utils/snackbar_helper.dart';
 import 'package:attendanceapp/widgets/scan_beam.dart';
 import 'package:attendanceapp/widgets/scan_overlay_manager.dart';
+import 'package:attendanceapp/widgets/face_recognition_widget.dart';
 
 class LoginUserPage extends StatefulWidget {
   const LoginUserPage({super.key});
@@ -315,14 +316,10 @@ class _LoginUserPageState extends State<LoginUserPage>
                         child: Stack(
                           fit: StackFit.expand,
                           children: [
-                            CameraPreview(_cameraService.controller!),
-                            if (_scanInProgress)
-                              const ScanBeam(
-                                active: true,
-                                topPadding: 120,
-                                bottomPadding: 340,
-                                duration: Duration(seconds: 2),
-                              ),
+                            FaceRecognitionWidget (
+                              controller: _cameraService.controller!,
+                              showScanBeam: _scanInProgress,
+                            ),
                           ],
                         ),
                       ),
