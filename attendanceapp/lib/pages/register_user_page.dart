@@ -124,7 +124,6 @@ class _RegisterUserPageState extends State<RegisterUserPage> {
         name: name,
         employeeId: employeeId,
         faceEmbeddings: capturedEmbeddings,
-        embedding: capturedEmbeddings.first,
       );
 
       await _userService.addUser(user);

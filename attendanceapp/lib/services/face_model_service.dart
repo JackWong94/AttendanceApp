@@ -11,13 +11,17 @@ class FaceModelService {
   static bool _embeddingsLoaded = false;
   static bool _warmingUp = false;
 
-  // User embeddings
+  // Multi embeddings per user for hybrid recognition
+  static final Map<String, List<List<double>>> _multiUserEmbeddings = {};
+  static Map<String, List<List<double>>> get multiEmbeddings => _multiUserEmbeddings;
+
+  // First embedding for backward compatibility / quick compare
   static final Map<String, List<double>> _userEmbeddings = {};
   static Map<String, List<double>> get embeddings => _userEmbeddings;
 
   static bool get isWarmingUp => _warmingUp;
 
-  // Load face-api.js models
+  /// Load face-api.js models
   static Future<void> loadModels() async {
     if (_modelsLoaded) return;
     await webFaceApi.WebFaceApi.loadModels();
@@ -25,24 +29,38 @@ class FaceModelService {
     print("Face-api.js models loaded");
   }
 
-  // Load user embeddings from DB
+  /// Load user embeddings from DB
   static Future<void> loadEmbeddings() async {
     if (_embeddingsLoaded) return;
+
     final users = await UserModelService.instance.getAllUsers();
     for (var user in users) {
-      _userEmbeddings[user.id] = user.embedding;
+      if (user.faceEmbeddings != null && user.faceEmbeddings!.isNotEmpty) {
+        final allEmbeddings = <List<double>>[];
+
+        // Since faceEmbeddings is already List<double>, just add each embedding
+        for (final emb in user.faceEmbeddings!) {
+          allEmbeddings.add(emb); // emb is already List<double>
+        }
+
+        _multiUserEmbeddings[user.id] = allEmbeddings;
+
+        // Optionally store the first embedding in single embeddings map
+        _userEmbeddings[user.id] = allEmbeddings[0];
+      }
     }
+
     _embeddingsLoaded = true;
-    print("User embeddings loaded");
+    print("User embeddings loaded: ${_multiUserEmbeddings.length} users");
   }
 
-  // Initialize both models and embeddings
+  /// Initialize models and embeddings
   static Future<void> initialize() async {
     await loadModels();
     await loadEmbeddings();
   }
 
-  // Warm-up face model using a dummy face image
+  /// Warm-up face model using a dummy face image
   static Future<void> warmUp() async {
     if (_warmingUp) return;
     _warmingUp = true;
@@ -61,15 +79,16 @@ class FaceModelService {
     }
   }
 
-  // Reload models and embeddings
+  /// Reload models and embeddings
   static Future<void> reload() async {
     _modelsLoaded = false;
     _embeddingsLoaded = false;
     _userEmbeddings.clear();
+    _multiUserEmbeddings.clear();
     await initialize();
   }
 
-  // Load an asset image as HTML ImageElement
+  /// Load an asset image as HTML ImageElement
   static Future<html.ImageElement?> loadAssetImageElementSafe(String path) async {
     try {
       final data = await rootBundle.load(path);

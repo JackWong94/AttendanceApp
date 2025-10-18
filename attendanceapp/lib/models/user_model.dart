@@ -5,14 +5,12 @@ class UserModel {
   final String name;
   final String employeeId;
   final List<List<double>> faceEmbeddings;
-  final List<double> embedding;
 
   UserModel({
     required this.id,
     required this.name,
     required this.employeeId,
     this.faceEmbeddings = const [],
-    this.embedding = const [],
   });
 
   /// Create a copy with optional changes
@@ -27,7 +25,6 @@ class UserModel {
       name: name ?? this.name,
       employeeId: employeeId ?? this.employeeId,
       faceEmbeddings: faceEmbeddings ?? this.faceEmbeddings,
-      embedding: embedding ?? this.embedding,
     );
   }
 
@@ -54,7 +51,6 @@ class UserModel {
       name: data['name'] ?? doc.id,
       employeeId: data['employeeId'] ?? '',
       faceEmbeddings: embeddings,
-      embedding: primaryEmbedding,
     );
   }
 }

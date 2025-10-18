@@ -9,55 +9,65 @@ class FaceRecognitionService {
   /// Capture photo -> compute embedding -> compare with cached embeddings
   /// Returns a UserModel if matched, otherwise null
   static Future<UserModel?> recognizeUser(Uint8List photoBytes) async {
-    // Step 1: Convert bytes to image
     final img = await webFaceApi.WebFaceApi.uint8ListToImage(photoBytes);
     final resized = await webFaceApi.WebFaceApi.resizeImage(img, 160, 160);
 
-    // Step 2: Compute face descriptor
     final descriptor = await webFaceApi.WebFaceApi.computeFaceDescriptorSafe(resized);
     if (descriptor.isEmpty) return null;
 
-    // Step 3: Compare with embeddings
-    final bestUserId = _findBestMatch(descriptor, FaceModelService.embeddings);
+    final bestUserId = _findBestHybridMatch(descriptor, FaceModelService.multiEmbeddings);
     if (bestUserId == null) return null;
 
-    // Step 4: Load full UserModel from UserModelService
-    final user = await UserModelService.instance.getUserById(bestUserId);
-    return user;
+    return await UserModelService.instance.getUserById(bestUserId);
   }
 
-  /// Compare descriptor with all users and print their distances
-  static String? _findBestMatch(List<double> query, Map<String, List<double>> embeddings) {
-    String? bestUserId;
-    double bestDistance = double.infinity;
-    const threshold = 0.4; // adjust threshold as needed
+  /// Hybrid matching using multiple embeddings per user
+  static String? _findBestHybridMatch(
+      List<double> query, Map<String, List<List<double>>> multiEmbeddings) {
+    const threshold = 0.4;
 
     final results = <MapEntry<String, double>>[];
 
-    embeddings.forEach((userId, embedding) {
-      final dist = _euclideanDistance(query, embedding);
-      results.add(MapEntry(userId, dist));
-
-      if (dist < bestDistance) {
-        bestDistance = dist;
-        bestUserId = userId;
+    multiEmbeddings.forEach((userId, embeddingsList) {
+      // Compute the closest distance for this user among all their embeddings
+      double minDist = double.infinity;
+      for (final emb in embeddingsList) {
+        final dist = _euclideanDistance(query, emb);
+        if (dist < minDist) minDist = dist;
       }
+      results.add(MapEntry(userId, minDist));
     });
 
-    // Sort by distance (best match first)
+    // Sort users by distance
     results.sort((a, b) => a.value.compareTo(b.value));
 
-    // Print all results clearly
-    print("🔹 Total users compared: ${results.length}");
-    for (final entry in results) {
-      final userId = entry.key;
-      final distance = entry.value.toStringAsFixed(4);
-      print("→ $userId: distance = $distance");
+    // Print all users and their best distances
+    print("🔹 All user distances:");
+    for (final r in results) {
+      print("→ ${r.key}: distance = ${r.value.toStringAsFixed(4)}");
     }
 
-    print("🏆 Best match = $bestUserId (distance: ${bestDistance.toStringAsFixed(4)})");
+    // Hybrid refinement: if multiple users are very close (within threshold)
+    final closeUsers = results.where((r) => r.value < threshold).toList();
+    if (closeUsers.length <= 1) return closeUsers.isNotEmpty ? closeUsers.first.key : null;
 
-    return bestDistance < threshold ? bestUserId : null;
+    // If multiple close, compare all their embeddings to refine
+    String? bestUser;
+    double bestDistance = double.infinity;
+
+    for (final r in closeUsers) {
+      final embeddingsList = multiEmbeddings[r.key]!;
+      for (final emb in embeddingsList) {
+        final dist = _euclideanDistance(query, emb);
+        if (dist < bestDistance) {
+          bestDistance = dist;
+          bestUser = r.key;
+        }
+      }
+    }
+
+    print("🏆 Best hybrid match = $bestUser (distance: ${bestDistance.toStringAsFixed(4)})");
+    return bestDistance < threshold ? bestUser : null;
   }
 
   static double _euclideanDistance(List<double> a, List<double> b) {
