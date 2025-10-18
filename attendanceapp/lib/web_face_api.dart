@@ -3,6 +3,7 @@ import 'dart:html' as html;
 import 'dart:js_util' as js_util;
 import 'dart:async';
 import 'package:attendanceapp/configs_and_tools/debug.dart';
+import 'dart:math' as math;
 
 class WebFaceApi {
   static Debug debug = Debug(module: "web_face_api", enable: true);
@@ -197,6 +198,7 @@ class WebFaceApi {
   }
 
   /// Detect a face and return bounding box info (and landmarks if available)
+  /// Detect a face and return bounding box info (and landmarks if available)
   static Future<Map<String, dynamic>?> detectFaceWithBox(html.ImageElement img) async {
     try {
       final faceapi = js_util.getProperty(html.window, 'faceapi');
@@ -258,6 +260,30 @@ class WebFaceApi {
         landmarks['rightEye'] = extractAvg('getRightEye');
       }
 
+      // 🧭 Calculate Yaw Angle (left/right rotation)
+      double yawAngle = 0.0;
+      if (landmarks.containsKey('nose') &&
+          landmarks.containsKey('leftEye') &&
+          landmarks.containsKey('rightEye')) {
+        final nose = landmarks['nose']!;
+        final leftEye = landmarks['leftEye']!;
+        final rightEye = landmarks['rightEye']!;
+        final midX = (leftEye['x']! + rightEye['x']!) / 2;
+        final eyeDist = (rightEye['x']! - leftEye['x']!).abs();
+
+        // yaw in degrees
+        yawAngle = (math.atan2(nose['x']! - midX, eyeDist) * 180 / math.pi);
+
+        // Debug log
+        if (yawAngle.abs() < 5) {
+          print("🧭 Facing front (yaw: ${yawAngle.toStringAsFixed(1)}°)");
+        } else if (yawAngle > 0) {
+          print("↪️ Turned RIGHT (yaw: ${yawAngle.toStringAsFixed(1)}°)");
+        } else {
+          print("↩️ Turned LEFT (yaw: ${yawAngle.toStringAsFixed(1)}°)");
+        }
+      }
+
       // Extract descriptor safely
       final descriptorJs = js_util.getProperty(detectionWithDescriptor, 'descriptor');
       List<double> descriptor = [];
@@ -273,10 +299,12 @@ class WebFaceApi {
       print('📦 Box: x=$x, y=$y, w=$width, h=$height');
       print('👃 Nose: ${landmarks['nose']}');
       print('🧬 Descriptor length: ${descriptor.length}');
+      print('🎯 Yaw angle: ${yawAngle.toStringAsFixed(1)}°');
 
       return {
         'box': {'x': x, 'y': y, 'width': width, 'height': height},
         'score': score,
+        'yaw': yawAngle,
         'landmarks': landmarks,
         'descriptor': descriptor,
       };
@@ -286,5 +314,4 @@ class WebFaceApi {
       return null;
     }
   }
-
 }
