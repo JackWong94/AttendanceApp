@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:attendanceapp/services/camera_service.dart';
@@ -36,6 +37,15 @@ class _FaceCaptureWidgetState extends State<FaceCaptureWidget> {
     "Turn slightly to the RIGHT",
   ];
 
+  // --- Guide geometry (in resized image coordinates)
+  // detectFaceWithBox uses a resized image of 160x160 for detection.
+  static const double _resizedSize = 160.0;
+  static const double _circleCenter = _resizedSize / 2.0; // 80.0
+  static const double _circleRadius = _resizedSize / 2.0; // 80.0 (we will use fractions of this)
+
+  // --- UI preview overlay size (pixels on screen)
+  static const double _previewCirclePx = 220.0; // this is the UI circle diameter
+
   Future<void> _captureStep() async {
     if (_isCapturing || !widget.cameraService.isInitialized) return;
     setState(() => _isCapturing = true);
@@ -45,9 +55,9 @@ class _FaceCaptureWidgetState extends State<FaceCaptureWidget> {
       final picture = await controller.takePicture();
       final bytes = await picture.readAsBytes();
 
-      // Convert image and detect face + landmarks
+      // Convert image and detect face (detection runs on the resized 160x160 image)
       final img = await webFaceApi.WebFaceApi.uint8ListToImage(bytes);
-      final resizedImg = await webFaceApi.WebFaceApi.resizeImage(img, 160, 160);
+      final resizedImg = await webFaceApi.WebFaceApi.resizeImage(img, _resizedSize.toInt(), _resizedSize.toInt());
       final faceData = await webFaceApi.WebFaceApi.detectFaceWithBox(resizedImg);
 
       if (faceData == null || faceData['descriptor'] == null) {
@@ -55,51 +65,83 @@ class _FaceCaptureWidgetState extends State<FaceCaptureWidget> {
         return;
       }
 
-      // 1️⃣ Face size check
+      // Extract bounding box (these coordinates are in the resized 160x160 space)
       final box = faceData['box'];
-      final faceRatio = (box['width'] * box['height']) / (160 * 160);
-      if (faceRatio < 0.15) {
+      final double faceCenterX = (box['x'] ?? 0).toDouble() + (box['width'] ?? 0).toDouble() / 2.0;
+      final double faceCenterY = (box['y'] ?? 0).toDouble() + (box['height'] ?? 0).toDouble() / 2.0;
+      final double faceRadius = ((box['width'] ?? 0).toDouble() + (box['height'] ?? 0).toDouble()) / 4.0;
+
+      // --- Circle fit checks (all in resized 160x160 coordinates) ---
+      // distance from resized image center
+      final double dx = faceCenterX - _circleCenter;
+      final double dy = faceCenterY - _circleCenter;
+      final double distanceFromCenter = math.sqrt(dx * dx + dy * dy);
+
+      // We consider "centered" if the face center is within 25% of the circle radius
+      final double centerThreshold = _circleRadius * 0.25;
+      if (distanceFromCenter > centerThreshold) {
+        _showMsg("Center your face inside the circle.");
+        return;
+      }
+
+      // Face size relative to circle radius (tuned empirically)
+      // If faceRadius is too small -> move closer. If too large -> move back.
+      if (faceRadius < _circleRadius * 0.35) {
         _showMsg("Move closer to the camera.");
         return;
       }
+      if (faceRadius > _circleRadius * 0.75) {
+        _showMsg("Move slightly back.");
+        return;
+      }
 
-      // 2️⃣ Head direction check (nose alignment)
-      final nose = faceData['landmarks']['nose'];
-      final leftEye = faceData['landmarks']['leftEye'];
-      final rightEye = faceData['landmarks']['rightEye'];
-      final midX = (leftEye['x'] + rightEye['x']) / 2;
-      final offset = nose['x'] - midX;
+      // --- Head direction (yaw) check using landmarks
+      final landmarks = faceData['landmarks'];
+      if (landmarks == null ||
+          landmarks['nose'] == null ||
+          landmarks['leftEye'] == null ||
+          landmarks['rightEye'] == null) {
+        _showMsg("Face landmarks not detected. Try again.");
+        return;
+      }
 
-      if (_currentStep == 0 && offset.abs() > 1) {
+      final nose = landmarks['nose'];
+      final leftEye = landmarks['leftEye'];
+      final rightEye = landmarks['rightEye'];
+      final midX = (leftEye['x'] + rightEye['x']) / 2.0;
+      final offset = (nose['x'] - midX);
+
+      // NOTE: You previously specified small numeric thresholds (e.g. -1..1 front)
+      // Those thresholds should be in the resized 160 space (they were used in your code).
+      if (_currentStep == 0 && offset.abs() > 1.0) {
         _showMsg("Face should look straight ahead.");
         return;
       }
-      if (_currentStep == 1 && offset > -2) {
+      if (_currentStep == 1 && offset > -2.0) {
         _showMsg("Turn slightly more LEFT.");
         return;
       }
-      if (_currentStep == 2 && offset < 2) {
+      if (_currentStep == 2 && offset < 2.0) {
         _showMsg("Turn slightly more RIGHT.");
         return;
       }
 
-      // ✅ Passed all checks → store this step’s photo and embedding
+      // Passed all checks: store photo and embedding
       _capturedPhotos.add(bytes);
       _capturedEmbeddings.add(List<double>.from(faceData['descriptor']));
 
-      // ✅ Proceed to next step or complete
       if (_currentStep + 1 >= steps.length) {
         widget.onCompleted(_capturedPhotos, _capturedEmbeddings);
-        setState(() {}); // refresh button state
+        setState(() {}); // refresh
       } else {
         setState(() {
           _currentStep++;
         });
         _showMsg("Good! Now ${steps[_currentStep]}");
       }
-    } catch (e) {
+    } catch (e, st) {
       _showMsg("Error capturing photo: $e");
-      debug.log("Error capturing photo: $e");
+      debug.log("Error capturing photo: $e\n$st");
     } finally {
       setState(() => _isCapturing = false);
     }
@@ -112,8 +154,7 @@ class _FaceCaptureWidgetState extends State<FaceCaptureWidget> {
       builder: (context) => AlertDialog(
         title: const Text("Retake Photos?"),
         content: const Text(
-          "Are you sure you want to retake all photos?\n"
-              "This will discard your current captures.",
+          "Are you sure you want to retake all photos?\nThis will discard your current captures.",
         ),
         actions: [
           TextButton(
@@ -121,9 +162,7 @@ class _FaceCaptureWidgetState extends State<FaceCaptureWidget> {
             child: const Text("Cancel"),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.redAccent,
-            ),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
             onPressed: () => Navigator.of(context).pop(true),
             child: const Text("Yes, Retake"),
           ),
@@ -168,15 +207,24 @@ class _FaceCaptureWidgetState extends State<FaceCaptureWidget> {
               else
                 const Center(child: CircularProgressIndicator()),
 
+              // Circle overlay (visual only). Detection math uses 160x160 coordinates.
               IgnorePointer(
                 child: Container(
-                  width: 220,
-                  height: 220,
+                  width: _previewCirclePx,
+                  height: _previewCirclePx,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     border: Border.all(color: Colors.white70, width: 2),
                     color: Colors.transparent,
                   ),
+                ),
+              ),
+
+              const Positioned(
+                bottom: 12,
+                child: Text(
+                  "Align your face within the circle",
+                  style: TextStyle(color: Colors.white70, fontSize: 14),
                 ),
               ),
             ],
@@ -199,10 +247,9 @@ class _FaceCaptureWidgetState extends State<FaceCaptureWidget> {
         const SizedBox(height: 12),
 
         ElevatedButton.icon(
-          onPressed: _isCapturing
-              ? null
-              : (isAllCaptured ? _confirmRetake : _captureStep),
-          icon: Icon(isAllCaptured ? Icons.refresh : Icons.camera),
+          onPressed:
+          _isCapturing ? null : (isAllCaptured ? _confirmRetake : _captureStep),
+          icon: Icon(isAllCaptured ? Icons.refresh : Icons.camera_alt),
           label: Text(isAllCaptured
               ? "Retake Photos"
               : "Capture ${_currentStep + 1}/${steps.length}"),
