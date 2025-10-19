@@ -62,8 +62,9 @@ class _FaceCaptureWidgetState extends State<FaceCaptureWidget> {
   }
 
   void _showMsg(String msg) {
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(msg), duration: const Duration(seconds: 2)));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(msg), duration: const Duration(seconds: 2)),
+    );
   }
 
   void _reset() {
@@ -80,41 +81,56 @@ class _FaceCaptureWidgetState extends State<FaceCaptureWidget> {
 
     return Column(
       children: [
+        // Camera preview with circle overlay
         SizedBox(
           height: 300,
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              if (widget.cameraService.controller != null &&
-                  widget.cameraService.controller!.value.isInitialized)
-                CameraPreview(widget.cameraService.controller!)
-              else
-                const Center(child: CircularProgressIndicator()),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final boxWidth = constraints.maxWidth;
+              final boxHeight = constraints.maxHeight;
+              final diameter = boxHeight * 0.7; // 70% of SizedBox height
 
-              // Circle overlay
-              IgnorePointer(
-                child: Container(
-                  width: 225,
-                  height: 225,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white70, width: 2),
+              return Stack(
+                alignment: Alignment.center,
+                children: [
+                  if (widget.cameraService.controller != null &&
+                      widget.cameraService.controller!.value.isInitialized)
+                    AspectRatio(
+                      aspectRatio:
+                      widget.cameraService.controller!.value.aspectRatio,
+                      child: CameraPreview(widget.cameraService.controller!),
+                    )
+                  else
+                    const Center(child: CircularProgressIndicator()),
+
+                  // Circle overlay sized to SizedBox
+                  IgnorePointer(
+                    child: Container(
+                      width: diameter,
+                      height: diameter,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white70, width: 2),
+                      ),
+                    ),
                   ),
-                ),
-              ),
-              const Positioned(
-                bottom: 12,
-                child: Text(
-                  "Align your face within the circle",
-                  style: TextStyle(color: Colors.white70, fontSize: 14),
-                ),
-              ),
-            ],
+
+                  const Positioned(
+                    bottom: 12,
+                    child: Text(
+                      "Align your face within the circle",
+                      style: TextStyle(color: Colors.white70, fontSize: 14),
+                    ),
+                  ),
+                ],
+              );
+            },
           ),
         ),
 
         const SizedBox(height: 12),
 
+        // Step indicator
         Text(
           allDone
               ? "✅ All steps captured!"
@@ -124,14 +140,14 @@ class _FaceCaptureWidgetState extends State<FaceCaptureWidget> {
 
         const SizedBox(height: 12),
 
+        // Capture / Reset button
         ElevatedButton.icon(
-          onPressed: _isCapturing
-              ? null
-              : (allDone ? _reset : _capture),
+          onPressed: _isCapturing ? null : (allDone ? _reset : _capture),
           icon: Icon(allDone ? Icons.refresh : Icons.camera_alt),
           label: Text(allDone ? "Retake Photos" : "Capture"),
         ),
 
+        // Show thumbnails
         if (_photos.isNotEmpty)
           Padding(
             padding: const EdgeInsets.only(top: 8),
