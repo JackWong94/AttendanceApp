@@ -18,7 +18,7 @@ class FaceValidationService {
   FaceValidationResult validateFace({
     required Map<String, dynamic> box,
     Map<String, dynamic>? landmarks,
-    double centerThresholdRatio = 0.25,
+    double centerThresholdRatio = 0.3,
     double tooFarRatio = 0.5,
     double tooCloseRatio = 0.68,
     int? step, // optional: 0 = straight, 1 = left, 2 = right
@@ -94,13 +94,13 @@ class FaceValidationService {
           message: "Face should look straight ahead.",
         );
       }
-      if (step == 1 && offset > -3) {
+      if (step == 1 && offset > -2.5) {
         return FaceValidationResult(
           isValid: false,
           message: "Turn slightly more LEFT.",
         );
       }
-      if (step == 2 && offset < 3) {
+      if (step == 2 && offset < 2.5) {
         return FaceValidationResult(
           isValid: false,
           message: "Turn slightly more RIGHT.",
