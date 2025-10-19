@@ -53251,7 +53251,7 @@ B.c.U(s.e)
 s.f=0},
 $S:0}
 A.aHe.prototype={
-$2(a,b){var s=null,r=b.d*0.7,q=A.b([],t.D),p=this.a.a.c.a
+$2(a,b){var s=null,r=b.d*0.6,q=A.b([],t.D),p=this.a.a.c.a
 if(p!=null&&p.a.a)q.push(new A.pi(J.abm(p.a),new A.Dy(p,s),s))
 else q.push(B.di)
 q.push(A.j8(A.ec(s,s,B.y,s,s,new A.dU(s,s,A.aWM(B.Z,2),s,s,s,B.h9),s,r,s,s,s,s,r),!0,s))
@@ -53267,7 +53267,7 @@ A.ai4.prototype={
 $2(a,b){var s,r,q=null,p=b.b,o=b.d,n=this.a,m=n.c,l=m.a,k=J.kz(l),j=o*k.gyE(l)
 if(j>p){s=p/k.gyE(l)
 j=p}else s=o
-r=s*0.7
+r=s*0.6
 l=A.b([],t.D)
 if(m.a.a)l.push(A.dm(new A.Dy(m,q),s,j))
 else l.push(B.di)
