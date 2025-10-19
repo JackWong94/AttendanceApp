@@ -11,7 +11,7 @@ class FaceRecognitionWidget extends StatelessWidget {
     this.bottomPadding = 20,
     this.beamDuration = const Duration(seconds: 2),
     this.borderRadius = 12.0,
-    this.circleRatio = 0.6,
+    this.circleRatio = 0.7,
   });
 
   final CameraController controller;
