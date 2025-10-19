@@ -7,11 +7,11 @@ class FaceRecognitionWidget extends StatelessWidget {
     super.key,
     required this.controller,
     this.showScanBeam = false,
-    this.topPadding = 120,
-    this.bottomPadding = 340,
+    this.topPadding = 20,
+    this.bottomPadding = 20,
     this.beamDuration = const Duration(seconds: 2),
     this.borderRadius = 12.0,
-    this.circleRatio = 0.60,
+    this.circleRatio = 0.6,
   });
 
   final CameraController controller;
@@ -26,15 +26,16 @@ class FaceRecognitionWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     return ClipRRect(
       borderRadius: BorderRadius.circular(borderRadius),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final diameter = constraints.maxWidth * circleRatio;
+      child: SizedBox(
+        height: 300,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final diameter = constraints.maxWidth * circleRatio;
 
-          return SizedBox(
-            height: 300,
-            child: Stack(
+            return Stack(
               alignment: Alignment.center,
               children: [
+                // Camera preview
                 if (controller.value.isInitialized)
                   CameraPreview(controller)
                 else
@@ -52,6 +53,7 @@ class FaceRecognitionWidget extends StatelessWidget {
                   ),
                 ),
 
+                // Instruction text
                 const Positioned(
                   bottom: 12,
                   child: Text(
@@ -60,24 +62,23 @@ class FaceRecognitionWidget extends StatelessWidget {
                   ),
                 ),
 
-                // Optional: Scan beam
+                // Scan beam overlay
                 if (showScanBeam)
-                  Positioned(
-                    top: topPadding,
-                    bottom: bottomPadding,
-                    left: 0,
-                    right: 0,
-                    child: ScanBeam(
-                      active: true,
-                      topPadding: topPadding,
-                      bottomPadding: bottomPadding,
-                      duration: beamDuration,
+                  Positioned.fill(
+                    child: IgnorePointer(
+                      child: ScanBeam(
+                        active: true,
+                        topPadding: topPadding,
+                        bottomPadding: bottomPadding,
+                        duration: beamDuration,
+                        parentHeight: constraints.maxHeight, // pass parent height
+                      ),
                     ),
                   ),
               ],
-            ),
-          );
-        },
+            );
+          },
+        ),
       ),
     );
   }

@@ -5,13 +5,15 @@ class ScanBeam extends StatefulWidget {
   final double topPadding;
   final double bottomPadding;
   final Duration duration;
+  final double parentHeight; // <-- declare the field
 
   const ScanBeam({
     super.key,
     required this.active,
     this.topPadding = 80,
-    this.bottomPadding = 340,
+    this.bottomPadding = 20,
     this.duration = const Duration(seconds: 1),
+    required this.parentHeight, // <-- pass to field
   });
 
   @override
@@ -65,8 +67,8 @@ class _ScanBeamState extends State<ScanBeam>
 
   @override
   Widget build(BuildContext context) {
-    final height = MediaQuery.of(context).size.height;
-    final availableHeight = height - widget.topPadding - widget.bottomPadding;
+    final availableHeight =
+        widget.parentHeight - widget.topPadding - widget.bottomPadding;
 
     return AnimatedBuilder(
       animation: _animation,
