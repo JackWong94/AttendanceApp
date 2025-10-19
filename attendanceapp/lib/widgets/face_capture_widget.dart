@@ -117,7 +117,7 @@ class _FaceCaptureWidgetState extends State<FaceCaptureWidget> {
             builder: (context, constraints) {
               final boxWidth = constraints.maxWidth;
               final boxHeight = constraints.maxHeight;
-              final diameter = boxHeight * 0.7; // 70% of SizedBox height
+              final diameter = boxHeight * 0.6; // 70% of SizedBox height
 
               return Stack(
                 alignment: Alignment.center,
