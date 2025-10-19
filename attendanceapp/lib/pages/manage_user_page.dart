@@ -110,40 +110,73 @@ class _ManageUserPageState extends State<ManageUserPage> with RouteAware {
     capturedPhotos[user.id] = [];
     capturedEmbeddings[user.id] = [];
 
+    // Show face capture dialog first
     await showDialog(
       context: context,
       barrierDismissible: false,
       builder: (_) => FaceCaptureDialog(
         cameraService: _cameraService,
-        onCompleted: (photos, embeddings) async {
+        onCompleted: (photos, embeddings) {
           capturedPhotos[user.id] = photos;
           capturedEmbeddings[user.id] = embeddings;
-
-          if (embeddings.length == 3) {
-            final updatedUser = user.copyWith(
-              faceEmbeddings: embeddings,
-              embedding: embeddings.first,
-            );
-            await _userService.addUser(updatedUser);
-
-            // ✅ reload face data after updating
-            await FaceModelService.reload();
-
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text("✅ User embeddings updated!")),
-            );
-            setState(() {});
-          } else {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text("❌ Please capture all 3 valid photos")),
-            );
-          }
         },
       ),
     );
 
-    _isRecapturing[user.id] = false;
-    setState(() {});
+    // If not all 3 embeddings, show warning
+    if (capturedEmbeddings[user.id]!.length != 3) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("❌ Please capture all 3 valid photos")),
+      );
+      _isRecapturing[user.id] = false;
+      setState(() {});
+      return;
+    }
+
+    // Show overlay loader while updating embeddings
+    showDialog(
+      context: context,
+      barrierDismissible: false, // prevent user interaction
+      builder: (_) => WillPopScope(
+        onWillPop: () async => false,
+        child: Container(
+          color: Colors.black.withOpacity(0.5),
+          alignment: Alignment.center,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: const [
+              CircularProgressIndicator(),
+              SizedBox(height: 16),
+              Text(
+                "Recapturing user image...",
+                style: TextStyle(color: Colors.white, fontSize: 16),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    try {
+      final updatedUser = user.copyWith(
+        faceEmbeddings: capturedEmbeddings[user.id]!,
+        embedding: capturedEmbeddings[user.id]!.first,
+      );
+      await _userService.addUser(updatedUser);
+      await FaceModelService.reload();
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("✅ User embeddings updated!")),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("❌ Error updating embeddings: $e")),
+      );
+    } finally {
+      Navigator.of(context, rootNavigator: true).pop(); // hide overlay
+      _isRecapturing[user.id] = false;
+      setState(() {});
+    }
   }
 
   Future<void> _deleteUser(UserModel user) async {
