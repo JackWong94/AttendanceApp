@@ -1,7 +1,7 @@
 import 'dart:math' as math;
 import 'package:attendanceapp/configs_and_tools/debug.dart';
 
-Debug debug = Debug(module: "face_validation_service", enable: true);
+Debug debug = Debug(module: "face_validation_service", enable: false);
 
 class FaceValidationResult {
   final bool isValid;
@@ -20,7 +20,7 @@ class FaceValidationService {
     Map<String, dynamic>? landmarks,
     double centerThresholdRatio = 0.25,
     double tooFarRatio = 0.5,
-    double tooCloseRatio = 0.6,
+    double tooCloseRatio = 0.68,
     int? step, // optional: 0 = straight, 1 = left, 2 = right
   }) {
     final double x = (box['x'] ?? 0).toDouble();
