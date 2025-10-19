@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:attendanceapp/services/camera_service.dart';
 import 'package:attendanceapp/services/face_capturing_service.dart';
+import 'package:image/image.dart' as img;
 
 typedef FaceCaptureCallback = void Function(
     List<Uint8List> photos, List<List<double>> embeddings);
@@ -45,7 +46,10 @@ class _FaceCaptureWidgetState extends State<FaceCaptureWidget> {
       final result = await _faceCaptureService.captureFace(_step);
       if (result == null) return;
 
-      _photos.add(result.photo);
+      // Crop photo to camera preview rectangle
+      final cropped = await _cropToPreview(result.photo);
+
+      _photos.add(cropped);
       _embeddings.add(result.embedding);
 
       if (_step + 1 >= _steps.length) {
@@ -59,6 +63,31 @@ class _FaceCaptureWidgetState extends State<FaceCaptureWidget> {
     } finally {
       setState(() => _isCapturing = false);
     }
+  }
+
+  Future<Uint8List> _cropToPreview(Uint8List photoBytes) async {
+    final controller = widget.cameraService.controller!;
+    final previewSize = controller.value.previewSize!;
+    final img.Image image = img.decodeImage(photoBytes)!;
+
+    // Determine crop rectangle to match preview aspect ratio
+    final previewAspect = previewSize.height / previewSize.width;
+    final imgWidth = image.width;
+    final imgHeight = image.height;
+
+    int cropWidth = imgWidth;
+    int cropHeight = (imgWidth * previewAspect).toInt();
+
+    if (cropHeight > imgHeight) {
+      cropHeight = imgHeight;
+      cropWidth = (imgHeight / previewAspect).toInt();
+    }
+
+    final x = ((imgWidth - cropWidth) / 2).toInt();
+    final y = ((imgHeight - cropHeight) / 2).toInt();
+
+    final cropped = img.copyCrop(image, x: x, y: y, width: cropWidth, height: cropHeight);
+    return Uint8List.fromList(img.encodeJpg(cropped));
   }
 
   void _showMsg(String msg) {
