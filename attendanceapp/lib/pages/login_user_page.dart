@@ -118,7 +118,7 @@ class _LoginUserPageState extends State<LoginUserPage>
       }
       return user;
     } catch (e) {
-        SnackBarHelper.show(context, "Error during detection: $e");
+        SnackBarHelper.show(context, e.toString());
         return null;
     }
   }
