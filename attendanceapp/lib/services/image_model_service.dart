@@ -1,17 +1,21 @@
 import 'dart:typed_data';
 import 'dart:convert';
+import 'dart:developer' as developer;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:attendanceapp/configs_and_tools/debug.dart';
+
+// Conditionally import dart:io (not available on web)
+import 'dart:io' show Platform, ProcessInfo;
 
 Debug debug = Debug(module: "image_model_service", enable: true);
 
 class ImageModelService {
   final String tenantId;
   final DocumentReference<Map<String, dynamic>> _usersPhotoDoc;
+  final DocumentReference<Map<String, dynamic>> _usersPhotoIndexDoc;
 
   static ImageModelService? _instance;
 
-  /// Singleton getter
   static ImageModelService get instance {
     if (_instance == null) {
       throw Exception("ImageModelService not initialized. Call init() first.");
@@ -19,21 +23,20 @@ class ImageModelService {
     return _instance!;
   }
 
-  /// Initialize singleton
   static void init({required String tenantId}) {
     _instance = ImageModelService._internal(tenantId);
   }
 
-  /// Clear instance
   static void clear() => _instance = null;
 
-  /// Internal constructor
   ImageModelService._internal(this.tenantId)
       : _usersPhotoDoc = FirebaseFirestore.instance
       .collection("${tenantId}_photos")
-      .doc("usersPhoto");
+      .doc("usersPhoto"),
+        _usersPhotoIndexDoc = FirebaseFirestore.instance
+            .collection("${tenantId}_photos")
+            .doc("usersPhotoIndex");
 
-  /// 🔹 Public API — Accept List<Uint8List> like before
   Future<void> saveCapturedPhotos({
     required String employeeId,
     required List<Uint8List> photos,
@@ -42,66 +45,65 @@ class ImageModelService {
     await _saveUserPhotos(employeeId: employeeId, photos: labeled);
   }
 
-  /// 🔹 Internal saver — saves photos inside usersPhoto doc
   Future<void> _saveUserPhotos({
     required String employeeId,
     required Map<String, Uint8List> photos,
   }) async {
     try {
       final Map<String, dynamic> employeePhotos = {};
-      double totalKB = 0;
 
       for (final entry in photos.entries) {
-        final key = entry.key;
         final base64 = base64Encode(entry.value);
         final double sizeKB = utf8.encode(base64).length / 1024;
-        totalKB += sizeKB;
-
-        employeePhotos[key] = base64;
-        debug.log("📸 [$employeeId] $key photo: ${sizeKB.toStringAsFixed(1)} KB");
+        employeePhotos[entry.key] = base64;
       }
 
       employeePhotos["timestamp"] = FieldValue.serverTimestamp();
+      final String photoKey = "${employeeId}photos";
 
-      // Update field like EMP001photos: {...}
       await _usersPhotoDoc.set({
-        "${employeeId}photos": employeePhotos,
+        photoKey: employeePhotos,
       }, SetOptions(merge: true));
 
-      debug.log("💾 [$employeeId] Total memory: ${totalKB.toStringAsFixed(1)} KB saved successfully!");
+      await _usersPhotoIndexDoc.set({
+        employeeId: photoKey,
+      }, SetOptions(merge: true));
+
     } catch (e) {
       debug.log("❌ Error saving photos for $employeeId: $e");
       rethrow;
     }
   }
 
-  /// 🧩 Helper: map list to labeled fields (front, left, right, etc.)
-  Map<String, Uint8List> _mapPhotosToLabels(List<Uint8List> photos) {
-    const labels = ["front", "left", "right", "extra1", "extra2"];
-    final Map<String, Uint8List> map = {};
-    for (int i = 0; i < photos.length && i < labels.length; i++) {
-      map[labels[i]] = photos[i];
-    }
-    return map;
-  }
-
-  /// 🔍 Retrieve specific employee photos back
   Future<Map<String, Uint8List>> getUserPhotos(String employeeId) async {
     try {
-      final docSnap = await _usersPhotoDoc.get();
-      if (!docSnap.exists) {
+      final indexSnap = await _usersPhotoIndexDoc.get();
+      if (!indexSnap.exists) {
+        debug.log("⚠️ usersPhotoIndex document not found.");
+        return {};
+      }
+
+      final indexData = indexSnap.data();
+      final String? photoKey = indexData?[employeeId];
+      if (photoKey == null) {
+        debug.log("⚠️ No index entry for $employeeId");
+        return {};
+      }
+
+      final photoSnap = await _usersPhotoDoc.get();
+      if (!photoSnap.exists) {
         debug.log("⚠️ usersPhoto document not found.");
         return {};
       }
 
-      final data = docSnap.data();
-      if (data == null || !data.containsKey("${employeeId}photos")) {
-        debug.log("⚠️ No photo entry for $employeeId");
+      final data = photoSnap.data();
+      if (data == null || !data.containsKey(photoKey)) {
+        debug.log("⚠️ No photo data for key $photoKey");
         return {};
       }
 
       final Map<String, dynamic> employeePhotos =
-      (data["${employeeId}photos"] as Map<String, dynamic>);
+      (data[photoKey] as Map<String, dynamic>);
       final Map<String, Uint8List> decoded = {};
 
       employeePhotos.forEach((key, value) {
@@ -113,19 +115,32 @@ class ImageModelService {
       debug.log("📥 [$employeeId] Retrieved ${decoded.length} photos");
       return decoded;
     } catch (e) {
-      debug.log("❌ Error reading photos for $employeeId: $e");
+      debug.log("❌ Error retrieving photos for $employeeId: $e");
       return {};
     }
   }
 
-  /// 🧠 Firestore connectivity test
+  Map<String, Uint8List> _mapPhotosToLabels(List<Uint8List> photos) {
+    const labels = ["front", "left", "right", "extra1", "extra2"];
+    final Map<String, Uint8List> map = {};
+    for (int i = 0; i < photos.length && i < labels.length; i++) {
+      map[labels[i]] = photos[i];
+    }
+    return map;
+  }
+
   Future<void> testConnection() async {
     try {
-      await _usersPhotoDoc.set({"testConnection": FieldValue.serverTimestamp()},
-          SetOptions(merge: true));
+      await _usersPhotoDoc.set({
+        "testConnection": FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+      await _usersPhotoIndexDoc.set({
+        "testConnection": FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
       debug.log("✅ Firestore connection OK.");
     } catch (e) {
       debug.log("❌ Firestore connection failed: $e");
     }
   }
+
 }
