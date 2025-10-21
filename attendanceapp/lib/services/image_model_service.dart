@@ -6,6 +6,7 @@ import 'package:attendanceapp/configs_and_tools/debug.dart';
 
 // Conditionally import dart:io (not available on web)
 import 'dart:io' show Platform, ProcessInfo;
+import 'package:attendanceapp/models/user_model.dart';
 
 Debug debug = Debug(module: "image_model_service", enable: true);
 
@@ -37,6 +38,7 @@ class ImageModelService {
             .collection("${tenantId}_photos")
             .doc("usersPhotoIndex");
 
+  /// Save user photos to Firestore (base64 encoded)
   Future<void> saveCapturedPhotos({
     required String employeeId,
     required List<Uint8List> photos,
@@ -55,6 +57,7 @@ class ImageModelService {
       for (final entry in photos.entries) {
         final base64 = base64Encode(entry.value);
         final double sizeKB = utf8.encode(base64).length / 1024;
+        debug.log("📸 ${entry.key}: ${(sizeKB).toStringAsFixed(2)} KB");
         employeePhotos[entry.key] = base64;
       }
 
@@ -69,12 +72,14 @@ class ImageModelService {
         employeeId: photoKey,
       }, SetOptions(merge: true));
 
+      debug.log("✅ Photos saved for $employeeId (${photos.length} images)");
     } catch (e) {
       debug.log("❌ Error saving photos for $employeeId: $e");
       rethrow;
     }
   }
 
+  /// Retrieve user photos by employeeId
   Future<Map<String, Uint8List>> getUserPhotos(String employeeId) async {
     try {
       final indexSnap = await _usersPhotoIndexDoc.get();
@@ -120,6 +125,7 @@ class ImageModelService {
     }
   }
 
+  /// Helper: map photos to known labels
   Map<String, Uint8List> _mapPhotosToLabels(List<Uint8List> photos) {
     const labels = ["front", "left", "right", "extra1", "extra2"];
     final Map<String, Uint8List> map = {};
@@ -129,6 +135,7 @@ class ImageModelService {
     return map;
   }
 
+  /// Quick Firestore connection check
   Future<void> testConnection() async {
     try {
       await _usersPhotoDoc.set({
@@ -143,4 +150,52 @@ class ImageModelService {
     }
   }
 
+  /// Retrieve photos by passing a UserModel directly
+  Future<Map<String, Uint8List>> getUserPhotosByModel(UserModel user) async {
+    if (user.id.isEmpty) {
+      debug.log("⚠️ UserModel has empty ID, cannot fetch photos.");
+      return {};
+    }
+    return await getUserPhotos(user.id);
+  }
+
+  /// Retrieve decoded photos as a simple list (for image preview)
+  Future<List<Uint8List>> getUserPhotoList(UserModel user) async {
+    final photosMap = await getUserPhotosByModel(user);
+    final order = ["front", "left", "right", "extra1", "extra2"];
+    return [
+      for (var key in order)
+        if (photosMap.containsKey(key)) photosMap[key]!,
+    ];
+  }
+  // ---------------------------------------------------------------------------
+  // 🧠 Simple in-memory cache (reset when leaving page)
+  // ---------------------------------------------------------------------------
+  final Map<String, Map<String, Uint8List>> _cache = {};
+
+  /// Clears the in-memory cache
+  void clearCache() {
+    _cache.clear();
+    debug.log("🧹 ImageModelService cache cleared");
+  }
+
+  /// Loads user photos from cache (or fetches from Firestore if missing)
+  Future<Map<String, Uint8List>> loadUserPhotos(String employeeId) async {
+    if (_cache.containsKey(employeeId)) {
+      debug.log("⚡ Loaded $employeeId photos from cache");
+      return _cache[employeeId]!;
+    }
+
+    final photos = await getUserPhotos(employeeId);
+    if (photos.isNotEmpty) _cache[employeeId] = photos;
+    return photos;
+  }
+
+  /// Prints current cache info (for debugging)
+  void traceMemory() {
+    debug.log("🧩 Cache contains ${_cache.length} users");
+    for (final entry in _cache.entries) {
+      debug.log("   - ${entry.key}: ${entry.value.length} photos cached");
+    }
+  }
 }
