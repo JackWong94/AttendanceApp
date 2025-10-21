@@ -5,6 +5,7 @@ import 'package:camera/camera.dart';
 import 'package:attendanceapp/services/camera_service.dart';
 import 'package:attendanceapp/services/face_model_service.dart';
 import 'package:attendanceapp/services/user_model_service.dart';
+import 'package:attendanceapp/services/image_model_service.dart';
 import 'package:attendanceapp/models/user_model.dart';
 import 'package:attendanceapp/pages/login_user_page.dart';
 import 'package:attendanceapp/widgets/face_capture_widget.dart';
@@ -128,6 +129,11 @@ class _RegisterUserPageState extends State<RegisterUserPage> {
 
       await _userService.addUser(user);
       await FaceModelService.reload();
+
+      await ImageModelService.instance.saveCapturedPhotos(
+        employeeId: employeeId,
+        photos: capturedPhotos,
+      );
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("User registered successfully!")),

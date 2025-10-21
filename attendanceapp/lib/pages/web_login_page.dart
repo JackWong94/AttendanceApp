@@ -5,6 +5,7 @@ import 'package:attendanceapp/services/authentication_service.dart';
 import 'package:attendanceapp/services/user_model_service.dart';
 import 'package:attendanceapp/services/attendance_model_service.dart';
 import 'package:attendanceapp/services/tenant_model_service.dart';
+import 'package:attendanceapp/services/image_model_service.dart';
 
 class WebLoginPage extends StatefulWidget {
   const WebLoginPage({super.key});
@@ -76,6 +77,7 @@ class _WebLoginPageState extends State<WebLoginPage> {
       // 3️⃣ Initialize user service
       UserModelService.init(tenantId: tenant.tenantId);
       AttendanceModelService.init(tenantId: tenant.tenantId);
+      ImageModelService.init(tenantId: tenant.tenantId);
 
       // 4️⃣ Navigate
       if (mounted) {

@@ -1,7 +1,7 @@
-// lib/services/face_capturing_service.dart
 import 'dart:typed_data';
 import 'dart:math' as math;
 import 'package:attendanceapp/services/camera_service.dart';
+import 'package:attendanceapp/services/image_model_service.dart';
 import 'package:attendanceapp/web_face_api.dart' as webFaceApi;
 import 'package:attendanceapp/configs_and_tools/debug.dart';
 import 'face_validation_service.dart';
@@ -62,5 +62,24 @@ class FaceCaptureService {
     final descriptor = List<double>.from(faceData['descriptor']);
 
     return FaceCaptureResult(bytes, descriptor);
+  }
+
+  /// 💾 Save captured photos using the current ImageModelService instance
+  static Future<void> saveCapturedFaces({
+    required String employeeId,
+    required List<Uint8List> photos,
+  }) async {
+    try {
+      // ✅ Use existing initialized instance
+      final imageService = ImageModelService.instance;
+
+      await imageService.saveCapturedPhotos(
+        employeeId: employeeId,
+        photos: photos,
+      );
+    } catch (e) {
+      debug.log("Error saving captured faces: $e");
+      rethrow;
+    }
   }
 }
