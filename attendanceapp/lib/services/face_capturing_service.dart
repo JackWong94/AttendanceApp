@@ -63,23 +63,4 @@ class FaceCaptureService {
 
     return FaceCaptureResult(bytes, descriptor);
   }
-
-  /// 💾 Save captured photos using the current ImageModelService instance
-  static Future<void> saveCapturedFaces({
-    required String employeeId,
-    required List<Uint8List> photos,
-  }) async {
-    try {
-      // ✅ Use existing initialized instance
-      final imageService = ImageModelService.instance;
-
-      await imageService.saveCapturedPhotos(
-        employeeId: employeeId,
-        photos: photos,
-      );
-    } catch (e) {
-      debug.log("Error saving captured faces: $e");
-      rethrow;
-    }
-  }
 }
