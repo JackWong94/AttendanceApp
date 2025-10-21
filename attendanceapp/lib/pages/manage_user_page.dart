@@ -130,6 +130,7 @@ class _ManageUserPageState extends State<ManageUserPage> with RouteAware {
       return;
     }
 
+    // 🔒 Show processing overlay
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -154,19 +155,32 @@ class _ManageUserPageState extends State<ManageUserPage> with RouteAware {
     );
 
     try {
+      // ✅ 1. Update embeddings in UserModel
       final updatedUser = user.copyWith(
         faceEmbeddings: capturedEmbeddings[user.id]!,
         embedding: capturedEmbeddings[user.id]!.first,
       );
       await _userService.addUser(updatedUser);
+
+      // ✅ 2. Upload photos to Firestore via ImageModelService
+      final imageService = ImageModelService.instance;
+      await imageService.saveCapturedPhotos(
+        employeeId: user.id,
+        photos: capturedPhotos[user.id]!,
+      );
+
+      // ✅ 3. Reload face recognition model
       await FaceModelService.reload();
 
+      // ✅ 4. Reload user list to reflect updated data
+      await _loadUsers();
+
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("✅ User embeddings updated!")),
+        const SnackBar(content: Text("✅ User embeddings and photos updated!")),
       );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("❌ Error updating embeddings: $e")),
+        SnackBar(content: Text("❌ Error updating data: $e")),
       );
     } finally {
       Navigator.of(context, rootNavigator: true).pop(); // hide overlay
