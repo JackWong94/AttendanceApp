@@ -19,6 +19,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:attendanceapp/utils/snackbar_helper.dart';
 import 'package:attendanceapp/widgets/scan_beam.dart';
 import 'package:attendanceapp/widgets/scan_overlay_manager.dart';
+import 'package:attendanceapp/widgets/user_confirm_overlay_widget.dart';
 import 'package:attendanceapp/widgets/face_recognition_widget.dart';
 
 class LoginUserPage extends StatefulWidget {
@@ -34,6 +35,8 @@ class _LoginUserPageState extends State<LoginUserPage>
   final CameraService _cameraService = CameraService.instance;
   final AttendanceService _attendanceService = AttendanceService();
   final ScanOverlayManager _overlayManager = ScanOverlayManager();
+  final UserConfirmOverlayWidget _confirmOverlayWidget = UserConfirmOverlayWidget();
+
   bool _scanInProgress = false;
   Timer? _cameraTimer;
 
@@ -130,13 +133,20 @@ class _LoginUserPageState extends State<LoginUserPage>
     try {
       final user = await _detectPerson();
       if (user == null) return;
-      _detectedUser = user;
 
-      await _handleScan(user: user, isScanIn: isScanIn);
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error during scan: $e")),
+      // ✅ Show confirmation overlay (no rebuilds)
+      _confirmOverlayWidget.show(
+        context: context,
+        user: user,
+        onConfirm: () async {
+          await _handleScan(user: user, isScanIn: isScanIn);
+        },
+        onReject: () {
+          SnackBarHelper.show(context, "Please retry scanning.");
+        },
       );
+    } catch (e) {
+      SnackBarHelper.show(context, "Error during scan: $e");
     } finally {
       setState(() => _scanInProgress = false);
     }
@@ -184,6 +194,53 @@ class _LoginUserPageState extends State<LoginUserPage>
         backgroundColor: Colors.red,
       );
     }
+  }
+
+  Future<bool?> _confirmUserDialog(UserModel user) {
+    return showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text("Confirm Identity"),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.face, size: 60, color: Colors.blue),
+              const SizedBox(height: 16),
+              Text(
+                "Detected: ${user.name}",
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                "Is this you?",
+                style: TextStyle(color: Colors.grey[700]),
+              ),
+            ],
+          ),
+          actionsAlignment: MainAxisAlignment.spaceEvenly,
+          actions: [
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green,
+              ),
+              onPressed: () => Navigator.of(context).pop(true),
+              icon: const Icon(Icons.check),
+              label: const Text("It's Me"),
+            ),
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+              ),
+              onPressed: () => Navigator.of(context).pop(false),
+              icon: const Icon(Icons.close),
+              label: const Text("Not Me"),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
