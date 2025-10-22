@@ -429,13 +429,14 @@ class _LoginUserPageState extends State<LoginUserPage>
                 ),
               ),
 
-              const SizedBox(height: 30),
+              const SizedBox(height: 10),
               ElevatedButton.icon(
                 style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
                 onPressed: _scanInProgress ? null : _handleEmergencyScan,
                 icon: const Icon(Icons.warning),
                 label: const Text("Emergency Scan"),
               ),
+              const SizedBox(height: 30),
             ],
           ),
         ),

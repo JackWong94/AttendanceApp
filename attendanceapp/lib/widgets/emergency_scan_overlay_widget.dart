@@ -122,8 +122,8 @@ class _EmergencyScanOverlayState extends State<_EmergencyScanOverlay> {
                     else
                       DropdownButtonFormField<UserModel>(
                         value: _selectedUser != null &&
-                            _users.contains(_selectedUser)
-                            ? _selectedUser
+                            _users.any((u) => u.id == _selectedUser!.id)
+                            ? _users.firstWhere((u) => u.id == _selectedUser!.id)
                             : null,
                         hint: const Text("Select User"),
                         onChanged: (user) => setState(() => _selectedUser = user),
