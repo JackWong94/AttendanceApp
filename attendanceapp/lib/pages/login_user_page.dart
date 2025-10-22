@@ -21,6 +21,7 @@ import 'package:attendanceapp/widgets/scan_beam.dart';
 import 'package:attendanceapp/widgets/scan_overlay_manager.dart';
 import 'package:attendanceapp/widgets/user_confirm_overlay_widget.dart';
 import 'package:attendanceapp/widgets/face_recognition_widget.dart';
+import 'package:attendanceapp/widgets/emergency_scan_overlay_widget.dart';
 
 class LoginUserPage extends StatefulWidget {
   const LoginUserPage({super.key});
@@ -243,6 +244,48 @@ class _LoginUserPageState extends State<LoginUserPage>
     );
   }
 
+  Future<void> _handleEmergencyScan() async {
+    try {
+      if (!_cameraService.isInitialized) {
+        SnackBarHelper.show(context, "Camera not ready");
+        return;
+      }
+
+      // Capture photo from camera
+      final picture = await _cameraService.controller!.takePicture();
+      final bytes = await picture.readAsBytes();
+
+      // ✅ Show emergency overlay (will not reset/rebuild page)
+      EmergencyScanOverlayWidget.show(
+        context: context,
+        imageBytes: bytes,
+        onConfirm: (selectedUser, isScanIn) async {
+          final now = DateTime.now();
+          final message = isScanIn
+              ? await _attendanceService.addScanIn(
+            userId: selectedUser.id,
+            time: now,
+            url: "emergencyPhotoUrl", // TODO: upload photo to Firebase Storage if needed
+          )
+              : await _attendanceService.addScanOut(
+            userId: selectedUser.id,
+            time: now,
+            url: "emergencyPhotoUrl",
+          );
+
+          SnackBarHelper.show(
+            context,
+            message,
+            backgroundColor:
+            message.contains("recorded successfully") ? Colors.green : Colors.red,
+          );
+        },
+      );
+    } catch (e) {
+      SnackBarHelper.show(context, "Error during emergency scan: $e");
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return WillPopScope(
@@ -387,6 +430,12 @@ class _LoginUserPageState extends State<LoginUserPage>
               ),
 
               const SizedBox(height: 30),
+              ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+                onPressed: _scanInProgress ? null : _handleEmergencyScan,
+                icon: const Icon(Icons.warning),
+                label: const Text("Emergency Scan"),
+              ),
             ],
           ),
         ),
