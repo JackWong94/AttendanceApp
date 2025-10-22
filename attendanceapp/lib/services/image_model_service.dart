@@ -3,10 +3,11 @@ import 'dart:convert';
 import 'dart:developer' as developer;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:attendanceapp/configs_and_tools/debug.dart';
+import 'package:attendanceapp/models/user_model.dart';
+import 'package:uuid/uuid.dart';
 
 // Conditionally import dart:io (not available on web)
 import 'dart:io' show Platform, ProcessInfo;
-import 'package:attendanceapp/models/user_model.dart';
 
 Debug debug = Debug(module: "image_model_service", enable: true);
 
@@ -38,7 +39,10 @@ class ImageModelService {
             .collection("${tenantId}_photos")
             .doc("usersPhotoIndex");
 
-  /// Save user photos to Firestore (base64 encoded)
+  // ---------------------------------------------------------------------------
+  // 📸 USER PHOTO MANAGEMENT (existing)
+  // ---------------------------------------------------------------------------
+
   Future<void> saveCapturedPhotos({
     required String employeeId,
     required List<Uint8List> photos,
@@ -79,7 +83,6 @@ class ImageModelService {
     }
   }
 
-  /// Retrieve user photos by employeeId
   Future<Map<String, Uint8List>> getUserPhotos(String employeeId) async {
     try {
       final indexSnap = await _usersPhotoIndexDoc.get();
@@ -125,7 +128,6 @@ class ImageModelService {
     }
   }
 
-  /// Helper: map photos to known labels
   Map<String, Uint8List> _mapPhotosToLabels(List<Uint8List> photos) {
     const labels = ["front", "left", "right", "extra1", "extra2"];
     final Map<String, Uint8List> map = {};
@@ -135,7 +137,6 @@ class ImageModelService {
     return map;
   }
 
-  /// Quick Firestore connection check
   Future<void> testConnection() async {
     try {
       await _usersPhotoDoc.set({
@@ -150,7 +151,6 @@ class ImageModelService {
     }
   }
 
-  /// Retrieve photos by passing a UserModel directly
   Future<Map<String, Uint8List>> getUserPhotosByModel(UserModel user) async {
     if (user.id.isEmpty) {
       debug.log("⚠️ UserModel has empty ID, cannot fetch photos.");
@@ -159,7 +159,6 @@ class ImageModelService {
     return await getUserPhotos(user.id);
   }
 
-  /// Retrieve decoded photos as a simple list (for image preview)
   Future<List<Uint8List>> getUserPhotoList(UserModel user) async {
     final photosMap = await getUserPhotosByModel(user);
     final order = ["front", "left", "right", "extra1", "extra2"];
@@ -169,52 +168,31 @@ class ImageModelService {
     ];
   }
 
-  /// Delete user photos (either all or a specific one)
   Future<void> deleteUserPhotos({
     required String employeeId,
-    String? label, // optional: delete only one photo
+    String? label,
   }) async {
     try {
-      // 1️⃣ Get photo index
       final indexSnap = await _usersPhotoIndexDoc.get();
-      if (!indexSnap.exists) {
-        debug.log("⚠️ usersPhotoIndex not found, cannot delete $employeeId");
-        return;
-      }
+      if (!indexSnap.exists) return;
 
       final indexData = indexSnap.data();
       final String? photoKey = indexData?[employeeId];
-      if (photoKey == null) {
-        debug.log("⚠️ No photo index found for $employeeId");
-        return;
-      }
+      if (photoKey == null) return;
 
-      // 2️⃣ Get photo data
       final photoSnap = await _usersPhotoDoc.get();
-      if (!photoSnap.exists) {
-        debug.log("⚠️ usersPhoto document not found.");
-        return;
-      }
+      if (!photoSnap.exists) return;
 
       final data = photoSnap.data();
-      if (data == null || !data.containsKey(photoKey)) {
-        debug.log("⚠️ No photo data found for key $photoKey");
-        return;
-      }
+      if (data == null || !data.containsKey(photoKey)) return;
 
       final Map<String, dynamic> employeePhotos =
       Map<String, dynamic>.from(data[photoKey]);
 
-      // 3️⃣ Handle deletion (single or all)
       if (label != null) {
-        if (!employeePhotos.containsKey(label)) {
-          debug.log("⚠️ No photo labeled '$label' for $employeeId");
-          return;
-        }
         employeePhotos.remove(label);
         debug.log("🗑️ Deleted '$label' photo for $employeeId");
       } else {
-        // Delete entire user photo set
         data.remove(photoKey);
         await _usersPhotoDoc.set(data, SetOptions(merge: false));
         await _usersPhotoIndexDoc.update({employeeId: FieldValue.delete()});
@@ -222,12 +200,10 @@ class ImageModelService {
         return;
       }
 
-      // 4️⃣ Save updated photo data
       await _usersPhotoDoc.set({
         photoKey: employeePhotos,
       }, SetOptions(merge: true));
 
-      // 5️⃣ Update cache
       if (_cache.containsKey(employeeId)) {
         if (label != null) {
           _cache[employeeId]!.remove(label);
@@ -235,25 +211,18 @@ class ImageModelService {
           _cache.remove(employeeId);
         }
       }
-
       debug.log("✅ Delete operation complete for $employeeId");
     } catch (e) {
       debug.log("❌ Error deleting photos for $employeeId: $e");
     }
   }
 
-  // ---------------------------------------------------------------------------
-  // 🧠 Simple in-memory cache (reset when leaving page)
-  // ---------------------------------------------------------------------------
   final Map<String, Map<String, Uint8List>> _cache = {};
-
-  /// Clears the in-memory cache
   void clearCache() {
     _cache.clear();
     debug.log("🧹 ImageModelService cache cleared");
   }
 
-  /// Loads user photos from cache (or fetches from Firestore if missing)
   Future<Map<String, Uint8List>> loadUserPhotos(String employeeId) async {
     if (_cache.containsKey(employeeId)) {
       debug.log("⚡ Loaded $employeeId photos from cache");
@@ -265,11 +234,101 @@ class ImageModelService {
     return photos;
   }
 
-  /// Prints current cache info (for debugging)
   void traceMemory() {
     debug.log("🧩 Cache contains ${_cache.length} users");
     for (final entry in _cache.entries) {
       debug.log("   - ${entry.key}: ${entry.value.length} photos cached");
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // 🧠 ATTENDANCE PHOTO MANAGEMENT (scalable with index + rollover)
+  // ---------------------------------------------------------------------------
+
+  final _uuid = const Uuid();
+  static const int _maxEntriesPerDoc = 800;
+
+  Future<void> saveAttendancePhotoForUser({
+    required UserModel user,
+    required Uint8List imageBytes,
+  }) async {
+    try {
+      final base64 = base64Encode(imageBytes);
+      final uuid = _uuid.v4();
+      final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-');
+      final imageUrl = "attendance://${user.id}/$timestamp/$uuid";
+
+      final attendanceIndexDoc = FirebaseFirestore.instance
+          .collection("${tenantId}_photos")
+          .doc("attendanceIndex");
+
+      final attendanceIndexSnap = await attendanceIndexDoc.get();
+
+      String targetDoc = "attendancePhoto_1";
+      int currentCount = 0;
+
+      if (attendanceIndexSnap.exists) {
+        final data = attendanceIndexSnap.data() ?? {};
+        final lastDoc = data["lastDoc"] ?? targetDoc;
+        targetDoc = lastDoc;
+        currentCount = (data["counts"]?[lastDoc] ?? 0) as int;
+      }
+
+      if (currentCount >= _maxEntriesPerDoc) {
+        final nextIndex = int.parse(targetDoc.split('_').last) + 1;
+        targetDoc = "attendancePhoto_$nextIndex";
+        currentCount = 0;
+      }
+
+      final attendancePhotoDoc = FirebaseFirestore.instance
+          .collection("${tenantId}_photos")
+          .doc(targetDoc);
+
+      await attendancePhotoDoc.set({
+        uuid: {
+          "uuid": uuid,
+          "userId": user.id,
+          "name": user.name,
+          "timestamp": FieldValue.serverTimestamp(),
+          "base64": base64,
+          "url": imageUrl,
+        }
+      }, SetOptions(merge: true));
+
+      await attendanceIndexDoc.set({
+        "index": {uuid: targetDoc},
+        "counts": {targetDoc: currentCount + 1},
+        "lastDoc": targetDoc,
+      }, SetOptions(merge: true));
+
+      debug.log("✅ Attendance photo saved for ${user.name} ($targetDoc)");
+      debug.log("🔗 URL: $imageUrl");
+    } catch (e) {
+      debug.log("❌ Error saving attendance photo for ${user.name}: $e");
+    }
+  }
+
+  Future<Map<String, dynamic>?> getAttendancePhotoByUuid(String uuid) async {
+    try {
+      final attendanceIndexDoc = FirebaseFirestore.instance
+          .collection("${tenantId}_photos")
+          .doc("attendanceIndex");
+
+      final indexSnap = await attendanceIndexDoc.get();
+      if (!indexSnap.exists) return null;
+
+      final targetDocName = indexSnap.data()?["index"]?[uuid];
+      if (targetDocName == null) return null;
+
+      final targetDoc = await FirebaseFirestore.instance
+          .collection("${tenantId}_photos")
+          .doc(targetDocName)
+          .get();
+
+      return targetDoc.data()?[uuid];
+    } catch (e) {
+      debug.log("❌ Error retrieving attendance photo for uuid $uuid: $e");
+      return null;
     }
   }
 }
