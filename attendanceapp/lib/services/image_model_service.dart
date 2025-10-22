@@ -168,6 +168,80 @@ class ImageModelService {
         if (photosMap.containsKey(key)) photosMap[key]!,
     ];
   }
+
+  /// Delete user photos (either all or a specific one)
+  Future<void> deleteUserPhotos({
+    required String employeeId,
+    String? label, // optional: delete only one photo
+  }) async {
+    try {
+      // 1️⃣ Get photo index
+      final indexSnap = await _usersPhotoIndexDoc.get();
+      if (!indexSnap.exists) {
+        debug.log("⚠️ usersPhotoIndex not found, cannot delete $employeeId");
+        return;
+      }
+
+      final indexData = indexSnap.data();
+      final String? photoKey = indexData?[employeeId];
+      if (photoKey == null) {
+        debug.log("⚠️ No photo index found for $employeeId");
+        return;
+      }
+
+      // 2️⃣ Get photo data
+      final photoSnap = await _usersPhotoDoc.get();
+      if (!photoSnap.exists) {
+        debug.log("⚠️ usersPhoto document not found.");
+        return;
+      }
+
+      final data = photoSnap.data();
+      if (data == null || !data.containsKey(photoKey)) {
+        debug.log("⚠️ No photo data found for key $photoKey");
+        return;
+      }
+
+      final Map<String, dynamic> employeePhotos =
+      Map<String, dynamic>.from(data[photoKey]);
+
+      // 3️⃣ Handle deletion (single or all)
+      if (label != null) {
+        if (!employeePhotos.containsKey(label)) {
+          debug.log("⚠️ No photo labeled '$label' for $employeeId");
+          return;
+        }
+        employeePhotos.remove(label);
+        debug.log("🗑️ Deleted '$label' photo for $employeeId");
+      } else {
+        // Delete entire user photo set
+        data.remove(photoKey);
+        await _usersPhotoDoc.set(data, SetOptions(merge: false));
+        await _usersPhotoIndexDoc.update({employeeId: FieldValue.delete()});
+        debug.log("🗑️ Deleted ALL photos for $employeeId");
+        return;
+      }
+
+      // 4️⃣ Save updated photo data
+      await _usersPhotoDoc.set({
+        photoKey: employeePhotos,
+      }, SetOptions(merge: true));
+
+      // 5️⃣ Update cache
+      if (_cache.containsKey(employeeId)) {
+        if (label != null) {
+          _cache[employeeId]!.remove(label);
+        } else {
+          _cache.remove(employeeId);
+        }
+      }
+
+      debug.log("✅ Delete operation complete for $employeeId");
+    } catch (e) {
+      debug.log("❌ Error deleting photos for $employeeId: $e");
+    }
+  }
+
   // ---------------------------------------------------------------------------
   // 🧠 Simple in-memory cache (reset when leaving page)
   // ---------------------------------------------------------------------------

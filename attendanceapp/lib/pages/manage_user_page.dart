@@ -196,7 +196,7 @@ class _ManageUserPageState extends State<ManageUserPage> with RouteAware {
       builder: (_) => AlertDialog(
         title: const Text("Delete User"),
         content: const Text(
-            "Are you sure you want to delete this user? All attendance records will also be deleted."),
+            "Are you sure you want to delete this user? All attendance records and photos will also be deleted."),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -213,17 +213,24 @@ class _ManageUserPageState extends State<ManageUserPage> with RouteAware {
     if (confirm != true) return;
 
     try {
+      // 🧩 Delete all related data
       await AttendanceModelService.instance.deleteAllAttendanceForUser(user.id);
       await UserModelService.instance.deleteUser(user.id);
+
+      // 🧩 Delete stored photos
+      await ImageModelService.instance.deleteUserPhotos(employeeId: user.id);
+
+      // 🧩 Reload face recognition model
       await FaceModelService.reload();
+
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("User and attendance deleted successfully!")),
+        const SnackBar(content: Text("✅ User, photos, and attendance deleted successfully!")),
       );
 
       await _loadUsers();
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error deleting user: $e")),
+        SnackBar(content: Text("❌ Error deleting user: $e")),
       );
     }
   }
