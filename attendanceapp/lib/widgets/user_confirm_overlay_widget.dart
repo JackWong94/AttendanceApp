@@ -16,67 +16,59 @@ class UserConfirmOverlayWidget {
     _overlayEntry = OverlayEntry(
       builder: (context) => Stack(
         children: [
-          // Semi-transparent dark background
+          // Dim background
           Positioned.fill(
-            child: Container(
-              color: Colors.black.withOpacity(0.4),
-            ),
+            child: Container(color: Colors.black.withOpacity(0.4)),
           ),
 
           // Center confirmation card
           Center(
             child: Container(
-              margin: const EdgeInsets.symmetric(horizontal: 24),
+              width: MediaQuery.of(context).size.width * 0.8, // ✅ smaller width
+              constraints: const BoxConstraints(maxWidth: 360), // limit width
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(16),
-                boxShadow: [
+                boxShadow: const [
                   BoxShadow(
                     color: Colors.black26,
-                    blurRadius: 12,
-                    offset: Offset(0, 6),
+                    blurRadius: 10,
+                    offset: Offset(0, 5),
                   ),
                 ],
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.face, size: 60, color: Colors.blue),
+                  const Icon(Icons.face, size: 50, color: Colors.blueAccent),
                   const SizedBox(height: 12),
                   Text(
                     "Detected: ${user.name}",
                     style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black87, // ✅ softer dark text
                     ),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 8),
                   const Text(
                     "Is this you?",
-                    style: TextStyle(fontSize: 16),
+                    style: TextStyle(
+                      fontSize: 15,
+                      color: Colors.black54, // ✅ more readable
+                    ),
                   ),
                   const SizedBox(height: 20),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
-                      ElevatedButton.icon(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.green,
-                          minimumSize: const Size(120, 40),
-                        ),
-                        onPressed: () {
-                          onConfirm();
-                          remove();
-                        },
-                        icon: const Icon(Icons.check),
-                        label: const Text("It's Me"),
-                      ),
+                      // 🔴 Not Me on the LEFT
                       ElevatedButton.icon(
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.red,
-                          minimumSize: const Size(120, 40),
+                          minimumSize: const Size(110, 40),
                         ),
                         onPressed: () {
                           onReject();
@@ -84,6 +76,20 @@ class UserConfirmOverlayWidget {
                         },
                         icon: const Icon(Icons.close),
                         label: const Text("Not Me"),
+                      ),
+
+                      // 🟢 It's Me on the RIGHT
+                      ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green,
+                          minimumSize: const Size(110, 40),
+                        ),
+                        onPressed: () {
+                          onConfirm();
+                          remove();
+                        },
+                        icon: const Icon(Icons.check),
+                        label: const Text("It's Me"),
                       ),
                     ],
                   ),
