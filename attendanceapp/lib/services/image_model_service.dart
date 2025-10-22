@@ -6,17 +6,20 @@ import 'package:attendanceapp/configs_and_tools/debug.dart';
 import 'package:attendanceapp/models/user_model.dart';
 import 'package:uuid/uuid.dart';
 
-// Conditionally import dart:io (not available on web)
+// Conditionally import dart:io (ignored on web)
 import 'dart:io' show Platform, ProcessInfo;
 
 Debug debug = Debug(module: "image_model_service", enable: true);
 
 class ImageModelService {
   final String tenantId;
-  final DocumentReference<Map<String, dynamic>> _usersPhotoDoc;
-  final DocumentReference<Map<String, dynamic>> _usersPhotoIndexDoc;
 
   static ImageModelService? _instance;
+  static const int _maxUserEntriesPerDoc = 800;
+  static const int _maxAttendanceEntriesPerDoc = 800;
+
+  final _uuid = const Uuid();
+  final Map<String, Map<String, Uint8List>> _cache = {};
 
   static ImageModelService get instance {
     if (_instance == null) {
@@ -31,17 +34,11 @@ class ImageModelService {
 
   static void clear() => _instance = null;
 
-  ImageModelService._internal(this.tenantId)
-      : _usersPhotoDoc = FirebaseFirestore.instance
-      .collection("${tenantId}_photos")
-      .doc("usersPhoto"),
-        _usersPhotoIndexDoc = FirebaseFirestore.instance
-            .collection("${tenantId}_photos")
-            .doc("usersPhotoIndex");
+  ImageModelService._internal(this.tenantId);
 
-  // ---------------------------------------------------------------------------
-  // 📸 USER PHOTO MANAGEMENT (existing)
-  // ---------------------------------------------------------------------------
+  // ==========================================================================
+  // 📸 USER PHOTO MANAGEMENT
+  // ==========================================================================
 
   Future<void> saveCapturedPhotos({
     required String employeeId,
@@ -57,26 +54,53 @@ class ImageModelService {
   }) async {
     try {
       final Map<String, dynamic> employeePhotos = {};
-
       for (final entry in photos.entries) {
         final base64 = base64Encode(entry.value);
         final double sizeKB = utf8.encode(base64).length / 1024;
         debug.log("📸 ${entry.key}: ${(sizeKB).toStringAsFixed(2)} KB");
         employeePhotos[entry.key] = base64;
       }
-
       employeePhotos["timestamp"] = FieldValue.serverTimestamp();
-      final String photoKey = "${employeeId}photos";
 
-      await _usersPhotoDoc.set({
+      // --- Determine where to store (based on index)
+      final userIndexDoc = FirebaseFirestore.instance
+          .collection("${tenantId}_photos")
+          .doc("usersPhotoIndex");
+
+      final indexSnap = await userIndexDoc.get();
+      String targetDoc = "usersPhoto_1";
+      int currentCount = 0;
+
+      if (indexSnap.exists) {
+        final data = indexSnap.data() ?? {};
+        final lastDoc = data["lastDoc"] ?? targetDoc;
+        targetDoc = lastDoc;
+        currentCount = (data["counts"]?[lastDoc] ?? 0) as int;
+      }
+
+      if (currentCount >= _maxUserEntriesPerDoc) {
+        final nextIndex = int.parse(targetDoc.split('_').last) + 1;
+        targetDoc = "usersPhoto_$nextIndex";
+        currentCount = 0;
+      }
+
+      final photoKey = "${employeeId}photos";
+      final userPhotoDoc = FirebaseFirestore.instance
+          .collection("${tenantId}_photos")
+          .doc(targetDoc);
+
+      await userPhotoDoc.set({
         photoKey: employeePhotos,
       }, SetOptions(merge: true));
 
-      await _usersPhotoIndexDoc.set({
-        employeeId: photoKey,
+      // --- Update index
+      await userIndexDoc.set({
+        "index": {photoKey: targetDoc},
+        "counts": {targetDoc: currentCount + 1},
+        "lastDoc": targetDoc,
       }, SetOptions(merge: true));
 
-      debug.log("✅ Photos saved for $employeeId (${photos.length} images)");
+      debug.log("✅ Photos saved for $employeeId in $targetDoc (${photos.length} images)");
     } catch (e) {
       debug.log("❌ Error saving photos for $employeeId: $e");
       rethrow;
@@ -85,28 +109,36 @@ class ImageModelService {
 
   Future<Map<String, Uint8List>> getUserPhotos(String employeeId) async {
     try {
-      final indexSnap = await _usersPhotoIndexDoc.get();
+      final photoKey = "${employeeId}photos";
+      final userIndexDoc = FirebaseFirestore.instance
+          .collection("${tenantId}_photos")
+          .doc("usersPhotoIndex");
+
+      final indexSnap = await userIndexDoc.get();
       if (!indexSnap.exists) {
-        debug.log("⚠️ usersPhotoIndex document not found.");
+        debug.log("⚠️ usersPhotoIndex not found.");
         return {};
       }
 
-      final indexData = indexSnap.data();
-      final String? photoKey = indexData?[employeeId];
-      if (photoKey == null) {
-        debug.log("⚠️ No index entry for $employeeId");
+      final targetDocName = indexSnap.data()?["index"]?[photoKey];
+      if (targetDocName == null) {
+        debug.log("⚠️ No index entry for $photoKey");
         return {};
       }
 
-      final photoSnap = await _usersPhotoDoc.get();
-      if (!photoSnap.exists) {
-        debug.log("⚠️ usersPhoto document not found.");
+      final targetDoc = await FirebaseFirestore.instance
+          .collection("${tenantId}_photos")
+          .doc(targetDocName)
+          .get();
+
+      if (!targetDoc.exists) {
+        debug.log("⚠️ Target document $targetDocName not found.");
         return {};
       }
 
-      final data = photoSnap.data();
+      final data = targetDoc.data();
       if (data == null || !data.containsKey(photoKey)) {
-        debug.log("⚠️ No photo data for key $photoKey");
+        debug.log("⚠️ No photo data found for $photoKey");
         return {};
       }
 
@@ -120,11 +152,47 @@ class ImageModelService {
         }
       });
 
-      debug.log("📥 [$employeeId] Retrieved ${decoded.length} photos");
+      debug.log("📥 [$employeeId] Retrieved ${decoded.length} photos from $targetDocName");
       return decoded;
     } catch (e) {
       debug.log("❌ Error retrieving photos for $employeeId: $e");
       return {};
+    }
+  }
+
+  Future<void> deleteUserPhotos(String employeeId) async {
+    try {
+      final photoKey = "${employeeId}photos";
+      final userIndexDoc = FirebaseFirestore.instance
+          .collection("${tenantId}_photos")
+          .doc("usersPhotoIndex");
+
+      final indexSnap = await userIndexDoc.get();
+      if (!indexSnap.exists) {
+        debug.log("⚠️ usersPhotoIndex not found.");
+        return;
+      }
+
+      final targetDocName = indexSnap.data()?["index"]?[photoKey];
+      if (targetDocName == null) {
+        debug.log("⚠️ No index entry found for $photoKey.");
+        return;
+      }
+
+      final userPhotoDoc = FirebaseFirestore.instance
+          .collection("${tenantId}_photos")
+          .doc(targetDocName);
+
+      await userPhotoDoc.update({photoKey: FieldValue.delete()});
+
+      await userIndexDoc.set({
+        "index": {photoKey: FieldValue.delete()},
+      }, SetOptions(merge: true));
+
+      _cache.remove(employeeId);
+      debug.log("🗑️ Deleted user photos for $employeeId from $targetDocName");
+    } catch (e) {
+      debug.log("❌ Error deleting user photos for $employeeId: $e");
     }
   }
 
@@ -137,116 +205,25 @@ class ImageModelService {
     return map;
   }
 
-  Future<void> testConnection() async {
-    try {
-      await _usersPhotoDoc.set({
-        "testConnection": FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
-      await _usersPhotoIndexDoc.set({
-        "testConnection": FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
-      debug.log("✅ Firestore connection OK.");
-    } catch (e) {
-      debug.log("❌ Firestore connection failed: $e");
-    }
-  }
-
-  Future<Map<String, Uint8List>> getUserPhotosByModel(UserModel user) async {
-    if (user.id.isEmpty) {
-      debug.log("⚠️ UserModel has empty ID, cannot fetch photos.");
-      return {};
-    }
-    return await getUserPhotos(user.id);
-  }
-
   Future<List<Uint8List>> getUserPhotoList(UserModel user) async {
-    final photosMap = await getUserPhotosByModel(user);
+    if (user.id.isEmpty) {
+      debug.log("⚠️ UserModel has empty ID — cannot load photos.");
+      return [];
+    }
+
+    final photosMap = await getUserPhotos(user.id);
+    if (photosMap.isEmpty) return [];
+
     final order = ["front", "left", "right", "extra1", "extra2"];
     return [
-      for (var key in order)
-        if (photosMap.containsKey(key)) photosMap[key]!,
+      for (final label in order)
+        if (photosMap.containsKey(label)) photosMap[label]!,
     ];
   }
 
-  Future<void> deleteUserPhotos({
-    required String employeeId,
-    String? label,
-  }) async {
-    try {
-      final indexSnap = await _usersPhotoIndexDoc.get();
-      if (!indexSnap.exists) return;
-
-      final indexData = indexSnap.data();
-      final String? photoKey = indexData?[employeeId];
-      if (photoKey == null) return;
-
-      final photoSnap = await _usersPhotoDoc.get();
-      if (!photoSnap.exists) return;
-
-      final data = photoSnap.data();
-      if (data == null || !data.containsKey(photoKey)) return;
-
-      final Map<String, dynamic> employeePhotos =
-      Map<String, dynamic>.from(data[photoKey]);
-
-      if (label != null) {
-        employeePhotos.remove(label);
-        debug.log("🗑️ Deleted '$label' photo for $employeeId");
-      } else {
-        data.remove(photoKey);
-        await _usersPhotoDoc.set(data, SetOptions(merge: false));
-        await _usersPhotoIndexDoc.update({employeeId: FieldValue.delete()});
-        debug.log("🗑️ Deleted ALL photos for $employeeId");
-        return;
-      }
-
-      await _usersPhotoDoc.set({
-        photoKey: employeePhotos,
-      }, SetOptions(merge: true));
-
-      if (_cache.containsKey(employeeId)) {
-        if (label != null) {
-          _cache[employeeId]!.remove(label);
-        } else {
-          _cache.remove(employeeId);
-        }
-      }
-      debug.log("✅ Delete operation complete for $employeeId");
-    } catch (e) {
-      debug.log("❌ Error deleting photos for $employeeId: $e");
-    }
-  }
-
-  final Map<String, Map<String, Uint8List>> _cache = {};
-  void clearCache() {
-    _cache.clear();
-    debug.log("🧹 ImageModelService cache cleared");
-  }
-
-  Future<Map<String, Uint8List>> loadUserPhotos(String employeeId) async {
-    if (_cache.containsKey(employeeId)) {
-      debug.log("⚡ Loaded $employeeId photos from cache");
-      return _cache[employeeId]!;
-    }
-
-    final photos = await getUserPhotos(employeeId);
-    if (photos.isNotEmpty) _cache[employeeId] = photos;
-    return photos;
-  }
-
-  void traceMemory() {
-    debug.log("🧩 Cache contains ${_cache.length} users");
-    for (final entry in _cache.entries) {
-      debug.log("   - ${entry.key}: ${entry.value.length} photos cached");
-    }
-  }
-
-  // ---------------------------------------------------------------------------
-  // 🧠 ATTENDANCE PHOTO MANAGEMENT (scalable with index + rollover)
-  // ---------------------------------------------------------------------------
-
-  final _uuid = const Uuid();
-  static const int _maxEntriesPerDoc = 800;
+  // ==========================================================================
+  // 🧠 ATTENDANCE PHOTO MANAGEMENT
+  // ==========================================================================
 
   Future<void> saveAttendancePhotoForUser({
     required UserModel user,
@@ -274,7 +251,7 @@ class ImageModelService {
         currentCount = (data["counts"]?[lastDoc] ?? 0) as int;
       }
 
-      if (currentCount >= _maxEntriesPerDoc) {
+      if (currentCount >= _maxAttendanceEntriesPerDoc) {
         final nextIndex = int.parse(targetDoc.split('_').last) + 1;
         targetDoc = "attendancePhoto_$nextIndex";
         currentCount = 0;
@@ -329,6 +306,81 @@ class ImageModelService {
     } catch (e) {
       debug.log("❌ Error retrieving attendance photo for uuid $uuid: $e");
       return null;
+    }
+  }
+
+  Future<void> deleteAttendancePhoto(String uuid) async {
+    try {
+      final attendanceIndexDoc = FirebaseFirestore.instance
+          .collection("${tenantId}_photos")
+          .doc("attendanceIndex");
+
+      final indexSnap = await attendanceIndexDoc.get();
+      if (!indexSnap.exists) {
+        debug.log("⚠️ attendanceIndex not found.");
+        return;
+      }
+
+      final targetDocName = indexSnap.data()?["index"]?[uuid];
+      if (targetDocName == null) {
+        debug.log("⚠️ No index entry found for $uuid.");
+        return;
+      }
+
+      final attendanceDoc = FirebaseFirestore.instance
+          .collection("${tenantId}_photos")
+          .doc(targetDocName);
+
+      await attendanceDoc.update({uuid: FieldValue.delete()});
+
+      await attendanceIndexDoc.set({
+        "index": {uuid: FieldValue.delete()},
+      }, SetOptions(merge: true));
+
+      debug.log("🗑️ Deleted attendance photo with uuid $uuid from $targetDocName");
+    } catch (e) {
+      debug.log("❌ Error deleting attendance photo for $uuid: $e");
+    }
+  }
+
+  // ==========================================================================
+  // 🧩 CACHE + UTILITIES
+  // ==========================================================================
+
+  void clearCache() {
+    _cache.clear();
+    debug.log("🧹 ImageModelService cache cleared");
+  }
+
+  Future<Map<String, Uint8List>> loadUserPhotos(String employeeId) async {
+    if (_cache.containsKey(employeeId)) {
+      debug.log("⚡ Loaded $employeeId photos from cache");
+      return _cache[employeeId]!;
+    }
+
+    final photos = await getUserPhotos(employeeId);
+    if (photos.isNotEmpty) _cache[employeeId] = photos;
+    return photos;
+  }
+
+  void traceMemory() {
+    debug.log("🧩 Cache contains ${_cache.length} users");
+    for (final entry in _cache.entries) {
+      debug.log("   - ${entry.key}: ${entry.value.length} photos cached");
+    }
+  }
+
+  Future<void> testConnection() async {
+    try {
+      final testDoc = FirebaseFirestore.instance
+          .collection("${tenantId}_photos")
+          .doc("testConnection");
+      await testDoc.set({
+        "ping": FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+      debug.log("✅ Firestore connection OK.");
+    } catch (e) {
+      debug.log("❌ Firestore connection failed: $e");
     }
   }
 }

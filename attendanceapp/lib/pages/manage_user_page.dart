@@ -218,7 +218,7 @@ class _ManageUserPageState extends State<ManageUserPage> with RouteAware {
       await UserModelService.instance.deleteUser(user.id);
 
       // 🧩 Delete stored photos
-      await ImageModelService.instance.deleteUserPhotos(employeeId: user.id);
+      await ImageModelService.instance.deleteUserPhotos(user.id);
 
       // 🧩 Reload face recognition model
       await FaceModelService.reload();
