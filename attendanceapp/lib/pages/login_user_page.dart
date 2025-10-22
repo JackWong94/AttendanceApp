@@ -261,11 +261,12 @@ class _LoginUserPageState extends State<LoginUserPage>
         imageBytes: bytes,
         onConfirm: (selectedUser, isScanIn) async {
           final now = DateTime.now();
+
           final message = isScanIn
               ? await _attendanceService.addScanIn(
             userId: selectedUser.id,
             time: now,
-            url: "emergencyPhotoUrl", // TODO: upload photo to Firebase Storage if needed
+            url: "emergencyPhotoUrl",
           )
               : await _attendanceService.addScanOut(
             userId: selectedUser.id,
@@ -273,11 +274,22 @@ class _LoginUserPageState extends State<LoginUserPage>
             url: "emergencyPhotoUrl",
           );
 
+          final success = message.contains("recorded successfully");
+
+          // ✅ Show the same black overlay animation (like normal ScanIn/Out)
+          if (success) {
+            _overlayManager.show(
+              context: context,
+              isScanIn: isScanIn,
+              user: selectedUser,
+              time: now,
+            );
+          }
+
           SnackBarHelper.show(
             context,
             message,
-            backgroundColor:
-            message.contains("recorded successfully") ? Colors.green : Colors.red,
+            backgroundColor: success ? Colors.green : Colors.red,
           );
         },
       );
