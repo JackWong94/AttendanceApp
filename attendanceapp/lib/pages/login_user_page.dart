@@ -13,6 +13,7 @@ import 'package:attendanceapp/models/user_model.dart';
 import '../main.dart'; // routeObserver
 import 'package:camera/camera.dart';
 import 'package:attendanceapp/services/tenant_model_service.dart';
+import 'package:attendanceapp/services/image_model_service.dart';
 import 'package:intl/intl.dart';
 import 'package:attendanceapp/services/face_model_service.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -262,21 +263,28 @@ class _LoginUserPageState extends State<LoginUserPage>
         onConfirm: (selectedUser, isScanIn) async {
           final now = DateTime.now();
 
+          // ✅ 1. Save attendance photo to Firestore
+          await ImageModelService.instance.saveAttendancePhotoForUser(
+            user: selectedUser,
+            imageBytes: bytes,
+          );
+
+          // ✅ 2. Record attendance log (using your AttendanceService)
           final message = isScanIn
               ? await _attendanceService.addScanIn(
             userId: selectedUser.id,
             time: now,
-            url: "emergencyPhotoUrl",
+            url: "attendance://${selectedUser.id}/${now.millisecondsSinceEpoch}",
           )
               : await _attendanceService.addScanOut(
             userId: selectedUser.id,
             time: now,
-            url: "emergencyPhotoUrl",
+            url: "attendance://${selectedUser.id}/${now.millisecondsSinceEpoch}",
           );
 
           final success = message.contains("recorded successfully");
 
-          // ✅ Show the same black overlay animation (like normal ScanIn/Out)
+          // ✅ 3. Show the same overlay animation (like normal ScanIn/Out)
           if (success) {
             _overlayManager.show(
               context: context,
@@ -286,6 +294,7 @@ class _LoginUserPageState extends State<LoginUserPage>
             );
           }
 
+          // ✅ 4. Notify via SnackBar
           SnackBarHelper.show(
             context,
             message,

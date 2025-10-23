@@ -163,16 +163,18 @@ class ImageModelService {
     required Uint8List imageBytes,
   }) async {
     try {
-      final uuid = _uuid.v4();
+      final now = DateTime.now();
+      final year = now.year;
+      final month = now.month.toString().padLeft(2, '0');
+      final timestamp = now.millisecondsSinceEpoch;
+
+      // ✅ custom key format: YYYYMM + userId + timestamp
+      final uuid = "${year}${month}_${user.id}_$timestamp";
+
       final base64 = base64Encode(imageBytes);
-      final timestamp = FieldValue.serverTimestamp();
       final data = {
-        "uuid": uuid,
-        "userId": user.id,
-        "name": user.name,
-        "timestamp": timestamp,
         "base64": base64,
-        "url": "attendance://${user.id}/$uuid",
+        "timestamp": FieldValue.serverTimestamp(),
       };
 
       await _attendanceCollection.saveEntry(
@@ -182,9 +184,9 @@ class ImageModelService {
         data: data,
       );
 
-      debug.log("✅ Attendance photo saved for ${user.name} ($uuid)");
+      debug.log("✅ Attendance photo saved for ${user.id} ($uuid)");
     } catch (e) {
-      debug.log("❌ Error saving attendance photo for ${user.name}: $e");
+      debug.log("❌ Error saving attendance photo for ${user.id}: $e");
     }
   }
 
