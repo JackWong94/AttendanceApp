@@ -64,7 +64,7 @@ class ImageModelService {
 
       // --- Determine where to store (based on index)
       final userIndexDoc = FirebaseFirestore.instance
-          .collection("${tenantId}_photos")
+          .collection("${tenantId}_Photos")
           .doc("usersPhotoIndex");
 
       final indexSnap = await userIndexDoc.get();
@@ -86,7 +86,7 @@ class ImageModelService {
 
       final photoKey = "${employeeId}photos";
       final userPhotoDoc = FirebaseFirestore.instance
-          .collection("${tenantId}_photos")
+          .collection("${tenantId}_Photos")
           .doc(targetDoc);
 
       await userPhotoDoc.set({
@@ -111,7 +111,7 @@ class ImageModelService {
     try {
       final photoKey = "${employeeId}photos";
       final userIndexDoc = FirebaseFirestore.instance
-          .collection("${tenantId}_photos")
+          .collection("${tenantId}_Photos")
           .doc("usersPhotoIndex");
 
       final indexSnap = await userIndexDoc.get();
@@ -127,7 +127,7 @@ class ImageModelService {
       }
 
       final targetDoc = await FirebaseFirestore.instance
-          .collection("${tenantId}_photos")
+          .collection("${tenantId}_Photos")
           .doc(targetDocName)
           .get();
 
@@ -164,7 +164,7 @@ class ImageModelService {
     try {
       final photoKey = "${employeeId}photos";
       final userIndexDoc = FirebaseFirestore.instance
-          .collection("${tenantId}_photos")
+          .collection("${tenantId}_Photos")
           .doc("usersPhotoIndex");
 
       final indexSnap = await userIndexDoc.get();
@@ -180,7 +180,7 @@ class ImageModelService {
       }
 
       final userPhotoDoc = FirebaseFirestore.instance
-          .collection("${tenantId}_photos")
+          .collection("${tenantId}_Photos")
           .doc(targetDocName);
 
       await userPhotoDoc.update({photoKey: FieldValue.delete()});
@@ -236,7 +236,7 @@ class ImageModelService {
       final imageUrl = "attendance://${user.id}/$timestamp/$uuid";
 
       final attendanceIndexDoc = FirebaseFirestore.instance
-          .collection("${tenantId}_photos")
+          .collection("${tenantId}_Photos")
           .doc("attendanceIndex");
 
       final attendanceIndexSnap = await attendanceIndexDoc.get();
@@ -258,7 +258,7 @@ class ImageModelService {
       }
 
       final attendancePhotoDoc = FirebaseFirestore.instance
-          .collection("${tenantId}_photos")
+          .collection("${tenantId}_Photos")
           .doc(targetDoc);
 
       await attendancePhotoDoc.set({
@@ -288,7 +288,7 @@ class ImageModelService {
   Future<Map<String, dynamic>?> getAttendancePhotoByUuid(String uuid) async {
     try {
       final attendanceIndexDoc = FirebaseFirestore.instance
-          .collection("${tenantId}_photos")
+          .collection("${tenantId}_Photos")
           .doc("attendanceIndex");
 
       final indexSnap = await attendanceIndexDoc.get();
@@ -298,7 +298,7 @@ class ImageModelService {
       if (targetDocName == null) return null;
 
       final targetDoc = await FirebaseFirestore.instance
-          .collection("${tenantId}_photos")
+          .collection("${tenantId}_Photos")
           .doc(targetDocName)
           .get();
 
@@ -312,7 +312,7 @@ class ImageModelService {
   Future<void> deleteAttendancePhoto(String uuid) async {
     try {
       final attendanceIndexDoc = FirebaseFirestore.instance
-          .collection("${tenantId}_photos")
+          .collection("${tenantId}_Photos")
           .doc("attendanceIndex");
 
       final indexSnap = await attendanceIndexDoc.get();
@@ -328,7 +328,7 @@ class ImageModelService {
       }
 
       final attendanceDoc = FirebaseFirestore.instance
-          .collection("${tenantId}_photos")
+          .collection("${tenantId}_Photos")
           .doc(targetDocName);
 
       await attendanceDoc.update({uuid: FieldValue.delete()});
@@ -373,7 +373,7 @@ class ImageModelService {
   Future<void> testConnection() async {
     try {
       final testDoc = FirebaseFirestore.instance
-          .collection("${tenantId}_photos")
+          .collection("${tenantId}_Photos")
           .doc("testConnection");
       await testDoc.set({
         "ping": FieldValue.serverTimestamp(),
