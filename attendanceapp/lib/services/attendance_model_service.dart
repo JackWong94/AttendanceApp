@@ -1,8 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/attendance_model.dart';
 import 'user_model_service.dart';
+import 'image_model_service.dart';
 import 'date_service.dart';
+import 'package:attendanceapp/configs_and_tools/debug.dart';
 
+Debug debug = Debug(module: "attendance_model_service", enable: true);
 class AttendanceModelService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final String tenantId;
@@ -136,7 +139,7 @@ class AttendanceModelService {
   Future<void> deleteAttendance(String attendanceId) async {
     await _attendanceRef.doc(attendanceId).delete();
   }
-  /// Batch delete all attendance for a user
+
   Future<void> deleteAllAttendanceForUser(String userId) async {
     final userRef = UserModelService.instance.getUserDocRef(userId);
     final snapshots = await _attendanceRef
@@ -144,12 +147,48 @@ class AttendanceModelService {
         .get(); // no orderBy, avoids index
 
     final batch = _firestore.batch();
+
     for (var doc in snapshots.docs) {
+      final data = doc.data();
+
+      // Handle scanIns
+      if (data['scanIns'] != null) {
+        for (final scan in List<Map<String, dynamic>>.from(data['scanIns'])) {
+          final imageUrl = scan['imageUrl'];
+          if (imageUrl != null && imageUrl != 'cameraImageUrl') {
+            try {
+              await ImageModelService.instance.deleteAttendancePhoto(imageUrl);
+              debug.log('🗑️ Deleted scanIn image: $imageUrl');
+            } catch (e) {
+              debug.log('⚠️ Failed to delete scanIn image: $e');
+            }
+          }
+        }
+      }
+
+      // Handle scanOuts
+      if (data['scanOuts'] != null) {
+        for (final scan in List<Map<String, dynamic>>.from(data['scanOuts'])) {
+          final imageUrl = scan['imageUrl'];
+          if (imageUrl != null && imageUrl != 'cameraImageUrl') {
+            try {
+              await ImageModelService.instance.deleteAttendancePhoto(imageUrl);
+              debug.log('🗑️ Deleted scanOut image: $imageUrl');
+            } catch (e) {
+              debug.log('⚠️ Failed to delete scanOut image: $e');
+            }
+          }
+        }
+      }
+
+      // Queue Firestore doc for deletion
       batch.delete(doc.reference);
     }
 
     await batch.commit();
+    debug.log('✅ Deleted all attendance documents and images for user $userId');
   }
+
 
   /// Clear instance (call on logout)
   static void clear() {
