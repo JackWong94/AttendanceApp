@@ -184,6 +184,14 @@ class ExportExcelService {
         ..numberFormat = '0.00'
         ..cellStyle.borders.all.lineStyle = LineStyle.thin;
 
+      // 🧮 Formula for UT (h): Compare scan times with 5 PM (17:00)
+      //    Checks Scan Out 3 → Scan Out 2 → Scan Out 1, whichever exists first
+      sheet.getRangeByIndex(rowNum, colIndex(AttendanceColumn.ut))
+        ..formula =
+            '=IF(G$rowNum<>"",(G$rowNum-TIME(17,0,0))*24,IF(E$rowNum<>"",(E$rowNum-TIME(17,0,0))*24,IF(C$rowNum<>"",(C$rowNum-TIME(17,0,0))*24,0)))'
+        ..numberFormat = '0.00'
+        ..cellStyle.borders.all.lineStyle = LineStyle.thin;
+
       // ✅ Status = Present / Absent based on any valid scan
       sheet.getRangeByIndex(rowNum, colIndex(AttendanceColumn.status))
         ..formula = statusFormula(rowNum)
@@ -290,6 +298,13 @@ class ExportExcelService {
 
         // 🧮 Formula for OT (h): same logic as daily (based on 17:00)
         sheet.getRangeByIndex(rowNum, colIndex(AttendanceColumn.ot))
+          ..formula =
+              '=IF(G$rowNum<>"",(G$rowNum-TIME(17,0,0))*24,IF(E$rowNum<>"",(E$rowNum-TIME(17,0,0))*24,IF(C$rowNum<>"",(C$rowNum-TIME(17,0,0))*24,0)))'
+          ..numberFormat = '0.00'
+          ..cellStyle.borders.all.lineStyle = LineStyle.thin;
+
+        // 🧮 Formula for UT (h): same logic as daily (based on 17:00)
+        sheet.getRangeByIndex(rowNum, colIndex(AttendanceColumn.ut))
           ..formula =
               '=IF(G$rowNum<>"",(G$rowNum-TIME(17,0,0))*24,IF(E$rowNum<>"",(E$rowNum-TIME(17,0,0))*24,IF(C$rowNum<>"",(C$rowNum-TIME(17,0,0))*24,0)))'
           ..numberFormat = '0.00'
