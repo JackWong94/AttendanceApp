@@ -263,23 +263,21 @@ class _LoginUserPageState extends State<LoginUserPage>
         onConfirm: (selectedUser, isScanIn) async {
           final now = DateTime.now();
 
-          // ✅ 1. Save attendance photo to Firestore
-          await ImageModelService.instance.saveAttendancePhotoForUser(
-            user: selectedUser,
-            imageBytes: bytes,
-          );
+          // ✅ 1. Save attendance photo and get its UUID (used as URL)
+          final photoUuid = await ImageModelService.instance
+              .saveAttendancePhotoForUser(user: selectedUser, imageBytes: bytes);
 
           // ✅ 2. Record attendance log (using your AttendanceService)
           final message = isScanIn
               ? await _attendanceService.addScanIn(
             userId: selectedUser.id,
             time: now,
-            url: "attendance://${selectedUser.id}/${now.millisecondsSinceEpoch}",
+            url: photoUuid,
           )
               : await _attendanceService.addScanOut(
             userId: selectedUser.id,
             time: now,
-            url: "attendance://${selectedUser.id}/${now.millisecondsSinceEpoch}",
+            url: photoUuid,
           );
 
           final success = message.contains("recorded successfully");

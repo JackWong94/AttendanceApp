@@ -158,35 +158,37 @@ class ImageModelService {
   // 🧠 ATTENDANCE PHOTO MANAGEMENT
   // ==========================================================================
 
-  Future<void> saveAttendancePhotoForUser({
+  Future<String> saveAttendancePhotoForUser({
     required UserModel user,
     required Uint8List imageBytes,
   }) async {
     try {
       final now = DateTime.now();
-      final year = now.year;
-      final month = now.month.toString().padLeft(2, '0');
-      final timestamp = now.millisecondsSinceEpoch;
-
-      // ✅ custom key format: YYYYMM + userId + timestamp
-      final uuid = "${year}${month}_${user.id}_$timestamp";
+      final yearMonth =
+          "${now.year}${now.month.toString().padLeft(2, '0')}";
+      final uuid =
+          "${now.year}${now.month.toString().padLeft(2, '0')}_${user.id}_${now.millisecondsSinceEpoch}";
 
       final base64 = base64Encode(imageBytes);
+      final timestamp = FieldValue.serverTimestamp();
+
       final data = {
+        "timestamp": timestamp,
         "base64": base64,
-        "timestamp": FieldValue.serverTimestamp(),
       };
 
       await _attendanceCollection.saveEntry(
         indexName: "attendanceIndex",
-        docPrefix: "attendancePhoto",
+        docPrefix: "attendancePhoto_$yearMonth",
         entryKey: uuid,
         data: data,
       );
 
-      debug.log("✅ Attendance photo saved for ${user.id} ($uuid)");
+      debug.log("✅ Attendance photo saved for ${user.name} ($uuid)");
+      return uuid; // ← return UUID as the image URL
     } catch (e) {
-      debug.log("❌ Error saving attendance photo for ${user.id}: $e");
+      debug.log("❌ Error saving attendance photo for ${user.name}: $e");
+      rethrow;
     }
   }
 
