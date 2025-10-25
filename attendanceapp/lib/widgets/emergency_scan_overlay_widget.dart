@@ -11,7 +11,10 @@ class EmergencyScanOverlayWidget {
     required Uint8List imageBytes,
     required Function(UserModel user, bool isScanIn) onConfirm,
   }) {
-    _overlayEntry?.remove();
+    if (_overlayEntry != null) {
+      _overlayEntry?.remove();
+      _overlayEntry = null; // <-- cleanup here too
+    }
 
     _overlayEntry = OverlayEntry(
       builder: (context) => MaterialApp(
@@ -21,7 +24,11 @@ class EmergencyScanOverlayWidget {
           body: _EmergencyScanOverlay(
             imageBytes: imageBytes,
             onConfirm: onConfirm,
-            onClose: () => _overlayEntry?.remove(),
+            onClose: () {
+              // ✅ 2️⃣ Also clean up when closed from inside widget
+              _overlayEntry?.remove();
+              _overlayEntry = null; // <-- cleanup here too
+            },
           ),
         ),
       ),
