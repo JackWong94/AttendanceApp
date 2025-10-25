@@ -132,6 +132,7 @@ class ImageCollectionService {
     await docRef.update({entryKey: FieldValue.delete()});
     await indexRef.set({
       "index": {entryKey: FieldValue.delete()},
+      "counts": {targetDocName: FieldValue.increment(-1)}, // ✅ added line
     }, SetOptions(merge: true));
 
     debug.log("🗑️ Deleted image $entryKey from $targetDocName");
