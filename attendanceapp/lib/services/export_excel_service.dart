@@ -14,6 +14,7 @@ enum AttendanceColumn {
   scanOut3,
   lunch,
   ot,
+  ut,
   status
 }
 
@@ -151,6 +152,7 @@ class ExportExcelService {
       'Scan In 3', 'Scan Out 3',
       'Lunch (h)',
       'OT (h)',
+      'UT (h)',
       'Status',
     ];
     addHeaderRow(sheet, headers, headerRow);
@@ -204,8 +206,15 @@ class ExportExcelService {
 
     // 🧮 SUM of all OT hours
     sheet.getRangeByIndex(totalRow, colIndex(AttendanceColumn.ot)).formula =
-    'SUM(${_excelColLetter(colIndex(AttendanceColumn.ot))}$firstDataRow:${_excelColLetter(colIndex(AttendanceColumn.ot))}${totalRow - 1})';
+    'SUMPRODUCT(--(${_excelColLetter(colIndex(AttendanceColumn.ot))}$firstDataRow:${_excelColLetter(colIndex(AttendanceColumn.ot))}${totalRow - 1}>0),${_excelColLetter(colIndex(AttendanceColumn.ot))}$firstDataRow:${_excelColLetter(colIndex(AttendanceColumn.ot))}${totalRow - 1})';
     sheet.getRangeByIndex(totalRow, colIndex(AttendanceColumn.ot))
+      ..numberFormat = '0.00'
+      ..cellStyle.borders.all.lineStyle = LineStyle.thin;
+
+    // 🧮 SUM of all UT (negative) hours
+    sheet.getRangeByIndex(totalRow, colIndex(AttendanceColumn.ut)).formula =
+    'SUMPRODUCT(--(${_excelColLetter(colIndex(AttendanceColumn.ut))}$firstDataRow:${_excelColLetter(colIndex(AttendanceColumn.ut))}${totalRow - 1}<0),${_excelColLetter(colIndex(AttendanceColumn.ut))}$firstDataRow:${_excelColLetter(colIndex(AttendanceColumn.ut))}${totalRow - 1})';
+    sheet.getRangeByIndex(totalRow, colIndex(AttendanceColumn.ut))
       ..numberFormat = '0.00'
       ..cellStyle.borders.all.lineStyle = LineStyle.thin;
 
@@ -256,6 +265,7 @@ class ExportExcelService {
         'Scan In 3', 'Scan Out 3',
         'Lunch (h)',
         'OT (h)',
+        'UT (h)',
         'Status',
       ];
       addHeaderRow(sheet, headers, headerRow);
@@ -307,8 +317,15 @@ class ExportExcelService {
 
       // 🧮 SUM of all OT hours
       sheet.getRangeByIndex(totalRow, colIndex(AttendanceColumn.ot)).formula =
-      'SUM(${_excelColLetter(colIndex(AttendanceColumn.ot))}$firstDataRow:${_excelColLetter(colIndex(AttendanceColumn.ot))}${totalRow - 1})';
+      'SUMPRODUCT(--(${_excelColLetter(colIndex(AttendanceColumn.ot))}$firstDataRow:${_excelColLetter(colIndex(AttendanceColumn.ot))}${totalRow - 1}>0),${_excelColLetter(colIndex(AttendanceColumn.ot))}$firstDataRow:${_excelColLetter(colIndex(AttendanceColumn.ot))}${totalRow - 1})';
       sheet.getRangeByIndex(totalRow, colIndex(AttendanceColumn.ot))
+        ..numberFormat = '0.00'
+        ..cellStyle.borders.all.lineStyle = LineStyle.thin;
+
+      // 🧮 SUM of all UT (negative) hours
+      sheet.getRangeByIndex(totalRow, colIndex(AttendanceColumn.ut)).formula =
+      'SUMPRODUCT(--(${_excelColLetter(colIndex(AttendanceColumn.ut))}$firstDataRow:${_excelColLetter(colIndex(AttendanceColumn.ut))}${totalRow - 1}<0),${_excelColLetter(colIndex(AttendanceColumn.ut))}$firstDataRow:${_excelColLetter(colIndex(AttendanceColumn.ut))}${totalRow - 1})';
+      sheet.getRangeByIndex(totalRow, colIndex(AttendanceColumn.ut))
         ..numberFormat = '0.00'
         ..cellStyle.borders.all.lineStyle = LineStyle.thin;
 
