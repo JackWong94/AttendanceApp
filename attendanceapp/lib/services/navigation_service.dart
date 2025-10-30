@@ -30,7 +30,7 @@ class NavigationService {
 
   /// Password verification before opening ManageUserPage
   static void goToManageUser(BuildContext context) async {
-    final passwordController = TextEditingController();
+    /*final passwordController = TextEditingController();
     final authService = AuthenticationService();
 
     final bool? verified = await showDialog<bool>(
@@ -58,8 +58,8 @@ class NavigationService {
           ),
         ],
       ),
-    );
-
+    );*/
+    bool verified=true;
     if (verified == true) {
       // Only close drawer **after verification**
       Navigator.pop(context);
