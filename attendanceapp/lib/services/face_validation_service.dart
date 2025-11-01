@@ -19,7 +19,7 @@ class FaceValidationService {
     required Map<String, dynamic> box,
     Map<String, dynamic>? landmarks,
     double centerThresholdRatio = 0.3,
-    double tooFarRatio = 0.5,
+    double tooFarRatio = 0.35, //0.5
     double tooCloseRatio = 0.68,
     int? step, // optional: 0 = straight, 1 = left, 2 = right
   }) {

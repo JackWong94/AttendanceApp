@@ -117,7 +117,10 @@ class _FaceCaptureWidgetState extends State<FaceCaptureWidget> {
             builder: (context, constraints) {
               final boxWidth = constraints.maxWidth;
               final boxHeight = constraints.maxHeight;
-              final diameter = boxHeight * 0.6; // 70% of SizedBox height
+              final circleRatio = 0.75; //0.6
+              // Use the smaller dimension to ensure the circle fits
+              final minSide = boxWidth < boxHeight ? boxWidth : boxHeight;
+              final diameter = minSide * circleRatio;
 
               return Stack(
                 alignment: Alignment.center,

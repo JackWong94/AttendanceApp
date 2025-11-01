@@ -11,7 +11,7 @@ class FaceRecognitionWidget extends StatelessWidget {
     this.bottomPadding = 20,
     this.beamDuration = const Duration(seconds: 2),
     this.borderRadius = 12.0,
-    this.circleRatio = 0.6,
+    this.circleRatio = 0.75, //0.6
   });
 
   final CameraController controller;
@@ -40,7 +40,9 @@ class FaceRecognitionWidget extends StatelessWidget {
             previewHeight = previewWidth / controller.value.aspectRatio;
           }
 
-          final circleDiameter = previewHeight * circleRatio;
+          // ✅ Use the smaller dimension for circle size
+          final minSide = previewWidth < previewHeight ? previewWidth : previewHeight;
+          final circleDiameter = minSide * circleRatio;
 
           return Center(
             child: Stack(
