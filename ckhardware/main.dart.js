@@ -54180,12 +54180,12 @@ B.c.V(s.e)
 s.f=0},
 $S:0}
 A.aIk.prototype={
-$2(a,b){var s=null,r=b.d*0.75,q=A.b([],t.D),p=this.a.a.c.a
-if(p!=null&&p.a.a)q.push(new A.pt(J.abT(p.a),new A.DV(p,s),s))
-else q.push(B.dp)
-q.push(A.je(A.dX(s,s,B.w,s,s,new A.dM(s,s,A.aYh(B.a0,2),s,s,s,B.hj),s,r,s,s,s,s,r),!0,s))
-q.push(B.Lm)
-return A.hr(B.ac,q,B.D,B.bC,s)},
+$2(a,b){var s=null,r=b.b,q=b.d,p=(r<q?r:q)*0.75,o=A.b([],t.D),n=this.a.a.c.a
+if(n!=null&&n.a.a)o.push(new A.pt(J.abT(n.a),new A.DV(n,s),s))
+else o.push(B.dp)
+o.push(A.je(A.dX(s,s,B.w,s,s,new A.dM(s,s,A.aYh(B.a0,2),s,s,s,B.hj),s,p,s,s,s,s,p),!0,s))
+o.push(B.Lm)
+return A.hr(B.ac,o,B.D,B.bC,s)},
 $S:411}
 A.aIl.prototype={
 $1(a){return A.aU5(a,null,80,80)},
@@ -54196,7 +54196,7 @@ A.aiJ.prototype={
 $2(a,b){var s,r,q=null,p=b.b,o=b.d,n=this.a,m=n.c,l=m.a,k=J.kL(l),j=o*k.gyS(l)
 if(j>p){s=p/k.gyS(l)
 j=p}else s=o
-r=s*0.75
+r=(j<s?j:s)*0.75
 l=A.b([],t.D)
 if(m.a.a)l.push(A.dj(new A.DV(m,q),s,j))
 else l.push(B.dp)
