@@ -18,37 +18,7 @@
 
   <title>attendanceapp</title>
   <link rel="manifest" href="manifest.json">
-  <!-- ✅ Chrome back button handler -->
-  <script>
-    let backPressedOnce = false;
 
-    function lockBack() {
-      history.pushState(null, "", location.href);
-    }
-
-    window.addEventListener("load", () => {
-      lockBack(); // Prevent immediate back exit
-    });
-
-    // Chrome default leave-site dialog
-    window.onbeforeunload = function (e) {
-      e.returnValue = "";
-    };
-
-    window.addEventListener("popstate", function (event) {
-      if (!backPressedOnce) {
-        backPressedOnce = true;
-
-        // Reset after 1.5 seconds
-        setTimeout(() => backPressedOnce = false, 1500);
-
-        lockBack(); // Re-lock
-      } else {
-        // Second back press → allow unload → triggers Chrome dialog
-        history.back();
-      }
-    });
-  </script>
   <!-- ✅ face-api.js -->
   <script src="js/face-api.min.js"></script>
 
