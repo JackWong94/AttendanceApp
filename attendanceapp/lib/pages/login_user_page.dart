@@ -33,7 +33,7 @@ class LoginUserPage extends StatefulWidget {
 
 class _LoginUserPageState extends State<LoginUserPage>
     with RouteAware, SingleTickerProviderStateMixin {
-  static const String appVersion = "Version: 1.0.1";
+  static const String appVersion = "Version: 724.724.724";
   final CameraService _cameraService = CameraService.instance;
   final AttendanceService _attendanceService = AttendanceService();
   final ScanOverlayManager _overlayManager = ScanOverlayManager();
@@ -312,8 +312,29 @@ class _LoginUserPageState extends State<LoginUserPage>
           if (_overlayManager.isVisible) {
             _overlayManager.remove();
             return false; // prevent exiting when overlay is visible
+          } else {
+            bool shouldLeave = await showDialog(
+                context: context,
+                builder: (context) {
+                  return AlertDialog(
+                    title: Text("Leave this page?"),
+                    content: Text("You have unsaved changes."),
+                    actions: [
+                      TextButton(
+                        child: Text("Cancel"),
+                        onPressed: () => Navigator.of(context).pop(false),
+                      ),
+                      TextButton(
+                        child: Text("Discard"),
+                        onPressed: () => Navigator.of(context).pop(true),
+                      ),
+                    ],
+                  );
+                }
+            );
+
+            return shouldLeave; // true = allow back, false = prevent
           }
-          return true;
         },
         child: Scaffold(
           appBar:
