@@ -53,40 +53,6 @@
       }
     })();
   </script>
-  <script>
-    /*
-      Basic approach:
-      - Push an initial state so there is a "back step" to intercept.
-      - On popstate, show prompt or run custom code, then restore history.
-    */
-
-    (function() {
-      // ensure there's at least one history entry to capture back navigation
-      history.replaceState({page: 1}, document.title, location.href);
-      history.pushState({page: 2}, document.title, location.href);
-
-      let backHandled = false;
-
-      window.addEventListener('popstate', function (event) {
-        // Prevent repeated handling
-        if (backHandled) return;
-        backHandled = true;
-
-        // Example: confirmation dialog
-        const leave = confirm('Are you sure you want to go back / leave this app?');
-        if (leave) {
-          // allow normal back navigation: remove interception and go back
-          // (move back one step in history)
-          window.removeEventListener('popstate', arguments.callee);
-          history.back();
-        } else {
-          // Re-push the state to remain on the same page
-          history.pushState({page: 2}, document.title, location.href);
-          backHandled = false;
-        }
-      }, {once: false});
-    })();
-  </script>
 </head>
 
 <body>
