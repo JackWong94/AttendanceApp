@@ -52538,8 +52538,8 @@ case 4:case 1:return A.y(q,r)}})
 return A.z($async$$0,r)},
 $S:94}
 A.aKq.prototype={
-$1(a){var s=null,r=A.bB("Leave this page?",s,s,s,s,s,s,s,s),q=A.bB("You have unsaved changes.",s,s,s,s,s,s,s,s)
-return A.acb(A.b([A.hZ(A.bB("Cancel",s,s,s,s,s,s,s,s),new A.aKo(a),s),A.hZ(A.bB("Discard",s,s,s,s,s,s,s,s),new A.aKp(a),s)],t.D),q,r)},
+$1(a){var s=null,r=A.bB("Leave this page?",s,s,s,s,s,s,s,s),q=A.bB("Do you want to leave?",s,s,s,s,s,s,s,s)
+return A.acb(A.b([A.hZ(A.bB("Cancel",s,s,s,s,s,s,s,s),new A.aKo(a),s),A.hZ(A.bB("Yes",s,s,s,s,s,s,s,s),new A.aKp(a),s)],t.D),q,r)},
 $S:125}
 A.aKo.prototype={
 $0(){return A.dp(this.a,!1).h9(!1)},
@@ -52549,7 +52549,7 @@ $0(){return A.dp(this.a,!1).h9(!0)},
 $S:0}
 A.aKx.prototype={
 $2(a,b){var s=null,r=t.D
-return A.dw(A.b([A.dX(B.hd,B.aqg,B.w,B.fB,s,s,s,s,s,B.U4,s,s,1/0),A.k2(A.b09(A.b([A.ank(B.Wf,new A.aKr(a),B.Nc),A.ank(B.W4,new A.aKs(a),B.Na),A.ank(B.Wb,new A.aKt(a),B.aqj),A.ank(B.uZ,new A.aKu(a),B.aqq)],r),s,s,!1),1),new A.bA(B.U_,A.dw(A.b([B.To,A.bB("Version: 724.724.724",s,s,s,s,B.ani,B.dc,s,s)],r),B.R,B.Q,B.aU),s)],r),B.R,B.Q,B.ab)},
+return A.dw(A.b([A.dX(B.hd,B.aqg,B.w,B.fB,s,s,s,s,s,B.U4,s,s,1/0),A.k2(A.b09(A.b([A.ank(B.Wf,new A.aKr(a),B.Nc),A.ank(B.W4,new A.aKs(a),B.Na),A.ank(B.Wb,new A.aKt(a),B.aqj),A.ank(B.uZ,new A.aKu(a),B.aqq)],r),s,s,!1),1),new A.bA(B.U_,A.dw(A.b([B.To,A.bB("Version: 1.1.1",s,s,s,s,B.ani,B.dc,s,s)],r),B.R,B.Q,B.aU),s)],r),B.R,B.Q,B.ab)},
 $S:319}
 A.aKr.prototype={
 $0(){return A.bes(this.a)},
