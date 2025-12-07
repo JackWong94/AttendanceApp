@@ -33,7 +33,7 @@ class LoginUserPage extends StatefulWidget {
 
 class _LoginUserPageState extends State<LoginUserPage>
     with RouteAware, SingleTickerProviderStateMixin {
-  static const String appVersion = "Version: 724.724.724";
+  static const String appVersion = "Version: 1.0.0";
   final CameraService _cameraService = CameraService.instance;
   final AttendanceService _attendanceService = AttendanceService();
   final ScanOverlayManager _overlayManager = ScanOverlayManager();
@@ -307,179 +307,146 @@ class _LoginUserPageState extends State<LoginUserPage>
 
   @override
   Widget build(BuildContext context) {
-    return WillPopScope(
-        onWillPop: () async {
-          if (_overlayManager.isVisible) {
-            _overlayManager.remove();
-            return false; // prevent exiting when overlay is visible
-          } else {
-            bool shouldLeave = await showDialog(
-                context: context,
-                builder: (context) {
-                  return AlertDialog(
-                    title: Text("Leave this page?"),
-                    content: Text("You have unsaved changes."),
-                    actions: [
-                      TextButton(
-                        child: Text("Cancel"),
-                        onPressed: () => Navigator.of(context).pop(false),
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(TenantModelService.instance.currentTenantName),
+      ),
+      endDrawer: Drawer(
+        child: FutureBuilder<PackageInfo>(
+          future: PackageInfo.fromPlatform(),
+          builder: (context, snapshot) {
+            final versionText = appVersion;
+
+            return Column(
+              children: [
+                Container(
+                  width: double.infinity,
+                  color: Colors.blue,
+                  padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 16),
+                  alignment: Alignment.centerLeft,
+                  child: const Text(
+                    "Settings",
+                    style: TextStyle(color: Colors.white, fontSize: 20),
+                  ),
+                ),
+                Expanded(
+                  child: ListView(
+                    children: [
+                      ListTile(
+                        leading: const Icon(Icons.person_add),
+                        title: const Text("Register New User"),
+                        onTap: () => NavigationService.goToRegisterUser(context),
                       ),
-                      TextButton(
-                        child: Text("Discard"),
-                        onPressed: () => Navigator.of(context).pop(true),
+                      ListTile(
+                        leading: const Icon(Icons.assignment),
+                        title: const Text("Attendance"),
+                        onTap: () => NavigationService.goToAttendance(context),
+                      ),
+                      ListTile(
+                        leading: const Icon(Icons.manage_accounts),
+                        title: const Text("Manage User"),
+                        onTap: () => NavigationService.goToManageUser(context),
+                      ),
+                      ListTile(
+                        leading: const Icon(Icons.logout),
+                        title: const Text("Log out"),
+                        onTap: () => NavigationService.logOut(context),
                       ),
                     ],
-                  );
-                }
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 16, top: 8),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Divider(thickness: 1),
+                      Text(
+                        versionText,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             );
-
-            return shouldLeave; // true = allow back, false = prevent
-          }
-        },
-        child: Scaffold(
-          appBar:
-          AppBar(title: Text(TenantModelService.instance.currentTenantName)),
-          endDrawer: Drawer(
-            child: FutureBuilder<PackageInfo>(
-              future: PackageInfo.fromPlatform(),
-              builder: (context, snapshot) {
-                final versionText = appVersion;
-
-                return Column(
+          },
+        ),
+      ),
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              children: [
+                const Text(
+                  "Welcome! Please scan to login/logout",
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 30),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Container(
-                      width: double.infinity,
-                      color: Colors.blue,
-                      padding:
-                      const EdgeInsets.symmetric(vertical: 40, horizontal: 16),
-                      alignment: Alignment.centerLeft,
-                      child: const Text(
-                        "Settings",
-                        style: TextStyle(color: Colors.white, fontSize: 20),
-                      ),
+                    ElevatedButton.icon(
+                      onPressed: _scanInProgress
+                          ? null
+                          : () => _handleScanFlow(isScanIn: true),
+                      icon: const Icon(Icons.login),
+                      label: const Text("Scan In"),
                     ),
-                    Expanded(
-                      child: ListView(
-                        children: [
-                          ListTile(
-                            leading: const Icon(Icons.person_add),
-                            title: const Text("Register New User"),
-                            onTap: () =>
-                                NavigationService.goToRegisterUser(context),
-                          ),
-                          ListTile(
-                            leading: const Icon(Icons.assignment),
-                            title: const Text("Attendance"),
-                            onTap: () =>
-                                NavigationService.goToAttendance(context),
-                          ),
-                          ListTile(
-                            leading: const Icon(Icons.manage_accounts),
-                            title: const Text("Manage User"),
-                            onTap: () =>
-                                NavigationService.goToManageUser(context),
-                          ),
-                          ListTile(
-                            leading: const Icon(Icons.logout),
-                            title: const Text("Log out"),
-                            onTap: () => NavigationService.logOut(context),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 16, top: 8),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Divider(thickness: 1),
-                          Text(
-                            versionText,
-                            style: const TextStyle(
-                              fontSize: 14,
-                              color: Colors.grey,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                        ],
-                      ),
+                    const SizedBox(width: 20),
+                    ElevatedButton.icon(
+                      onPressed: _scanInProgress
+                          ? null
+                          : () => _handleScanFlow(isScanIn: false),
+                      icon: const Icon(Icons.logout),
+                      label: const Text("Scan Out"),
                     ),
                   ],
-                );
-              },
+                ),
+              ],
             ),
           ),
-          body: Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  children: [
-                    const Text(
-                      "Welcome! Please scan to login/logout",
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 30),
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
+          Expanded(
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: _cameraService.controller != null &&
+                    _cameraService.controller!.value.isInitialized
+                    ? AspectRatio(
+                  aspectRatio:
+                  _cameraService.controller!.value.aspectRatio,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Stack(
+                      fit: StackFit.expand,
                       children: [
-                        ElevatedButton.icon(
-                          onPressed: _scanInProgress
-                              ? null
-                              : () => _handleScanFlow(isScanIn: true),
-                          icon: const Icon(Icons.login),
-                          label: const Text("Scan In"),
-                        ),
-                        const SizedBox(width: 20),
-                        ElevatedButton.icon(
-                          onPressed: _scanInProgress
-                              ? null
-                              : () => _handleScanFlow(isScanIn: false),
-                          icon: const Icon(Icons.logout),
-                          label: const Text("Scan Out"),
+                        FaceRecognitionWidget(
+                          controller: _cameraService.controller!,
+                          showScanBeam: _scanInProgress,
                         ),
                       ],
                     ),
-                  ],
-                ),
-              ),
-              Expanded(
-                child: Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24.0), // ✅ same as your previous layout
-                    child: _cameraService.controller != null &&
-                        _cameraService.controller!.value.isInitialized
-                        ? AspectRatio(
-                      aspectRatio: _cameraService.controller!.value.aspectRatio,
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(12), // optional rounded corners
-                        child: Stack(
-                          fit: StackFit.expand,
-                          children: [
-                            FaceRecognitionWidget (
-                              controller: _cameraService.controller!,
-                              showScanBeam: _scanInProgress,
-                            ),
-                          ],
-                        ),
-                      ),
-                    )
-                        : const Center(child: CircularProgressIndicator()),
                   ),
-                ),
+                )
+                    : const Center(child: CircularProgressIndicator()),
               ),
-
-              const SizedBox(height: 10),
-              ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
-                onPressed: _scanInProgress ? null : _handleEmergencyScan,
-                icon: const Icon(Icons.warning),
-                label: const Text("Emergency Scan"),
-              ),
-              const SizedBox(height: 30),
-            ],
+            ),
           ),
-        ),
+          const SizedBox(height: 10),
+          ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+            onPressed: _scanInProgress ? null : _handleEmergencyScan,
+            icon: const Icon(Icons.warning),
+            label: const Text("Emergency Scan"),
+          ),
+          const SizedBox(height: 30),
+        ],
+      ),
     );
   }
 }
