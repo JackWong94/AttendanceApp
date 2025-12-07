@@ -61,12 +61,14 @@
     });*/
 
     //Warn on pop back
-    window.addEventListener("load", () => {
+    window.addEventListener("load", (event) => {
       // Handle back button
       window.onpopstate = function () {
         const stay = confirm("Are you sure you want to leave this page?");
         if (stay) {
           history.pushState(null, "", location.href);
+          event.preventDefault();
+          event.returnValue = "";
         } else {
           history.back();
         }
