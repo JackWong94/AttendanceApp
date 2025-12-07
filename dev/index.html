@@ -34,7 +34,6 @@
 
       // 👇 FIXED: use pathname, not origin (works for GitHub Pages subfolder)
       const modelPath = window.location.origin + window.location.pathname.replace(/index\.html$/, '') + "models/";
-
       try {
         console.time("[face-api] loadModels");
         await Promise.all([
@@ -50,62 +49,34 @@
         console.log("✅ face-api.js models fully loaded from:", modelPath);
       } catch (err) {
         console.error("⚠️ Failed to load face-api.js models:", err);
+        window.location.reload(true);
       }
     })();
+  </script>
+  <script>
+    //Warn on reload & exit
+    window.addEventListener("beforeunload", (event) => {
+      event.preventDefault();
+      event.returnValue = "";
+    });
+
+    //Warn on pop back
+    window.addEventListener("load", () => {
+      // Handle back button
+      window.onpopstate = function () {
+        const stay = confirm("Are you sure you want to leave this page?");
+        if (stay) {
+          history.pushState(null, "", location.href);
+        } else {
+          history.back();
+        }
+      };
+    });
   </script>
 </head>
 
 <body>
 <!-- ✅ Flutter app entry -->
 <script src="flutter_bootstrap.js" defer></script>
-
-<!-- ✅ Simple fallback loader -->
-<script>
-  const loadingDiv = document.createElement("div");
-  loadingDiv.innerHTML = `
-    <div id="fallback"
-         style="display:flex;flex-direction:column;align-items:center;justify-content:center;
-                height:100vh;font-family:sans-serif;text-align:center;">
-      <p style="font-size:18px;color:#444;">🚀 Loading app, please wait...</p>
-      <button id="refreshBtn"
-              style="margin-top:16px;padding:10px 20px;font-size:16px;border-radius:8px;
-                     border:none;background:#1976d2;color:white;cursor:pointer;">
-        Refresh
-      </button>
-    </div>
-  `;
-  document.body.appendChild(loadingDiv);
-
-  const timeout = setTimeout(() => {
-    document.getElementById("fallback").innerHTML = `
-      <p style="font-size:18px;color:#d32f2f;">⚠️ App failed to load.</p>
-      <p style="color:#555;">This may happen after an update or network issue.</p>
-      <button onclick="window.location.reload(true)"
-              style="margin-top:16px;padding:10px 20px;font-size:16px;border-radius:8px;
-                     border:none;background:#1976d2;color:white;cursor:pointer;">
-        🔄 Refresh App
-      </button>
-    `;
-  }, 10000);
-
-  window.addEventListener('flutter-first-frame', () => {
-    clearTimeout(timeout);
-    loadingDiv.remove();
-  });
-
-  document.addEventListener("click", (e) => {
-    if (e.target && e.target.id === "refreshBtn") {
-      window.location.reload(true);
-    }
-  });
-</script>
-<script>
-  window.addEventListener('error', function(e) {
-    console.error('🌋 Global error:', e.message, e.filename, e.lineno);
-  });
-  window.addEventListener('unhandledrejection', function(e) {
-    console.error('💥 Unhandled promise rejection:', e.reason);
-  });
-</script>
 </body>
 </html>
