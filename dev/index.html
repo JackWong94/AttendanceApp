@@ -18,7 +18,21 @@
 
   <title>attendanceapp</title>
   <link rel="manifest" href="manifest.json">
+  <!-- ✅ Exit Intercept -->
+  <script>
 
+    //Warn on reload & exit
+    window.addEventListener("beforeunload", (event) => {
+      event.preventDefault();
+      event.returnValue = "";
+    });
+
+    //Warn on pop back
+    window.addEventListener("load", () => {
+      // Replace current history entry with a clean one (So that pressing back wont cause user to pop to previous page)
+      history.replaceState(null, "", location.href);
+    });
+  </script>
   <!-- ✅ face-api.js -->
   <script src="js/face-api.min.js"></script>
 
@@ -52,28 +66,6 @@
         window.location.reload(true);
       }
     })();
-  </script>
-  <script>
-    //Warn on reload & exit
-    /*window.addEventListener("beforeunload", (event) => {
-      event.preventDefault();
-      event.returnValue = "";
-    });*/
-
-    //Warn on pop back
-    window.addEventListener("load", (event) => {
-      // Handle back button
-      window.onpopstate = function () {
-        const stay = confirm("Are you sure you want to leave this page?");
-        if (stay) {
-          history.pushState(null, "", location.href);
-          event.preventDefault();
-          event.returnValue = "";
-        } else {
-          history.back();
-        }
-      };
-    });
   </script>
 </head>
 
