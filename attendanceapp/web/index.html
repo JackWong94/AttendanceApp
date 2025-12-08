@@ -34,10 +34,10 @@
   });
 
   //Warn on pop back
-  window.addEventListener("load", () => {
+  //window.addEventListener("load", () => {
     // Replace current history entry with a clean one (So that pressing back wont cause user to pop to previous page)
     history.replaceState(null, "", location.href);
-  });
+  //});
 </script>
 
 <!-- ✅ face-api.js -->

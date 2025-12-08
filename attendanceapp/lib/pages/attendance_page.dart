@@ -140,7 +140,7 @@ class _AttendancePageState extends State<AttendancePage> {
     setState(() => loading = false);
 
     if (selectedFilter == FilterType.day) {
-      ExportExcelService.exportDayAttendance(
+      ExportExcelService.exportMonthAttendance(
         attendanceMap: attendanceMap,
         userNames: userNames,
         selectedDate: selectedDate,
