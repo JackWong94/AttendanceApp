@@ -24,6 +24,48 @@ class ScanRecord {
   }
 }
 
+enum LeaveType {
+  annualLeave,
+  unpaidLeave,
+  publicHoliday,
+  mc,
+  na,
+}
+
+enum LeaveDay {
+  fullDay,
+  halfDay,
+}
+class Leave {
+  final LeaveType type;
+  final LeaveDay day;
+
+  const Leave({
+    required this.type,
+    required this.day,
+  });
+
+  factory Leave.fromMap(Map<String, dynamic> map) {
+    return Leave(
+      type: LeaveType.values.byName(map['type'] ?? 'na'),
+      day: LeaveDay.values.byName(map['day'] ?? 'fullDay'),
+    );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'type': type.name,
+      'day': day.name,
+    };
+  }
+
+  /// Default leave (no leave)
+  static const none = Leave(
+    type: LeaveType.na,
+    day: LeaveDay.fullDay,
+  );
+}
+
 class Attendance {
   final String id; // Firestore doc ID
   final DocumentReference userRef; // Ref to user document
@@ -31,6 +73,7 @@ class Attendance {
 
   final List<ScanRecord> scanIns;
   final List<ScanRecord> scanOuts;
+  final Leave leave;
 
   Attendance({
     required this.id,
@@ -38,6 +81,7 @@ class Attendance {
     required this.date,
     required this.scanIns,
     required this.scanOuts,
+    this.leave = Leave.none,
   });
 
   factory Attendance.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
@@ -50,6 +94,7 @@ class Attendance {
         date: '',
         scanIns: [],
         scanOuts: [],
+        leave: Leave.none,
       );
     }
 
@@ -64,6 +109,9 @@ class Attendance {
       scanOuts: (data['scanOuts'] as List? ?? [])
           .map((e) => ScanRecord.fromMap(Map<String, dynamic>.from(e)))
           .toList(),
+      leave: data['leave'] != null
+          ? Leave.fromMap(Map<String, dynamic>.from(data['leave']))
+          : Leave.none, // ✅ default
     );
   }
 
@@ -73,6 +121,7 @@ class Attendance {
       'date': date,
       'scanIns': scanIns.map((r) => r.toMap()).toList(),
       'scanOuts': scanOuts.map((r) => r.toMap()).toList(),
+      'leave': leave.toMap(),
     };
   }
 }
