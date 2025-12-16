@@ -35,6 +35,7 @@ enum LeaveType {
 enum LeaveDay {
   fullDay,
   halfDay,
+  na,
 }
 class Leave {
   final LeaveType type;
@@ -62,7 +63,7 @@ class Leave {
   /// Default leave (no leave)
   static const none = Leave(
     type: LeaveType.na,
-    day: LeaveDay.fullDay,
+    day: LeaveDay.na,
   );
 }
 
