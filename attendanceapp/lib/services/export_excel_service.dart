@@ -3,6 +3,11 @@ import 'dart:html' as html;
 import 'package:syncfusion_flutter_xlsio/xlsio.dart';
 import '../services/date_service.dart';
 
+//Work Hour Setting Change Here
+const double workHour = 7.5;          //half hour = 0.50
+const double halfDayWorkHour = 4.0;
+const double noWorkHour = 0.0;
+
 /// ======================
 ///   STATUS CONFIG
 /// ======================
@@ -18,13 +23,17 @@ class StatusConfig {
 /// Easy-to-extend status → config map.
 /// Add new statuses here later.
 const Map<String, StatusConfig> kStatusConfigs = {
-  'full_day': StatusConfig(7.5),
-  'halfday': StatusConfig(4.0),
-  'annual_leave': StatusConfig(null),
-  'unpaid_leave': StatusConfig(null),
-  'holiday': StatusConfig(0.0),
-  'mc': StatusConfig(0.0),
-  'sun': StatusConfig(0.0), // Sunday: expected 0 hours
+  'full_day': StatusConfig(workHour),
+  'halfday': StatusConfig(halfDayWorkHour),
+  'annual_leave': StatusConfig(noWorkHour),
+  'annual_leave_halfday': StatusConfig(halfDayWorkHour),
+  'unpaid_leave': StatusConfig(noWorkHour),
+  'unpaid_leave_halfday': StatusConfig(halfDayWorkHour),
+  'holiday': StatusConfig(noWorkHour),
+  'holiday_halfday': StatusConfig(halfDayWorkHour),
+  'mc': StatusConfig(noWorkHour),
+  'mc_halfday': StatusConfig(halfDayWorkHour),
+  'sun': StatusConfig(noWorkHour), // Sunday: expected 0 hours
 };
 
 String _normalizeStatus(String raw) => raw.trim().toLowerCase();
@@ -246,282 +255,6 @@ class ExportExcelService {
     }
 
     return '0';
-  }
-
-  /// ======================
-  ///   DAY ATTENDANCE
-  /// ======================
-  ///
-  /// Columns:
-  /// A: User
-  /// B–G: Scan In/Out 1–3
-  /// H: Status
-  /// I: Expected Workhour
-  /// J: Workhour
-  /// K: Overtime
-  /// L: Undertime
-  /// M: Present
-  static void exportDayAttendance({
-    required Map<String, Map<String, String>> attendanceMap,
-    required Map<String, String> userNames,
-    required DateTime selectedDate,
-    String? selectedUserId,
-  }) {
-    final workbook = _createWorkbook();
-    final sheet = workbook.worksheets[0];
-    sheet.name = 'Attendance';
-
-    final dateStr = DateService.toStorageDate(selectedDate);
-    createInfoHeader(sheet, 'Attendance on $dateStr');
-
-    final headers = [
-      'User',
-      'Scan In 1',
-      'Scan Out 1',
-      'Scan In 2',
-      'Scan Out 2',
-      'Scan In 3',
-      'Scan Out 3',
-      'Status',
-      'Expected Workhour (h)',
-      'Workhour (h)',
-      'Overtime (h)',
-      'Undertime (h)',
-      'Present',
-    ];
-    addHeaderRow(sheet, headers, headerRow);
-
-    // Widths for A–M
-    setColumnWidths(sheet, [
-      25, // User
-      12, // In1
-      12, // Out1
-      12, // In2
-      12, // Out2
-      12, // In3
-      12, // Out3
-      16, // Status
-      20, // Expected
-      16, // Workhour
-      16, // OT
-      16, // Undertime
-      10, // Present
-    ]);
-
-    final usersToExport =
-    selectedUserId != null ? [selectedUserId] : userNames.keys.toList();
-
-    // Precompute column letters used in formulas
-    final in1ColLetter = _excelColLetter(colIndex(AttendanceColumn.scanIn1));
-    final out1ColLetter = _excelColLetter(colIndex(AttendanceColumn.scanOut1));
-    final in2ColLetter = _excelColLetter(colIndex(AttendanceColumn.scanIn2));
-    final out2ColLetter = _excelColLetter(colIndex(AttendanceColumn.scanOut2));
-    final in3ColLetter = _excelColLetter(colIndex(AttendanceColumn.scanIn3));
-    final out3ColLetter = _excelColLetter(colIndex(AttendanceColumn.scanOut3));
-
-    final expectedColLetter =
-    _excelColLetter(colIndex(AttendanceColumn.expectedWorkHour));
-    final workColLetter =
-    _excelColLetter(colIndex(AttendanceColumn.workHour));
-    final overtimeColLetter =
-    _excelColLetter(colIndex(AttendanceColumn.overtime));
-    final undertimeColLetter =
-    _excelColLetter(colIndex(AttendanceColumn.undertime));
-    final presentColLetter =
-    _excelColLetter(colIndex(AttendanceColumn.present));
-
-    final isSunday = selectedDate.weekday == DateTime.sunday;
-
-    for (int i = 0; i < usersToExport.length; i++) {
-      final uid = usersToExport[i];
-      final recordString = attendanceMap[uid]?[dateStr] ?? '';
-      final parts = recordString.split('|');
-
-      // First 6 entries: scanIn/Out 1–3
-      final scans = List<String>.generate(
-        6,
-            (index) => (index < parts.length) ? parts[index] : '',
-      );
-
-      // 7th entry (index 6): status code, default full_day
-      final rawStatus =
-      (parts.length > 6 && parts[6].trim().isNotEmpty) ? parts[6] : 'full_day';
-      var normStatus = _normalizeStatus(rawStatus);
-      if (isSunday) {
-        normStatus = 'sun';
-      }
-
-      final rowNum = firstDataRow + i;
-
-      // 1) Write User + scan times + status
-      final displayName = userNames[uid] ?? uid;
-      appendRow(
-        sheet,
-        rowNum,
-        [
-          displayName,
-          ...scans,
-          normStatus, // Status text in column H
-        ],
-        alternate: i % 2 != 0,
-        isSunday: isSunday,
-      );
-
-      // 2) Expected Workhour (from config)
-      final statusConfig =
-          kStatusConfigs[normStatus] ?? kStatusConfigs['full_day']!;
-      final expectedCell =
-      sheet.getRangeByIndex(rowNum, colIndex(AttendanceColumn.expectedWorkHour));
-      if (statusConfig.expectedHours == null) {
-        expectedCell.setText('N/A');
-      } else {
-        expectedCell.setNumber(statusConfig.expectedHours!);
-        expectedCell.numberFormat = '0.00';
-      }
-      expectedCell.cellStyle.borders.all.lineStyle = LineStyle.thin;
-
-      // 3) Workhour formula: sum of (out - in) * 24
-      final workCell =
-      sheet.getRangeByIndex(rowNum, colIndex(AttendanceColumn.workHour));
-      if (isSunday) {
-        workCell
-          ..setNumber(0)
-          ..numberFormat = '0.00';
-      } else {
-        workCell
-          ..formula =
-              '=(IF(AND($out1ColLetter$rowNum<>"",$in1ColLetter$rowNum<>""),'
-              '$out1ColLetter$rowNum-$in1ColLetter$rowNum,0)'
-              '+IF(AND($out2ColLetter$rowNum<>"",$in2ColLetter$rowNum<>""),'
-              '$out2ColLetter$rowNum-$in2ColLetter$rowNum,0)'
-              '+IF(AND($out3ColLetter$rowNum<>"",$in3ColLetter$rowNum<>""),'
-              '$out3ColLetter$rowNum-$in3ColLetter$rowNum,0))*24';
-        workCell.numberFormat = '0.00';
-      }
-      workCell.cellStyle.borders.all.lineStyle = LineStyle.thin;
-
-      // 4) Overtime = workhour - expected, threshold > 0.5
-      final expectedRef = '$expectedColLetter$rowNum';
-      final workRef = '$workColLetter$rowNum';
-      final overtimeCell =
-      sheet.getRangeByIndex(rowNum, colIndex(AttendanceColumn.overtime));
-      if (isSunday) {
-        overtimeCell
-          ..setNumber(0)
-          ..numberFormat = '0.00';
-      } else {
-        overtimeCell
-          ..formula =
-              '=IF(OR($expectedRef="N/A",$expectedRef="",NOT(ISNUMBER($expectedRef))),'
-              '0,'
-              'IF($workRef-$expectedRef>0.5,$workRef-$expectedRef,0))'
-          ..numberFormat = '0.00';
-      }
-      overtimeCell.cellStyle.borders.all.lineStyle = LineStyle.thin;
-
-      // 5) Undertime = expected - workhour, threshold > 0.15
-      final undertimeCell =
-      sheet.getRangeByIndex(rowNum, colIndex(AttendanceColumn.undertime));
-      if (isSunday) {
-        undertimeCell
-          ..setNumber(0)
-          ..numberFormat = '0.00';
-      } else {
-        undertimeCell
-          ..formula =
-              '=IF(OR($expectedRef="N/A",$expectedRef="",NOT(ISNUMBER($expectedRef))),'
-              '0,'
-              'IF($expectedRef-$workRef>0.15,$expectedRef-$workRef,0))'
-          ..numberFormat = '0.00';
-      }
-      undertimeCell.cellStyle.borders.all.lineStyle = LineStyle.thin;
-
-      // 6) Present (computed in Dart)
-      final workHoursForPresent = _calculateWorkHoursFromStrings(scans);
-      final present = _calculatePresent(
-        isSunday: isSunday,
-        statusCode: normStatus,
-        workHours: workHoursForPresent,
-      );
-      final presentCell =
-      sheet.getRangeByIndex(rowNum, colIndex(AttendanceColumn.present));
-      presentCell
-        ..setText(present)
-        ..cellStyle.borders.all.lineStyle = LineStyle.thin;
-
-      // 🔶 Ensure Sunday orange covers all the extra columns too
-      if (isSunday) {
-        const sundayColor = '#FFA500';
-        for (final col in [
-          AttendanceColumn.status,
-          AttendanceColumn.expectedWorkHour,
-          AttendanceColumn.workHour,
-          AttendanceColumn.overtime,
-          AttendanceColumn.undertime,
-          AttendanceColumn.present,
-        ]) {
-          sheet
-              .getRangeByIndex(rowNum, colIndex(col))
-              .cellStyle
-              .backColor = sundayColor;
-        }
-      }
-    }
-
-    // Totals row
-    final totalRow = firstDataRow + usersToExport.length;
-
-    // Label "Total" in the last scan column (Scan Out 3)
-    final totalLabelCell =
-    sheet.getRangeByIndex(totalRow, colIndex(AttendanceColumn.scanOut3));
-    totalLabelCell
-      ..setText('Total')
-      ..cellStyle.bold = true
-      ..cellStyle.borders.all.lineStyle = LineStyle.thin;
-
-    // SUM Workhour
-    final workFrom = '$workColLetter$firstDataRow';
-    final workTo = '$workColLetter${totalRow - 1}';
-    final totalWorkCell =
-    sheet.getRangeByIndex(totalRow, colIndex(AttendanceColumn.workHour));
-    totalWorkCell
-      ..formula = 'SUM($workFrom:$workTo)'
-      ..numberFormat = '0.00'
-      ..cellStyle.borders.all.lineStyle = LineStyle.thin;
-
-    // SUM Overtime
-    final otFrom = '$overtimeColLetter$firstDataRow';
-    final otTo = '$overtimeColLetter${totalRow - 1}';
-    final totalOtCell =
-    sheet.getRangeByIndex(totalRow, colIndex(AttendanceColumn.overtime));
-    totalOtCell
-      ..formula = 'SUM($otFrom:$otTo)'
-      ..numberFormat = '0.00'
-      ..cellStyle.borders.all.lineStyle = LineStyle.thin;
-
-    // SUM Undertime
-    final utFrom = '$undertimeColLetter$firstDataRow';
-    final utTo = '$undertimeColLetter${totalRow - 1}';
-    final totalUtCell =
-    sheet.getRangeByIndex(totalRow, colIndex(AttendanceColumn.undertime));
-    totalUtCell
-      ..formula = 'SUM($utFrom:$utTo)'
-      ..numberFormat = '0.00'
-      ..cellStyle.borders.all.lineStyle = LineStyle.thin;
-
-    // Total Present (1 = full day, HF = 0.5)
-    final presentFrom = '$presentColLetter$firstDataRow';
-    final presentTo = '$presentColLetter${totalRow - 1}';
-    final totalPresentCell =
-    sheet.getRangeByIndex(totalRow, colIndex(AttendanceColumn.present));
-    totalPresentCell
-      ..formula =
-          '=COUNTIF($presentFrom:$presentTo,"1")+0.5*COUNTIF($presentFrom:$presentTo,"HF")'
-      ..cellStyle.bold = true
-      ..cellStyle.borders.all.lineStyle = LineStyle.thin;
-
-    addLegend(sheet, totalRow + 2);
-    _saveExcelFile(workbook, 'attendance-$dateStr.xlsx');
   }
 
   /// ======================
