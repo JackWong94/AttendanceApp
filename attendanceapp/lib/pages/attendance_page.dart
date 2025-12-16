@@ -85,7 +85,7 @@ class _AttendancePageState extends State<AttendancePage> {
 
     // Fetch attendances
     List<Attendance> allAttendances;
-    if (selectedFilter == FilterType.day) {
+    if (false) {//selectedFilter == FilterType.day) { //No more supporting single date export excel
       allAttendances = [];
       final dateStr = DateService.toStorageDate(selectedDate);
       for (var uid in userNames.keys) {
