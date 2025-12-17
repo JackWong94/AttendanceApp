@@ -402,7 +402,7 @@ class ExportExcelService {
         } catch (_) {
           continue;
         }
-        
+
         final recordString = attendanceMap[uid]?[dayStr] ?? '';
         final parts = recordString.split('|');
         final scans = List<String>.generate(
@@ -693,6 +693,24 @@ class ExportExcelService {
       summaryRow++;
 
       addLegend(sheet, summaryRow + 1);
+
+      // Add StatusConfig table at the bottom
+      final statusTableStartRow = summaryRow + 5;
+      final statusTable = attendanceStatusConfig.entries.toList();
+
+      sheet.getRangeByIndex(statusTableStartRow, 1).setText('Status Table');
+      sheet.getRangeByIndex(statusTableStartRow, 1).cellStyle.bold = true;
+
+      for (int i = 0; i < statusTable.length; i++) {
+        final row = statusTableStartRow + i + 1;
+        sheet.getRangeByIndex(row, 1).setText(statusTable[i].key); // Status code
+        final hours = statusTable[i].value.expectedHours;
+        if (hours != null) {
+          sheet.getRangeByIndex(row, 2).setNumber(hours); // Expected hours
+        } else {
+          sheet.getRangeByIndex(row, 2).setText('N/A');
+        }
+      }
     }
 
     final fileName = selectedDate != null
