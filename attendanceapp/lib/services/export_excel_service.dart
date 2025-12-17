@@ -314,6 +314,8 @@ class ExportExcelService {
     _excelColLetter(colIndex(AttendanceColumn.present));
     final statusColLetter =
     _excelColLetter(colIndex(AttendanceColumn.status));
+    const int statusTableStartRow = 100; // fixed row for Status Table
+    final statusTable = attendanceStatusConfig.entries.toList();
 
     for (int i = 0; i < usersToExport.length; i++) {
       final uid = usersToExport[i];
@@ -433,13 +435,9 @@ class ExportExcelService {
             attendanceStatusConfig[normStatus] ?? attendanceStatusConfig['full_day']!;
         final expectedCell =
         sheet.getRangeByIndex(rowNum, colIndex(AttendanceColumn.expectedWorkHour));
-        if (statusConfig.expectedHours == null) {
-          expectedCell.setText('N/A');
-        } else {
-          expectedCell.setNumber(statusConfig.expectedHours!);
-          expectedCell.numberFormat = '0.00';
-        }
-        expectedCell.cellStyle.borders.all.lineStyle = LineStyle.thin;
+
+        expectedCell.formula =
+        '=IFERROR(VLOOKUP(H$rowNum,\$A\$${statusTableStartRow + 1}:\$B\$${statusTableStartRow + statusTable.length},2,FALSE),"N/A")';
 
         // 3) Workhour formula (sum of 3 pairs)
         final workCell =
@@ -684,10 +682,7 @@ class ExportExcelService {
 
       addLegend(sheet, summaryRow + 1);
 
-      // Add StatusConfig table at the bottom
-      final statusTableStartRow = summaryRow + 5;
-      final statusTable = attendanceStatusConfig.entries.toList();
-
+      // Add StatusConfig table at fixed row
       sheet.getRangeByIndex(statusTableStartRow, 1).setText('Status Table');
       sheet.getRangeByIndex(statusTableStartRow, 1).cellStyle.bold = true;
 
