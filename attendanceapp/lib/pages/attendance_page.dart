@@ -66,12 +66,15 @@ class _AttendancePageState extends State<AttendancePage> {
   Future<void> _loadAttendance() async {
     setState(() => loading = true);
 
-    final startOfMonth = DateTime(selectedDate.year, selectedDate.month, 1);
-    final endOfMonth = DateTime(
-      selectedDate.year,
-      selectedDate.month,
-      DateService.getDaysInMonth(selectedDate.year, selectedDate.month),
-    );
+    // --- Custom month range: 26th previous month → 25th selected month ---
+    final int year = selectedDate.year;
+    final int month = selectedDate.month;
+
+    final int prevMonth = month == 1 ? 12 : month - 1;
+    final int prevYear = month == 1 ? year - 1 : year;
+
+    final periodStart = DateTime(prevYear, prevMonth, 26);
+    final periodEnd = DateTime(year, month, 25);
 
     Map<String, Map<String, String>> newMap = {};
     Map<String, Map<String, String>> newStatusMap = {};
@@ -80,22 +83,23 @@ class _AttendancePageState extends State<AttendancePage> {
     for (var uid in userNames.keys) {
       newMap[uid] = {};
       newStatusMap[uid] = {};
-      int days = DateService.getDaysInMonth(selectedDate.year, selectedDate.month);
-      for (int i = 1; i <= days; i++) {
-        final day = DateTime(selectedDate.year, selectedDate.month, i);
+      var current = periodStart;
+      while (!current.isAfter(periodEnd)) {
+        final dayStr = DateService.toStorageDate(current);
 
         // Fill N/A for all scans (in/out pairs)
-        newMap[uid]![DateService.toStorageDate(day)] =
-            List.filled(maxScans * 2, 'N/A').join('|');
+        newMap[uid]![dayStr] = List.filled(maxScans * 2, 'N/A').join('|');
 
-        newStatusMap[uid]![DateService.toStorageDate(day)] =
-          'na'; // Default status]
+        // Default status
+        newStatusMap[uid]![dayStr] = 'na';
+
+        current = current.add(const Duration(days: 1));
       }
     }
 
     // Fetch attendances
     List<Attendance> allAttendances;
-    if (false) {//selectedFilter == FilterType.day) { //No more supporting single date export excel
+    if (false) { // selectedFilter == FilterType.day) {
       allAttendances = [];
       final dateStr = DateService.toStorageDate(selectedDate);
       for (var uid in userNames.keys) {
@@ -107,7 +111,7 @@ class _AttendancePageState extends State<AttendancePage> {
       }
     } else {
       allAttendances = await AttendanceModelService.instance
-          .fetchAttendanceForMonthAllUsers(startDate: startOfMonth, endDate: endOfMonth);
+          .fetchAttendanceForMonthAllUsers(startDate: periodStart, endDate: periodEnd);
     }
 
     // Fill in actual data
