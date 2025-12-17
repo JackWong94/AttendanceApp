@@ -38,9 +38,10 @@ enum Status {
 }
 
 // ✅ Correct const usage
-const defaultStatus = Status.FullDay;
+
 
 class Attendance {
+  static const defaultStatus = Status.FullDay;
   final String id; // Firestore doc ID
   final DocumentReference userRef; // Ref to user document
   final String date; // "yyyy-MM-dd"

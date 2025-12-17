@@ -25,7 +25,7 @@ class StatusConfig {
 
 /// Easy-to-extend status → config map.
 /// Add new statuses here later.
-const Map<String, StatusConfig> kStatusConfigs = {
+const Map<String, StatusConfig> attendanceStatusConfig = {
   'full_day': StatusConfig(workHour),
   'halfday': StatusConfig(halfDayWorkHour),
   'annual_leave': StatusConfig(noWorkHour),
@@ -415,7 +415,7 @@ class ExportExcelService {
         final rawStatus =
         (statusFromMap != null)
             ? statusFromMap
-            : 'full_day';
+            : 'n/a';
 
         var normStatus = _normalizeStatus(rawStatus);
 
@@ -440,7 +440,7 @@ class ExportExcelService {
 
         // 2) Expected Workhour
         final statusConfig =
-            kStatusConfigs[normStatus] ?? kStatusConfigs['full_day']!;
+            attendanceStatusConfig[normStatus] ?? attendanceStatusConfig['full_day']!;
         final expectedCell =
         sheet.getRangeByIndex(rowNum, colIndex(AttendanceColumn.expectedWorkHour));
         if (statusConfig.expectedHours == null) {
