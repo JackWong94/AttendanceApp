@@ -29,6 +29,10 @@ class _AttendancePageState extends State<AttendancePage> {
 
   // {userId: {date: "in1|out1|in2|out2|..."}}
   Map<String, Map<String, String>> attendanceMap = {};
+
+  // {userId: {date: "status"}}
+  Map<String, Map<String, String>> attendanceStatusMap = {};
+
   Map<String, String> userNames = {};
 
   bool loading = false;
@@ -43,6 +47,7 @@ class _AttendancePageState extends State<AttendancePage> {
     setState(() {
       loading = true;
       attendanceMap.clear();
+      attendanceStatusMap.clear();
       userNames.clear();
     });
 
@@ -69,10 +74,12 @@ class _AttendancePageState extends State<AttendancePage> {
     );
 
     Map<String, Map<String, String>> newMap = {};
+    Map<String, Map<String, String>> newStatusMap = {};
 
     // Initialize map for all users
     for (var uid in userNames.keys) {
       newMap[uid] = {};
+      newStatusMap[uid] = {};
       int days = DateService.getDaysInMonth(selectedDate.year, selectedDate.month);
       for (int i = 1; i <= days; i++) {
         final day = DateTime(selectedDate.year, selectedDate.month, i);
@@ -80,6 +87,9 @@ class _AttendancePageState extends State<AttendancePage> {
         // Fill N/A for all scans (in/out pairs)
         newMap[uid]![DateService.toStorageDate(day)] =
             List.filled(maxScans * 2, 'N/A').join('|');
+
+        newStatusMap[uid]![DateService.toStorageDate(day)] =
+          'na'; // Default status]
       }
     }
 
@@ -128,8 +138,17 @@ class _AttendancePageState extends State<AttendancePage> {
       newMap[uid]![att.date] = all.join('|');
     }
 
+    for (var att in allAttendances) {
+      final uid = att.userRef.id;
+      if (!newMap.containsKey(uid)) continue;
+
+      // ✅ STATUS (store Status enum as string)
+      newStatusMap[uid]![att.date] = att.status.name; // <-- Status enum name
+    }
+
     setState(() {
       attendanceMap = newMap;
+      attendanceStatusMap = newStatusMap;
       loading = false;
     });
   }
@@ -142,6 +161,7 @@ class _AttendancePageState extends State<AttendancePage> {
     if (selectedFilter == FilterType.day) {
       ExportExcelService.exportMonthAttendance(
         attendanceMap: attendanceMap,
+        attendanceStatusMap: attendanceStatusMap,
         userNames: userNames,
         selectedDate: selectedDate,
         selectedUserId: selectedUserId,
@@ -149,6 +169,7 @@ class _AttendancePageState extends State<AttendancePage> {
     } else {
       ExportExcelService.exportMonthAttendance(
         attendanceMap: attendanceMap,
+        attendanceStatusMap: attendanceStatusMap,
         userNames: userNames,
         selectedDate: selectedDate,
         selectedUserId: selectedUserId,

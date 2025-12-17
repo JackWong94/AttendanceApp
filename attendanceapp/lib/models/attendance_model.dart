@@ -24,48 +24,21 @@ class ScanRecord {
   }
 }
 
-enum LeaveType {
-  annualLeave,
-  unpaidLeave,
-  publicHoliday,
-  mc,
-  na,
+enum Status {
+  FullDay,
+  HalfDay,
+  AL_FullDay,
+  AL_HalfDay,
+  UL_FullDay,
+  UL_HalfDay,
+  PH_FullDay,
+  PH_HalfDay,
+  MC_FullDay,
+  MC_HalfDay,
 }
 
-enum LeaveDay {
-  fullDay,
-  halfDay,
-  na,
-}
-class Leave {
-  final LeaveType type;
-  final LeaveDay day;
-
-  const Leave({
-    required this.type,
-    required this.day,
-  });
-
-  factory Leave.fromMap(Map<String, dynamic> map) {
-    return Leave(
-      type: LeaveType.values.byName(map['type'] ?? 'na'),
-      day: LeaveDay.values.byName(map['day'] ?? 'fullDay'),
-    );
-  }
-
-  Map<String, dynamic> toMap() {
-    return {
-      'type': type.name,
-      'day': day.name,
-    };
-  }
-
-  /// Default leave (no leave)
-  static const none = Leave(
-    type: LeaveType.na,
-    day: LeaveDay.na,
-  );
-}
+// ✅ Correct const usage
+const defaultStatus = Status.FullDay;
 
 class Attendance {
   final String id; // Firestore doc ID
@@ -74,7 +47,7 @@ class Attendance {
 
   final List<ScanRecord> scanIns;
   final List<ScanRecord> scanOuts;
-  final Leave leave;
+  final Status status;
 
   Attendance({
     required this.id,
@@ -82,7 +55,7 @@ class Attendance {
     required this.date,
     required this.scanIns,
     required this.scanOuts,
-    this.leave = Leave.none,
+    this.status = defaultStatus,
   });
 
   factory Attendance.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
@@ -95,7 +68,16 @@ class Attendance {
         date: '',
         scanIns: [],
         scanOuts: [],
-        leave: Leave.none,
+        status: defaultStatus,
+      );
+    }
+
+    Status parseStatus(String? raw) {
+      if (raw == null || raw.isEmpty) return defaultStatus;
+      // Convert string to enum
+      return Status.values.firstWhere(
+            (e) => e.name == raw,
+        orElse: () => defaultStatus,
       );
     }
 
@@ -110,9 +92,7 @@ class Attendance {
       scanOuts: (data['scanOuts'] as List? ?? [])
           .map((e) => ScanRecord.fromMap(Map<String, dynamic>.from(e)))
           .toList(),
-      leave: data['leave'] != null
-          ? Leave.fromMap(Map<String, dynamic>.from(data['leave']))
-          : Leave.none, // ✅ default
+      status: parseStatus(data['status'] as String?),
     );
   }
 
@@ -122,7 +102,7 @@ class Attendance {
       'date': date,
       'scanIns': scanIns.map((r) => r.toMap()).toList(),
       'scanOuts': scanOuts.map((r) => r.toMap()).toList(),
-      'leave': leave.toMap(),
+      'status': status.name, // store enum as string in Firestore
     };
   }
 }

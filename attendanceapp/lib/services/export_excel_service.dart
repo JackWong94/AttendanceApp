@@ -2,6 +2,9 @@ import 'dart:typed_data';
 import 'dart:html' as html;
 import 'package:syncfusion_flutter_xlsio/xlsio.dart';
 import '../services/date_service.dart';
+import 'package:attendanceapp/configs_and_tools/debug.dart';
+
+Debug debug = Debug(module: "export_excel_service", enable: true);
 
 //Work Hour Setting Change Here
 const double workHour = 7.5;          //half hour = 0.50
@@ -272,6 +275,7 @@ class ExportExcelService {
   /// M: Present
   static void exportMonthAttendance({
     required Map<String, Map<String, String>> attendanceMap,
+    required Map<String, Map<String, String>> attendanceStatusMap,
     required Map<String, String> userNames,
     DateTime? selectedDate,
     String? selectedUserId,
@@ -398,16 +402,21 @@ class ExportExcelService {
         } catch (_) {
           continue;
         }
-
+        
         final recordString = attendanceMap[uid]?[dayStr] ?? '';
         final parts = recordString.split('|');
-
         final scans = List<String>.generate(
           6,
               (index) => (index < parts.length) ? parts[index] : '',
         );
+        final statusFromMap =
+        attendanceStatusMap[uid]?[dayStr];
+        debug.log("$uid | $dayStr | $statusFromMap");
         final rawStatus =
-        (parts.length > 6 && parts[6].trim().isNotEmpty) ? parts[6] : 'full_day';
+        (statusFromMap != null)
+            ? statusFromMap
+            : 'full_day';
+
         var normStatus = _normalizeStatus(rawStatus);
 
         final rowNum = firstDataRow + j;
