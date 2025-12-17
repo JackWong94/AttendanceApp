@@ -278,6 +278,8 @@ class ExportExcelService {
     required Map<String, Map<String, String>> attendanceStatusMap,
     required Map<String, String> userNames,
     DateTime? selectedDate,
+    DateTime? periodStart,
+    DateTime? periodEnd,
     String? selectedUserId,
   }) {
     final workbook = _createWorkbook();
@@ -286,21 +288,9 @@ class ExportExcelService {
     final usersToExport =
     selectedUserId != null ? [selectedUserId] : attendanceMap.keys.toList();
 
-    // Custom month range: 26 prev month → 25 selected month
-    DateTime? periodStart;
-    DateTime? periodEnd;
     String monthStr = '';
 
     if (selectedDate != null) {
-      final int year = selectedDate.year;
-      final int month = selectedDate.month;
-
-      final int prevMonth = month == 1 ? 12 : month - 1;
-      final int prevYear = month == 1 ? year - 1 : year;
-
-      periodStart = DateTime(prevYear, prevMonth, 26);
-      periodEnd = DateTime(year, month, 25);
-
       monthStr = DateService.toMonthString(selectedDate);
     }
 

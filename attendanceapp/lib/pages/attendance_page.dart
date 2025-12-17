@@ -24,6 +24,8 @@ class _AttendancePageState extends State<AttendancePage> {
   final AttendanceService _attendanceService = AttendanceService();
 
   DateTime selectedDate = DateTime.now();
+  DateTime periodStart = DateTime.now();
+  DateTime periodEnd = DateTime.now();
   FilterType selectedFilter = FilterType.day;
   String? selectedUserId;
 
@@ -73,8 +75,8 @@ class _AttendancePageState extends State<AttendancePage> {
     final int prevMonth = month == 1 ? 12 : month - 1;
     final int prevYear = month == 1 ? year - 1 : year;
 
-    final periodStart = DateTime(prevYear, prevMonth, 26);
-    final periodEnd = DateTime(year, month, 25);
+    periodStart = DateTime(prevYear, prevMonth, 26);
+    periodEnd = DateTime(year, month, 25);
 
     Map<String, Map<String, String>> newMap = {};
     Map<String, Map<String, String>> newStatusMap = {};
@@ -168,6 +170,8 @@ class _AttendancePageState extends State<AttendancePage> {
         attendanceStatusMap: attendanceStatusMap,
         userNames: userNames,
         selectedDate: selectedDate,
+        periodStart: periodStart,
+        periodEnd: periodEnd,
         selectedUserId: selectedUserId,
       );
     } else {
@@ -176,6 +180,8 @@ class _AttendancePageState extends State<AttendancePage> {
         attendanceStatusMap: attendanceStatusMap,
         userNames: userNames,
         selectedDate: selectedDate,
+        periodStart: periodStart,
+        periodEnd: periodEnd,
         selectedUserId: selectedUserId,
       );
     }
