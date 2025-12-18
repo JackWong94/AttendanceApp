@@ -590,11 +590,11 @@ class ExportExcelService {
 
       int summaryRow = totalRow + 2;
 
-      // Status counts (fixed order)
+// Status counts (fixed order)
       final statusSummary = <List<String>>[
         [
           'FULL DAY',
-          '=COUNTIF($statusColLetter$firstDataRow:$statusColLetter${totalRow - 1}, "${Status.FullDay.name}")'
+          '=COUNTIF($statusColLetter$firstDataRow:$statusColLetter${totalRow - 1},"${Status.FullDay.name}")'
         ],
         [
           'HALF DAY',
@@ -603,18 +603,22 @@ class ExportExcelService {
         [
           'ANNUAL LEAVE',
           '=COUNTIF($statusColLetter$firstDataRow:$statusColLetter${totalRow - 1},"${Status.AL_FullDay.name}")'
+              '+0.5*COUNTIF($statusColLetter$firstDataRow:$statusColLetter${totalRow - 1},"${Status.AL_HalfDay.name}")'
         ],
         [
           'UNPAID LEAVE',
           '=COUNTIF($statusColLetter$firstDataRow:$statusColLetter${totalRow - 1},"${Status.UL_FullDay.name}")'
+              '+0.5*COUNTIF($statusColLetter$firstDataRow:$statusColLetter${totalRow - 1},"${Status.UL_HalfDay.name}")'
         ],
         [
           'HOLIDAY',
           '=COUNTIF($statusColLetter$firstDataRow:$statusColLetter${totalRow - 1},"${Status.PH_FullDay.name}")'
+              '+0.5*COUNTIF($statusColLetter$firstDataRow:$statusColLetter${totalRow - 1},"${Status.PH_HalfDay.name}")'
         ],
         [
           'MC',
           '=COUNTIF($statusColLetter$firstDataRow:$statusColLetter${totalRow - 1},"${Status.MC_FullDay.name}")'
+              '+0.5*COUNTIF($statusColLetter$firstDataRow:$statusColLetter${totalRow - 1},"${Status.MC_HalfDay.name}")'
         ],
       ];
 
