@@ -439,6 +439,11 @@ class ExportExcelService {
         expectedCell.formula =
         '=IFERROR(VLOOKUP(H$rowNum,\$A\$${statusTableStartRow + 1}:\$B\$${statusTableStartRow + statusTable.length},2,FALSE),"N/A")';
 
+        // ✅ Add table lining (borders)
+        expectedCell.cellStyle.borders.all.lineStyle = LineStyle.thin;
+        expectedCell.cellStyle.hAlign = HAlignType.center;
+        expectedCell.numberFormat = '0.00';
+
         // 3) Workhour formula (sum of 3 pairs)
         final workCell =
         sheet.getRangeByIndex(rowNum, colIndex(AttendanceColumn.workHour));
@@ -531,7 +536,7 @@ class ExportExcelService {
       final totalRow = firstDataRow + days.length;
 
       final totalLabelCell =
-      sheet.getRangeByIndex(totalRow, colIndex(AttendanceColumn.scanOut3));
+      sheet.getRangeByIndex(totalRow, colIndex(AttendanceColumn.expectedWorkHour));
       totalLabelCell
         ..setText('Total')
         ..cellStyle.bold = true
