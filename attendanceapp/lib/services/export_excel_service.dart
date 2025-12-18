@@ -231,36 +231,6 @@ class ExportExcelService {
     return totalHours;
   }
 
-  /// Compute "present" string based on rules:
-  /// - If Sunday → SUN
-  /// - Else if status = holiday → P/H
-  /// - Else if unpaid_leave → U/L
-  /// - Else if annual_leave → A/L
-  /// - Else if mc → MC
-  /// - Else if workHours > 0 and status = halfday → HF
-  /// - Else if workHours > 0 → 1
-  /// - Else → 0
-  static String _calculatePresent({
-    required bool isSunday,
-    required String statusCode,
-    required double workHours,
-  }) {
-    final s = _normalizeStatus(statusCode);
-
-    if (isSunday) return 'SUN';
-    if (s == Status.PH_FullDay || s == Status.PH_HalfDay) return 'P/H';
-    if (s == Status.UL_FullDay || s == Status.UL_HalfDay) return 'U/L';
-    if (s == Status.AL_FullDay || s == Status.AL_HalfDay) return 'A/L';
-    if (s == Status.MC_FullDay || s == Status.MC_HalfDay) return 'MC';
-
-    if (workHours > 0) {
-      if (s == Status.HalfDay) return 'HF';
-      return '1';
-    }
-
-    return '0';
-  }
-
   /// ======================
   ///   MONTH ATTENDANCE (26 → 25) – SHOW ALL DATES + SUMMARY
   /// ======================
@@ -503,16 +473,15 @@ class ExportExcelService {
 
         // 6) Present (Dart)
         final workHoursForPresent = _calculateWorkHoursFromStrings(scans);
-        final present = _calculatePresent(
-          isSunday: isSunday,
-          statusCode: normStatus,
-          workHours: workHoursForPresent,
-        );
-        final presentCell =
-        sheet.getRangeByIndex(rowNum, colIndex(AttendanceColumn.present));
-        presentCell
-          ..setText(present)
-          ..cellStyle.borders.all.lineStyle = LineStyle.thin;
+        final presentCell = sheet.getRangeByIndex(rowNum, colIndex(AttendanceColumn.present));
+        presentCell.formula = '''=IF($statusColLetter$rowNum="SUN","SUN",
+IF(OR($statusColLetter$rowNum="${Status.PH_FullDay.name}",$statusColLetter$rowNum="${Status.PH_HalfDay.name}"),"PH",
+IF(OR($statusColLetter$rowNum="${Status.UL_FullDay.name}",$statusColLetter$rowNum="${Status.UL_HalfDay.name}"),"UL",
+IF(OR($statusColLetter$rowNum="${Status.AL_FullDay.name}",$statusColLetter$rowNum="${Status.AL_HalfDay.name}"),"AL",
+IF(OR($statusColLetter$rowNum="${Status.MC_FullDay.name}",$statusColLetter$rowNum="${Status.MC_HalfDay.name}"),"MC",
+IF($statusColLetter$rowNum="${Status.FullDay.name}","1",
+IF($statusColLetter$rowNum="${Status.HalfDay.name}","HF","0"))))))))''';
+        presentCell.cellStyle.borders.all.lineStyle = LineStyle.thin;
 
         // 🔶 Ensure Sunday orange covers all the extra columns too
         if (isSunday) {
