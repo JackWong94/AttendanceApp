@@ -2,6 +2,7 @@ import 'dart:typed_data';
 import 'dart:html' as html;
 import 'package:syncfusion_flutter_xlsio/xlsio.dart';
 import '../services/date_service.dart';
+import '../models/attendance_model.dart';
 import 'package:attendanceapp/configs_and_tools/debug.dart';
 
 Debug debug = Debug(module: "export_excel_service", enable: true);
@@ -25,18 +26,18 @@ class StatusConfig {
 
 /// Easy-to-extend status → config map.
 /// Add new statuses here later.
-const Map<String, StatusConfig> attendanceStatusConfig = {
-  'full_day': StatusConfig(workHour),
-  'halfday': StatusConfig(halfDayWorkHour),
-  'annual_leave': StatusConfig(noWorkHour),
-  'annual_leave_halfday': StatusConfig(halfDayWorkHour),
-  'unpaid_leave': StatusConfig(noWorkHour),
-  'unpaid_leave_halfday': StatusConfig(halfDayWorkHour),
-  'holiday': StatusConfig(noWorkHour),
-  'holiday_halfday': StatusConfig(halfDayWorkHour),
-  'mc': StatusConfig(noWorkHour),
-  'mc_halfday': StatusConfig(halfDayWorkHour),
-  'sun': StatusConfig(noWorkHour), // Sunday: expected 0 hours
+final Map<String, StatusConfig> attendanceStatusConfig = {
+  Status.FullDay.name : StatusConfig(workHour),
+  Status.HalfDay.name : StatusConfig(halfDayWorkHour),
+  Status.AL_FullDay.name : StatusConfig(noWorkHour),
+  Status.AL_HalfDay.name : StatusConfig(halfDayWorkHour),
+  Status.UL_FullDay.name : StatusConfig(noWorkHour),
+  Status.UL_HalfDay.name : StatusConfig(halfDayWorkHour),
+  Status.PH_FullDay.name : StatusConfig(noWorkHour),
+  Status.PH_HalfDay.name : StatusConfig(halfDayWorkHour),
+  Status.MC_FullDay.name : StatusConfig(noWorkHour),
+  Status.MC_HalfDay.name : StatusConfig(halfDayWorkHour),
+  Status.SUN.name : StatusConfig(noWorkHour), // Sunday: expected 0 hours
 };
 
 String _normalizeStatus(String raw) => raw.trim().toLowerCase();
@@ -50,7 +51,7 @@ enum AttendanceColumn {
   scanOut2,          // col E
   scanIn3,           // col F
   scanOut3,          // col G
-  status,            // col H: status code (full_day, halfday, etc.)
+  status,            // col H: status code (fullday, halfday, etc.)
   expectedWorkHour,  // col I: expected work hours (number or "N/A")
   workHour,          // col J: total worked hours
   overtime,          // col K: worked - expected, with threshold 0.5
@@ -432,7 +433,7 @@ class ExportExcelService {
 
         // 2) Expected Workhour
         final statusConfig =
-            attendanceStatusConfig[normStatus] ?? attendanceStatusConfig['full_day']!;
+            attendanceStatusConfig[normStatus] ?? attendanceStatusConfig[Status.FullDay.name]!;
         final expectedCell =
         sheet.getRangeByIndex(rowNum, colIndex(AttendanceColumn.expectedWorkHour));
 
@@ -593,27 +594,27 @@ class ExportExcelService {
       final statusSummary = <List<String>>[
         [
           'FULL DAY',
-          '=COUNTIF($statusColLetter$firstDataRow:$statusColLetter${totalRow - 1},"full_day")'
+          '=COUNTIF($statusColLetter$firstDataRow:$statusColLetter${totalRow - 1}, "${Status.FullDay.name}")'
         ],
         [
           'HALF DAY',
-          '=COUNTIF($statusColLetter$firstDataRow:$statusColLetter${totalRow - 1},"halfday")'
+          '=COUNTIF($statusColLetter$firstDataRow:$statusColLetter${totalRow - 1},"${Status.HalfDay.name}")'
         ],
         [
           'ANNUAL LEAVE',
-          '=COUNTIF($statusColLetter$firstDataRow:$statusColLetter${totalRow - 1},"annual_leave")'
+          '=COUNTIF($statusColLetter$firstDataRow:$statusColLetter${totalRow - 1},"${Status.AL_FullDay.name}")'
         ],
         [
           'UNPAID LEAVE',
-          '=COUNTIF($statusColLetter$firstDataRow:$statusColLetter${totalRow - 1},"unpaid_leave")'
+          '=COUNTIF($statusColLetter$firstDataRow:$statusColLetter${totalRow - 1},"${Status.UL_FullDay.name}")'
         ],
         [
           'HOLIDAY',
-          '=COUNTIF($statusColLetter$firstDataRow:$statusColLetter${totalRow - 1},"holiday")'
+          '=COUNTIF($statusColLetter$firstDataRow:$statusColLetter${totalRow - 1},"${Status.PH_FullDay.name}")'
         ],
         [
           'MC',
-          '=COUNTIF($statusColLetter$firstDataRow:$statusColLetter${totalRow - 1},"mc")'
+          '=COUNTIF($statusColLetter$firstDataRow:$statusColLetter${totalRow - 1},"${Status.MC_FullDay.name}")'
         ],
       ];
 

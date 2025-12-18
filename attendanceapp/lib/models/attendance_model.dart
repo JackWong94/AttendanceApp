@@ -35,6 +35,7 @@ enum Status {
   PH_HalfDay,
   MC_FullDay,
   MC_HalfDay,
+  SUN,
 }
 
 // ✅ Correct const usage
