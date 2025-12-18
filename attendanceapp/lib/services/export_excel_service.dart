@@ -248,13 +248,13 @@ class ExportExcelService {
     final s = _normalizeStatus(statusCode);
 
     if (isSunday) return 'SUN';
-    if (s == 'holiday') return 'P/H';
-    if (s == 'unpaid_leave') return 'U/L';
-    if (s == 'annual_leave') return 'A/L';
-    if (s == 'mc') return 'MC';
+    if (s == Status.PH_FullDay || s == Status.PH_HalfDay) return 'P/H';
+    if (s == Status.UL_FullDay || s == Status.UL_HalfDay) return 'U/L';
+    if (s == Status.AL_FullDay || s == Status.AL_HalfDay) return 'A/L';
+    if (s == Status.MC_FullDay || s == Status.MC_HalfDay) return 'MC';
 
     if (workHours > 0) {
-      if (s == 'halfday' || s == 'half_day') return 'HF';
+      if (s == Status.HalfDay) return 'HF';
       return '1';
     }
 
