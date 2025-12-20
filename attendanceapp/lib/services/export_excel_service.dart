@@ -474,13 +474,14 @@ class ExportExcelService {
         // 6) Present (Dart)
         final workHoursForPresent = _calculateWorkHoursFromStrings(scans);
         final presentCell = sheet.getRangeByIndex(rowNum, colIndex(AttendanceColumn.present));
-        presentCell.formula = '''=IF($statusColLetter$rowNum="SUN","SUN",
-IF(OR($statusColLetter$rowNum="${Status.PH_FullDay.name}",$statusColLetter$rowNum="${Status.PH_HalfDay.name}"),"PH",
-IF(OR($statusColLetter$rowNum="${Status.UL_FullDay.name}",$statusColLetter$rowNum="${Status.UL_HalfDay.name}"),"UL",
-IF(OR($statusColLetter$rowNum="${Status.AL_FullDay.name}",$statusColLetter$rowNum="${Status.AL_HalfDay.name}"),"AL",
-IF(OR($statusColLetter$rowNum="${Status.MC_FullDay.name}",$statusColLetter$rowNum="${Status.MC_HalfDay.name}"),"MC",
-IF($statusColLetter$rowNum="${Status.FullDay.name}","1",
-IF($statusColLetter$rowNum="${Status.HalfDay.name}","HF","0"))))))))''';
+        presentCell.formula =
+        '=IF($statusColLetter$rowNum="SUN","SUN",'
+            'IF(OR($statusColLetter$rowNum="${Status.PH_FullDay.name}",$statusColLetter$rowNum="${Status.PH_HalfDay.name}"),"PH",'
+            'IF(OR($statusColLetter$rowNum="${Status.UL_FullDay.name}",$statusColLetter$rowNum="${Status.UL_HalfDay.name}"),"UL",'
+            'IF(OR($statusColLetter$rowNum="${Status.AL_FullDay.name}",$statusColLetter$rowNum="${Status.AL_HalfDay.name}"),"AL",'
+            'IF(OR($statusColLetter$rowNum="${Status.MC_FullDay.name}",$statusColLetter$rowNum="${Status.MC_HalfDay.name}"),"MC",'
+            'IF($statusColLetter$rowNum="${Status.FullDay.name}","1",'
+            'IF($statusColLetter$rowNum="${Status.HalfDay.name}","HF","0")))))))';
         presentCell.cellStyle.borders.all.lineStyle = LineStyle.thin;
 
         // 🔶 Ensure Sunday orange covers all the extra columns too
