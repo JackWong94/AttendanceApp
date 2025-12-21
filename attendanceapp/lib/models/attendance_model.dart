@@ -35,6 +35,7 @@ enum Status {
   PH_HalfDay('PH_H'),
   MC_FullDay('MC'),
   MC_HalfDay('MC_H'),
+  Absent('0'),        //No leave status and no sign in out (n/a data also come to this category)
   SUN('SUN');
 
   final String code;

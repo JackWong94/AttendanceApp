@@ -231,6 +231,19 @@ class ExportExcelService {
     return totalHours;
   }
 
+  /// Save Excel file to browser (Web)
+  static void _saveExcelFile(Workbook workbook, String fileName) {
+    final List<int> bytes = workbook.saveAsStream();
+    workbook.dispose();
+
+    final blob = html.Blob([Uint8List.fromList(bytes)]);
+    final url = html.Url.createObjectUrlFromBlob(blob);
+    final anchor = html.AnchorElement(href: url)
+      ..setAttribute('download', fileName)
+      ..click();
+    html.Url.revokeObjectUrl(url);
+  }
+
   /// ======================
   ///   MONTH ATTENDANCE (26 → 25) – SHOW ALL DATES + SUMMARY
   /// ======================
@@ -475,13 +488,18 @@ class ExportExcelService {
         final workHoursForPresent = _calculateWorkHoursFromStrings(scans);
         final presentCell = sheet.getRangeByIndex(rowNum, colIndex(AttendanceColumn.present));
         presentCell.formula =
-        '=IF($statusColLetter$rowNum="SUN","SUN",'
-            'IF(OR($statusColLetter$rowNum="${Status.PH_FullDay.name}",$statusColLetter$rowNum="${Status.PH_HalfDay.name}"),"PH",'
-            'IF(OR($statusColLetter$rowNum="${Status.UL_FullDay.name}",$statusColLetter$rowNum="${Status.UL_HalfDay.name}"),"UL",'
-            'IF(OR($statusColLetter$rowNum="${Status.AL_FullDay.name}",$statusColLetter$rowNum="${Status.AL_HalfDay.name}"),"AL",'
-            'IF(OR($statusColLetter$rowNum="${Status.MC_FullDay.name}",$statusColLetter$rowNum="${Status.MC_HalfDay.name}"),"MC",'
-            'IF($statusColLetter$rowNum="${Status.FullDay.name}","1",'
-            'IF($statusColLetter$rowNum="${Status.HalfDay.name}","HF","0")))))))';
+        '=IF($statusColLetter$rowNum="${Status.SUN.name}","${Status.SUN.code}",'
+            'IF($statusColLetter$rowNum="${Status.PH_FullDay.name}","${Status.PH_FullDay.code}",'
+            'IF($statusColLetter$rowNum="${Status.PH_HalfDay.name}","${Status.PH_HalfDay.code}",'
+            'IF($statusColLetter$rowNum="${Status.UL_FullDay.name}","${Status.UL_FullDay.code}",'
+            'IF($statusColLetter$rowNum="${Status.UL_HalfDay.name}","${Status.UL_HalfDay.code}",'
+            'IF($statusColLetter$rowNum="${Status.AL_FullDay.name}","${Status.AL_FullDay.code}",'
+            'IF($statusColLetter$rowNum="${Status.AL_HalfDay.name}","${Status.AL_HalfDay.code}",'
+            'IF($statusColLetter$rowNum="${Status.MC_FullDay.name}","${Status.MC_FullDay.code}",'
+            'IF($statusColLetter$rowNum="${Status.MC_HalfDay.name}","${Status.MC_HalfDay.code}",'
+            'IF($statusColLetter$rowNum="${Status.FullDay.name}","${Status.FullDay.code}",'
+            'IF($statusColLetter$rowNum="${Status.HalfDay.name}","${Status.HalfDay.code}","${Status.Absent.code}")))))))))))';
+
         presentCell.cellStyle.borders.all.lineStyle = LineStyle.thin;
 
         // 🔶 Ensure Sunday orange covers all the extra columns too
@@ -543,14 +561,19 @@ class ExportExcelService {
         ..numberFormat = '0.00'
         ..cellStyle.borders.all.lineStyle = LineStyle.thin;
 
-      // Total Present (1 = full day, HF = 0.5)
+      // SUM Present (1 = full day, HF = 0.5)
       final presentFrom = '$presentColLetter$firstDataRow';
       final presentTo = '$presentColLetter${totalRow - 1}';
       final totalPresentCell =
       sheet.getRangeByIndex(totalRow, colIndex(AttendanceColumn.present));
       totalPresentCell
         ..formula =
-            '=COUNTIF($presentFrom:$presentTo,"1")+0.5*COUNTIF($presentFrom:$presentTo,"HF")'
+            '=COUNTIF($presentFrom:$presentTo,"${Status.FullDay.code}")'
+            '+0.5*COUNTIF($presentFrom:$presentTo,"${Status.HalfDay.code}")'
+            '+0.5*COUNTIF($presentFrom:$presentTo,"${Status.AL_HalfDay.code}")'
+            '+0.5*COUNTIF($presentFrom:$presentTo,"${Status.UL_HalfDay.code}")'
+            '+0.5*COUNTIF($presentFrom:$presentTo,"${Status.MC_HalfDay.code}")'
+            '+0.5*COUNTIF($presentFrom:$presentTo,"${Status.PH_HalfDay.code}")'
         ..cellStyle.bold = true
         ..cellStyle.borders.all.lineStyle = LineStyle.thin;
 
@@ -562,14 +585,6 @@ class ExportExcelService {
 
 // Status counts (fixed order)
       final statusSummary = <List<String>>[
-        [
-          'FULL DAY',
-          '=COUNTIF($statusColLetter$firstDataRow:$statusColLetter${totalRow - 1},"${Status.FullDay.name}")'
-        ],
-        [
-          'HALF DAY',
-          '=COUNTIF($statusColLetter$firstDataRow:$statusColLetter${totalRow - 1},"${Status.HalfDay.name}")'
-        ],
         [
           'ANNUAL LEAVE',
           '=COUNTIF($statusColLetter$firstDataRow:$statusColLetter${totalRow - 1},"${Status.AL_FullDay.name}")'
@@ -607,8 +622,12 @@ class ExportExcelService {
       sheet.getRangeByIndex(summaryRow, 1).setText('TOTAL PRESENT DAYS');
       sheet.getRangeByIndex(summaryRow, 2)
         ..formula =
-            '=COUNTIF($presentColLetter$firstDataRow:$presentColLetter${totalRow - 1},"1")'
-            '+0.5*COUNTIF($presentColLetter$firstDataRow:$presentColLetter${totalRow - 1},"HF")'
+            '=COUNTIF($presentFrom:$presentTo,"${Status.FullDay.code}")'
+            '+0.5*COUNTIF($presentFrom:$presentTo,"${Status.HalfDay.code}")'
+            '+0.5*COUNTIF($presentFrom:$presentTo,"${Status.AL_HalfDay.code}")'
+            '+0.5*COUNTIF($presentFrom:$presentTo,"${Status.UL_HalfDay.code}")'
+            '+0.5*COUNTIF($presentFrom:$presentTo,"${Status.MC_HalfDay.code}")'
+            '+0.5*COUNTIF($presentFrom:$presentTo,"${Status.PH_HalfDay.code}")'
         ..numberFormat = '0.0'
         ..cellStyle.borders.all.lineStyle = LineStyle.thin;
       summaryRow++;
@@ -617,8 +636,8 @@ class ExportExcelService {
       sheet.getRangeByIndex(summaryRow, 1).setText('TOTAL ABSENT DAYS');
       sheet.getRangeByIndex(summaryRow, 2)
         ..formula =
-            '=COUNTIF($presentColLetter$firstDataRow:$presentColLetter${totalRow - 1},"0")'
-        ..numberFormat = '0'
+            '=COUNTIF($presentColLetter$firstDataRow:$presentColLetter${totalRow - 1},"${Status.Absent.code}")'
+        ..numberFormat = '0.0'
         ..cellStyle.borders.all.lineStyle = LineStyle.thin;
       summaryRow++;
 
@@ -642,10 +661,14 @@ class ExportExcelService {
       sheet.getRangeByIndex(summaryRow, 1).setText('TOTAL LEAVE DAYS');
       sheet.getRangeByIndex(summaryRow, 2)
         ..formula =
-            '=COUNTIF($statusColLetter$firstDataRow:$statusColLetter${totalRow - 1},"annual_leave")'
-            '+COUNTIF($statusColLetter$firstDataRow:$statusColLetter${totalRow - 1},"unpaid_leave")'
-            '+COUNTIF($statusColLetter$firstDataRow:$statusColLetter${totalRow - 1},"holiday")'
-            '+COUNTIF($statusColLetter$firstDataRow:$statusColLetter${totalRow - 1},"mc")'
+            '=COUNTIF($statusColLetter$firstDataRow:$presentColLetter${totalRow - 1},"${Status.AL_FullDay.code}")'
+            '+0.5*COUNTIF($statusColLetter$firstDataRow:$presentColLetter${totalRow - 1},"${Status.AL_HalfDay.code}")'
+            '+COUNTIF($statusColLetter$firstDataRow:$presentColLetter${totalRow - 1},"${Status.UL_FullDay.code}")'
+            '+0.5*COUNTIF($statusColLetter$firstDataRow:$presentColLetter${totalRow - 1},"${Status.UL_HalfDay.code}")'
+            '+COUNTIF($statusColLetter$firstDataRow:$presentColLetter${totalRow - 1},"${Status.PH_FullDay.code}")'
+            '+0.5*COUNTIF($statusColLetter$firstDataRow:$presentColLetter${totalRow - 1},"${Status.PH_HalfDay.code}")'
+            '+COUNTIF($statusColLetter$firstDataRow:$presentColLetter${totalRow - 1},"${Status.MC_FullDay.code}")'
+            '+0.5*COUNTIF($statusColLetter$firstDataRow:$presentColLetter${totalRow - 1},"${Status.MC_HalfDay.code}")'
         ..numberFormat = '0'
         ..cellStyle.borders.all.lineStyle = LineStyle.thin;
       summaryRow++;
@@ -654,8 +677,8 @@ class ExportExcelService {
       sheet.getRangeByIndex(summaryRow, 1).setText('TOTAL WORKDAYS');
       sheet.getRangeByIndex(summaryRow, 2)
         ..formula =
-            '=COUNTIF($presentColLetter$firstDataRow:$presentColLetter${totalRow - 1},"1")'
-            '+COUNTIF($presentColLetter$firstDataRow:$presentColLetter${totalRow - 1},"HF")'
+            '=COUNTIF($presentColLetter$firstDataRow:$presentColLetter${totalRow - 1},"${Status.FullDay.code}")'
+            '+COUNTIF($presentColLetter$firstDataRow:$presentColLetter${totalRow - 1},"${Status.HalfDay.code}")'
         ..numberFormat = '0.0'
         ..cellStyle.borders.all.lineStyle = LineStyle.thin;
       summaryRow++;
@@ -683,18 +706,5 @@ class ExportExcelService {
         : 'attendance.xlsx';
 
     _saveExcelFile(workbook, fileName);
-  }
-
-  /// Save Excel file to browser (Web)
-  static void _saveExcelFile(Workbook workbook, String fileName) {
-    final List<int> bytes = workbook.saveAsStream();
-    workbook.dispose();
-
-    final blob = html.Blob([Uint8List.fromList(bytes)]);
-    final url = html.Url.createObjectUrlFromBlob(blob);
-    final anchor = html.AnchorElement(href: url)
-      ..setAttribute('download', fileName)
-      ..click();
-    html.Url.revokeObjectUrl(url);
   }
 }
