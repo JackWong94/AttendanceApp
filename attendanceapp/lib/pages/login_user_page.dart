@@ -33,7 +33,7 @@ class LoginUserPage extends StatefulWidget {
 
 class _LoginUserPageState extends State<LoginUserPage>
     with RouteAware, SingleTickerProviderStateMixin {
-  static const String appVersion = "Version: 1.0.0";
+  static const String appVersion = "Version: 1.0.1";
   final CameraService _cameraService = CameraService.instance;
   final AttendanceService _attendanceService = AttendanceService();
   final ScanOverlayManager _overlayManager = ScanOverlayManager();
