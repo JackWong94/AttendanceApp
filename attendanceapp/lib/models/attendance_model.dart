@@ -25,17 +25,20 @@ class ScanRecord {
 }
 
 enum Status {
-  FullDay,
-  HalfDay,
-  AL_FullDay,
-  AL_HalfDay,
-  UL_FullDay,
-  UL_HalfDay,
-  PH_FullDay,
-  PH_HalfDay,
-  MC_FullDay,
-  MC_HalfDay,
-  SUN,
+  FullDay('1'),
+  HalfDay('0.5'),
+  AL_FullDay('AL'),
+  AL_HalfDay('AL_H'),
+  UL_FullDay('UL'),
+  UL_HalfDay('UL_H'),
+  PH_FullDay('PH'),
+  PH_HalfDay('PH_H'),
+  MC_FullDay('MC'),
+  MC_HalfDay('MC_H'),
+  SUN('SUN');
+
+  final String code;
+  const Status(this.code);
 }
 
 // ✅ Correct const usage
