@@ -244,6 +244,22 @@ class ExportExcelService {
     html.Url.revokeObjectUrl(url);
   }
 
+  /// Adds a dropdown list validation for the given cell (Worksheet, 1‑based).
+  static void addStatusDropdown(
+      Worksheet sheet,
+      int row,
+      int col,
+      List<String> options,
+      ) {
+    final validation = sheet.getRangeByIndex(row, col).dataValidation;
+    validation.listOfValues = options;
+    // Optional: show prompt/error boxes:
+    validation.showPromptBox = true;
+    validation.promptBoxText = 'Select status';
+    validation.showErrorBox = true;
+    validation.errorBoxText = 'Please choose a value from the list';
+  }
+
   /// ======================
   ///   MONTH ATTENDANCE (26 → 25) – SHOW ALL DATES + SUMMARY
   /// ======================
@@ -412,6 +428,18 @@ class ExportExcelService {
           ],
           isSunday: isSunday,
           alternate: j % 2 != 0,
+        );
+
+        // Add dropdown to the "normStatus" cell
+        final include = [Status.AL_FullDay, Status.AL_HalfDay, Status.UL_FullDay, Status.UL_HalfDay, Status.MC_FullDay, Status.MC_HalfDay, Status.PH_FullDay, Status.PH_HalfDay,];
+        addStatusDropdown(
+          sheet,
+          rowNum,
+          colIndex(AttendanceColumn.status),   // status column (H)
+          Status.values
+              .where((s) => include.contains(s))
+              .map((s) => s.name)               // or .code if you want codes
+              .toList(),
         );
 
         // 2) Expected Workhour
