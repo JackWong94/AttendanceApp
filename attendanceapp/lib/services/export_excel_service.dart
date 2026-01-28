@@ -627,7 +627,7 @@ class ExportExcelService {
 
       int summaryRow = totalRow + 2;
 
-// Status counts (fixed order)
+      // Status counts (fixed order)
       final statusSummary = <List<String>>[
         [
           'ANNUAL LEAVE',
@@ -640,7 +640,7 @@ class ExportExcelService {
               '+0.5*COUNTIF($statusColLetter$firstDataRow:$statusColLetter${totalRow - 1},"${Status.UL_HalfDay.name}")'
         ],
         [
-          'HOLIDAY',
+          'PUBLIC HOLIDAY',
           '=COUNTIF($statusColLetter$firstDataRow:$statusColLetter${totalRow - 1},"${Status.PH_FullDay.name}")'
               '+0.5*COUNTIF($statusColLetter$firstDataRow:$statusColLetter${totalRow - 1},"${Status.PH_HalfDay.name}")'
         ],
@@ -668,10 +668,6 @@ class ExportExcelService {
         ..formula =
             '=COUNTIF($presentFrom:$presentTo,"${Status.FullDay.code}")'
             '+0.5*COUNTIF($presentFrom:$presentTo,"${Status.HalfDay.code}")'
-            '+0.5*COUNTIF($presentFrom:$presentTo,"${Status.AL_HalfDay.code}")'
-            '+0.5*COUNTIF($presentFrom:$presentTo,"${Status.UL_HalfDay.code}")'
-            '+0.5*COUNTIF($presentFrom:$presentTo,"${Status.MC_HalfDay.code}")'
-            '+0.5*COUNTIF($presentFrom:$presentTo,"${Status.PH_HalfDay.code}")'
         ..numberFormat = '0.0'
         ..cellStyle.borders.all.lineStyle = LineStyle.thin;
       summaryRow++;
@@ -686,9 +682,39 @@ class ExportExcelService {
       summaryRow++;
 
       // Total Overtime Hours
-      sheet.getRangeByIndex(summaryRow, 1).setText('TOTAL OVERTIME HOURS');
+      final totalOvertimeRow = summaryRow;
+
+      sheet.getRangeByIndex(summaryRow, 1)
+          .setText('TOTAL OVERTIME HOURS');
       sheet.getRangeByIndex(summaryRow, 2)
-        ..formula = 'SUM($overtimeColLetter$firstDataRow:$overtimeColLetter${totalRow - 1})'
+        ..formula =
+            'SUM($overtimeColLetter$firstDataRow:$overtimeColLetter${totalRow - 1})'
+        ..numberFormat = '0.0'
+        ..cellStyle.borders.all.lineStyle = LineStyle.thin;
+      summaryRow++;
+
+      // Total Halfday Overtime
+      final totalHalfdayOvertimeRow = summaryRow;
+
+      sheet.getRangeByIndex(summaryRow, 1)
+          .setText('TOTAL OVERTIME (HALFDAY) HOURS');
+      sheet.getRangeByIndex(summaryRow, 2)
+        ..formula =
+            'SUMIF('
+            '$statusColLetter$firstDataRow:$statusColLetter${totalRow - 1},'
+            '"<>${Status.FullDay.name}",'
+            '$overtimeColLetter$firstDataRow:$overtimeColLetter${totalRow - 1}'
+            ')'
+        ..numberFormat = '0.0'
+        ..cellStyle.borders.all.lineStyle = LineStyle.thin;
+      summaryRow++;
+
+      // Total Effective Overtime
+      sheet.getRangeByIndex(summaryRow, 1)
+          .setText('TOTAL OVERTIME (EFFECTIVE) HOURS');
+      sheet.getRangeByIndex(summaryRow, 2)
+        ..formula =
+            '=B$totalOvertimeRow-B$totalHalfdayOvertimeRow'
         ..numberFormat = '0.0'
         ..cellStyle.borders.all.lineStyle = LineStyle.thin;
       summaryRow++;
@@ -701,28 +727,11 @@ class ExportExcelService {
         ..cellStyle.borders.all.lineStyle = LineStyle.thin;
       summaryRow++;
 
-      // Total Leave Days (annual + unpaid + holiday + mc)
-      sheet.getRangeByIndex(summaryRow, 1).setText('TOTAL LEAVE DAYS');
-      sheet.getRangeByIndex(summaryRow, 2)
-        ..formula =
-            '=COUNTIF($statusColLetter$firstDataRow:$presentColLetter${totalRow - 1},"${Status.AL_FullDay.code}")'
-            '+0.5*COUNTIF($statusColLetter$firstDataRow:$presentColLetter${totalRow - 1},"${Status.AL_HalfDay.code}")'
-            '+COUNTIF($statusColLetter$firstDataRow:$presentColLetter${totalRow - 1},"${Status.UL_FullDay.code}")'
-            '+0.5*COUNTIF($statusColLetter$firstDataRow:$presentColLetter${totalRow - 1},"${Status.UL_HalfDay.code}")'
-            '+COUNTIF($statusColLetter$firstDataRow:$presentColLetter${totalRow - 1},"${Status.PH_FullDay.code}")'
-            '+0.5*COUNTIF($statusColLetter$firstDataRow:$presentColLetter${totalRow - 1},"${Status.PH_HalfDay.code}")'
-            '+COUNTIF($statusColLetter$firstDataRow:$presentColLetter${totalRow - 1},"${Status.MC_FullDay.code}")'
-            '+0.5*COUNTIF($statusColLetter$firstDataRow:$presentColLetter${totalRow - 1},"${Status.MC_HalfDay.code}")'
-        ..numberFormat = '0'
-        ..cellStyle.borders.all.lineStyle = LineStyle.thin;
-      summaryRow++;
-
       // Total Workdays (1 + HF as 1)
       sheet.getRangeByIndex(summaryRow, 1).setText('TOTAL WORKDAYS');
       sheet.getRangeByIndex(summaryRow, 2)
         ..formula =
-            '=COUNTIF($presentColLetter$firstDataRow:$presentColLetter${totalRow - 1},"${Status.FullDay.code}")'
-            '+COUNTIF($presentColLetter$firstDataRow:$presentColLetter${totalRow - 1},"${Status.HalfDay.code}")'
+            '=COUNTIF($statusColLetter$firstDataRow:$statusColLetter${totalRow - 1},"<>${Status.SUN.name}")'
         ..numberFormat = '0.0'
         ..cellStyle.borders.all.lineStyle = LineStyle.thin;
       summaryRow++;
