@@ -672,15 +672,6 @@ class ExportExcelService {
         ..cellStyle.borders.all.lineStyle = LineStyle.thin;
       summaryRow++;
 
-      // Total Absent Days (present = 0)
-      sheet.getRangeByIndex(summaryRow, 1).setText('TOTAL ABSENT DAYS');
-      sheet.getRangeByIndex(summaryRow, 2)
-        ..formula =
-            '=COUNTIF($presentColLetter$firstDataRow:$presentColLetter${totalRow - 1},"${Status.Absent.code}")'
-        ..numberFormat = '0.0'
-        ..cellStyle.borders.all.lineStyle = LineStyle.thin;
-      summaryRow++;
-
       // Total Overtime Hours
       final totalOvertimeRow = summaryRow;
 
@@ -737,6 +728,9 @@ class ExportExcelService {
       summaryRow++;
 
       addLegend(sheet, summaryRow + 1);
+
+      // ✅ Auto-fit Column A (Date / User)
+      sheet.autoFitColumn(1);
 
       // Add StatusConfig table at fixed row
       sheet.getRangeByIndex(statusTableStartRow, 1).setText('Status Table');
