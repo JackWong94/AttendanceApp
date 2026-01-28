@@ -655,7 +655,7 @@ class ExportExcelService {
         sheet.getRangeByIndex(summaryRow, 1).setText(row[0]);
         sheet.getRangeByIndex(summaryRow, 2)
           ..formula = row[1]
-          ..numberFormat = '0.0'
+          ..numberFormat = '0.00'
           ..cellStyle.borders.all.lineStyle = LineStyle.thin;
         summaryRow++;
       }
@@ -663,12 +663,23 @@ class ExportExcelService {
       summaryRow++;
 
       // Total Present Days (1 + 0.5 HF)
+
       sheet.getRangeByIndex(summaryRow, 1).setText('TOTAL PRESENT DAYS');
       sheet.getRangeByIndex(summaryRow, 2)
         ..formula =
             '=COUNTIF($presentFrom:$presentTo,"${Status.FullDay.code}")'
             '+0.5*COUNTIF($presentFrom:$presentTo,"${Status.HalfDay.code}")'
-        ..numberFormat = '0.0'
+        ..numberFormat = '0.00'
+        ..cellStyle.borders.all.lineStyle = LineStyle.thin;
+      summaryRow++;
+
+      // Total Workdays
+
+      sheet.getRangeByIndex(summaryRow, 1).setText('TOTAL WORKDAYS');
+      sheet.getRangeByIndex(summaryRow, 2)
+        ..formula =
+            '=COUNTIF($statusColLetter$firstDataRow:$statusColLetter${totalRow - 1},"<>${Status.SUN.name}")'
+        ..numberFormat = '0.00'
         ..cellStyle.borders.all.lineStyle = LineStyle.thin;
       summaryRow++;
 
@@ -680,7 +691,7 @@ class ExportExcelService {
       sheet.getRangeByIndex(summaryRow, 2)
         ..formula =
             'SUM($overtimeColLetter$firstDataRow:$overtimeColLetter${totalRow - 1})'
-        ..numberFormat = '0.0'
+        ..numberFormat = '0.00'
         ..cellStyle.borders.all.lineStyle = LineStyle.thin;
       summaryRow++;
 
@@ -696,7 +707,7 @@ class ExportExcelService {
             '"<>${Status.FullDay.name}",'
             '$overtimeColLetter$firstDataRow:$overtimeColLetter${totalRow - 1}'
             ')'
-        ..numberFormat = '0.0'
+        ..numberFormat = '0.00'
         ..cellStyle.borders.all.lineStyle = LineStyle.thin;
       summaryRow++;
 
@@ -706,7 +717,7 @@ class ExportExcelService {
       sheet.getRangeByIndex(summaryRow, 2)
         ..formula =
             '=B$totalOvertimeRow-B$totalHalfdayOvertimeRow'
-        ..numberFormat = '0.0'
+        ..numberFormat = '0.00'
         ..cellStyle.borders.all.lineStyle = LineStyle.thin;
       summaryRow++;
 
@@ -714,16 +725,7 @@ class ExportExcelService {
       sheet.getRangeByIndex(summaryRow, 1).setText('TOTAL UNDERTIME HOURS');
       sheet.getRangeByIndex(summaryRow, 2)
         ..formula = 'SUM($undertimeColLetter$firstDataRow:$undertimeColLetter${totalRow - 1})'
-        ..numberFormat = '0.0'
-        ..cellStyle.borders.all.lineStyle = LineStyle.thin;
-      summaryRow++;
-
-      // Total Workdays (1 + HF as 1)
-      sheet.getRangeByIndex(summaryRow, 1).setText('TOTAL WORKDAYS');
-      sheet.getRangeByIndex(summaryRow, 2)
-        ..formula =
-            '=COUNTIF($statusColLetter$firstDataRow:$statusColLetter${totalRow - 1},"<>${Status.SUN.name}")'
-        ..numberFormat = '0.0'
+        ..numberFormat = '0.00'
         ..cellStyle.borders.all.lineStyle = LineStyle.thin;
       summaryRow++;
 
