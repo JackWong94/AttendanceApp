@@ -275,7 +275,7 @@ class ExportExcelService {
   /// M: Present
   static void exportMonthAttendance({
     required Map<String, Map<String, String>> attendanceMap,
-    required Map<String, Map<String, String>> attendanceStatusMap,
+    required Map<String, Map<String, Map<String, String>>> attendanceStatusMap,
     required Map<String, String> userNames,
     DateTime? selectedDate,
     DateTime? periodStart,
@@ -401,15 +401,31 @@ class ExportExcelService {
           6,
               (index) => (index < parts.length) ? parts[index] : '',
         );
-        final statusFromMap =
+        final Map<String, String>? statusEntry =
         attendanceStatusMap[uid]?[dayStr];
-        debug.log("$uid | $dayStr | $statusFromMap");
-        final rawStatus =
-        (statusFromMap != null)
-            ? statusFromMap
-            : 'n/a';
 
-        var normStatus = _normalizeStatus(rawStatus);
+        String rawStatus = 'n/a';
+
+        if (statusEntry != null) {
+          final String? status = statusEntry['status'];
+          final String? applicationStatus = statusEntry['applicationStatus'];
+
+          if (status != null) {
+            if (applicationStatus == ApplicationStatus.approved.name) {
+              rawStatus = status;
+            } else if (applicationStatus == ApplicationStatus.declined.name) {
+              rawStatus = 'Declined';
+            } else if (applicationStatus == ApplicationStatus.pending.name) {
+              rawStatus = 'Pending';
+            } else {
+              rawStatus = 'n/a';
+            }
+          }
+        }
+
+        var normStatus = (_normalizeStatus(rawStatus) == 'n/a' || _normalizeStatus(rawStatus).isEmpty)
+            ? (attendanceStatusMap?['status']?.toString() ?? Status.FullDay.name)
+            : _normalizeStatus(rawStatus);
 
         final rowNum = firstDataRow + j;
         final isSunday = dt.weekday == DateTime.sunday;

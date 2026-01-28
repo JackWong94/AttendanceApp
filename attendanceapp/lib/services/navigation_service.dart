@@ -4,12 +4,15 @@ import '../pages/register_user_page.dart';
 import '../pages/attendance_page.dart';
 import '../pages/manage_user_page.dart';
 import '../pages/web_login_page.dart';
+import 'package:attendanceapp/pages/non_admin_page.dart';
+import 'package:attendanceapp/pages/service_portal_admin_page.dart';
 import 'package:attendanceapp/services/authentication_service.dart';
 import 'tenant_model_service.dart';
 import 'user_model_service.dart';
 import 'image_model_service.dart';
 import 'attendance_model_service.dart';
 import 'face_model_service.dart';
+import 'notification_model_service.dart';
 
 class NavigationService {
   static void goToRegisterUser(BuildContext context) {
@@ -25,6 +28,22 @@ class NavigationService {
     Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => const AttendancePage()),
+    );
+  }
+
+  static void goToNonAdminPage(BuildContext context) {
+    Navigator.pop(context);
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const NonAdminPage()),
+    );
+  }
+
+  static void goToServicePortalAdmin(BuildContext context) {
+    Navigator.pop(context);
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const ServicePortalAdminPage()),
     );
   }
 
@@ -76,22 +95,29 @@ class NavigationService {
 
 
   static Future<void> logOut(BuildContext context) async {
-    Navigator.pop(context);
     final authService = AuthenticationService();
     try {
       await authService.signOut();
-      TenantModelService.instance.clearCurrentTenant(); //Tenant class still need to be active, it just needs to be cleared
-      UserModelService.clear(); //UserModelService is not active anymore
-      AttendanceModelService.clear(); //AttendanceModelService is not active anymore
-      ImageModelService.clear(); //AttendanceModelService is not active anymore
+      TenantModelService.instance.clearCurrentTenant();
+      UserModelService.clear();
+      AttendanceModelService.clear();
+      ImageModelService.clear();
+      NotificationModelService.clear();
 
-      FaceModelService.reload(); //Remove caches
+      FaceModelService.reload(); // Remove caches
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Logout failed: $e")),
       );
       return;
     }
+
+    // ✅ Safely pop the current route if possible
+    if (Navigator.canPop(context)) {
+      Navigator.pop(context);
+    }
+
+    // ✅ Navigate to WebLoginPage
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(builder: (_) => const WebLoginPage()),

@@ -4,6 +4,8 @@ import 'package:attendanceapp/pages/web_login_page.dart';
 import 'package:attendanceapp/pages/register_user_page.dart';
 import 'package:attendanceapp/pages/attendance_page.dart';
 import 'package:attendanceapp/pages/manage_user_page.dart';
+import 'package:attendanceapp/pages/non_admin_page.dart';
+import 'package:attendanceapp/pages/service_portal_admin_page.dart';
 import 'package:attendanceapp/services/camera_service.dart';
 import 'package:attendanceapp/services/face_recognition_service.dart';
 import 'package:attendanceapp/services/attendance_service.dart';
@@ -346,6 +348,18 @@ class _LoginUserPageState extends State<LoginUserPage>
                         leading: const Icon(Icons.manage_accounts),
                         title: const Text("Manage User"),
                         onTap: () => NavigationService.goToManageUser(context),
+                      ),
+                      ListTile(
+                        leading: const Icon(Icons.account_circle),
+                        title: const Text("Self Service Page"),
+                        onTap: () => NavigationService.goToNonAdminPage(context),
+                      ),
+                      ListTile(
+                        leading: const Icon(Icons.admin_panel_settings),
+                        title: const Text("Service Portal Admin"),
+                        onTap: () {
+                          NavigationService.goToServicePortalAdmin(context);
+                        },
                       ),
                       ListTile(
                         leading: const Icon(Icons.logout),

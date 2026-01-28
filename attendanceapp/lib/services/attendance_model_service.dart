@@ -127,11 +127,15 @@ class AttendanceModelService {
   /// Fetch all attendance for a specific user
   Future<List<Attendance>> fetchAttendanceForUser(String userId) async {
     final userRef = UserModelService.instance.getUserDocRef(userId);
+    print("userRef: $userRef");
     final snapshots = await _attendanceRef
         .where('user', isEqualTo: userRef)
-        .orderBy('date')
         .get();
-
+    print("All documents:");
+    for (var doc in snapshots.docs) {
+      print(doc.id);
+      print(doc.data());
+    }
     return snapshots.docs.map((doc) => Attendance.fromDoc(doc)).toList();
   }
 
@@ -189,6 +193,73 @@ class AttendanceModelService {
     debug.log('✅ Deleted all attendance documents and images for user $userId');
   }
 
+  /// 🔄 Create or update attendance status for a user on a specific date
+  Future<void> setAttendanceStatus({
+    required String userId,
+    required String date, // yyyy-MM-dd
+    required Status status,
+    required ApplicationStatus applicationStatus,
+  }) async {
+    final userRef = UserModelService.instance.getUserDocRef(userId);
+    final attendanceId = '${date}_$userId';
+    final docRef = _attendanceRef.doc(attendanceId);
+
+    final snapshot = await docRef.get();
+
+    if (snapshot.exists) {
+      // ✅ Update existing attendance status only
+      await docRef.update({
+        'status': status.name,
+        'applicationStatus': applicationStatus.name,
+      });
+
+      debug.log(
+        '✏️ Updated attendance status: $attendanceId → ${status.name}',
+      );
+    } else {
+      // ✅ Create new attendance with empty scan records
+      final attendance = Attendance(
+        id: attendanceId,
+        userRef: userRef,
+        date: date,
+        scanIns: const [],
+        scanOuts: const [],
+        status: status,
+        applicationStatus: applicationStatus,
+      );
+
+      await docRef.set(attendance.toMap());
+
+      debug.log(
+        '🆕 Created attendance with status: $attendanceId → ${status.name}',
+      );
+    }
+  }
+
+  /// 🔄 Create or update application status for a user on a specific date
+  Future<void> setApplicationStatus({
+    required String attendanceId,
+    required ApplicationStatus applicationStatus,
+  }) async {
+    final docRef = _attendanceRef.doc(attendanceId);
+
+    final snapshot = await docRef.get();
+
+    if (snapshot.exists) {
+      // ✅ Update existing attendance status only
+      await docRef.update({
+        'applicationStatus': applicationStatus.name,
+      });
+
+      debug.log(
+        '✏️ Updated application status: $attendanceId → ${applicationStatus.name}',
+      );
+    } else {
+      debug.log(
+        'Attendance Information Not Found',
+      );
+    }
+  }
 
   /// Clear instance (call on logout)
   static void clear() {

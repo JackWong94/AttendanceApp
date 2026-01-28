@@ -2,7 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 class ScanRecord {
   final DateTime time;
-  final String imageUrl; // required since stored in Storage
+  final String imageUrl;
 
   ScanRecord({
     required this.time,
@@ -35,25 +35,28 @@ enum Status {
   PH_HalfDay('PH_H'),
   MC_FullDay('MC'),
   MC_HalfDay('MC_H'),
-  Absent('0'),        //No leave status and no sign in out (n/a data also come to this category)
+  Absent('0'),
   SUN('SUN');
 
   final String code;
   const Status(this.code);
 }
 
-// ✅ Correct const usage
-
+/// New enum for leave application status
+enum ApplicationStatus { pending, approved , declined , none}
 
 class Attendance {
   static const defaultStatus = Status.FullDay;
+  static const defaultApplicationStatus = ApplicationStatus.none;
+
   final String id; // Firestore doc ID
-  final DocumentReference userRef; // Ref to user document
+  final DocumentReference userRef;
   final String date; // "yyyy-MM-dd"
 
   final List<ScanRecord> scanIns;
   final List<ScanRecord> scanOuts;
   final Status status;
+  final ApplicationStatus applicationStatus; // ✅ new field
 
   Attendance({
     required this.id,
@@ -62,12 +65,12 @@ class Attendance {
     required this.scanIns,
     required this.scanOuts,
     this.status = defaultStatus,
+    this.applicationStatus = defaultApplicationStatus, // default
   });
 
   factory Attendance.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
     final data = doc.data();
     if (data == null) {
-      // Defensive fallback to prevent null crash
       return Attendance(
         id: doc.id,
         userRef: FirebaseFirestore.instance.doc('users/unknown'),
@@ -75,15 +78,23 @@ class Attendance {
         scanIns: [],
         scanOuts: [],
         status: defaultStatus,
+        applicationStatus: defaultApplicationStatus,
       );
     }
 
     Status parseStatus(String? raw) {
       if (raw == null || raw.isEmpty) return defaultStatus;
-      // Convert string to enum
       return Status.values.firstWhere(
             (e) => e.name == raw,
         orElse: () => defaultStatus,
+      );
+    }
+
+    ApplicationStatus parseApplicationStatus(String? raw) {
+      if (raw == null || raw.isEmpty) return defaultApplicationStatus;
+      return ApplicationStatus.values.firstWhere(
+            (e) => e.name == raw,
+        orElse: () => defaultApplicationStatus,
       );
     }
 
@@ -99,6 +110,7 @@ class Attendance {
           .map((e) => ScanRecord.fromMap(Map<String, dynamic>.from(e)))
           .toList(),
       status: parseStatus(data['status'] as String?),
+      applicationStatus: parseApplicationStatus(data['applicationStatus'] as String?),
     );
   }
 
@@ -108,7 +120,8 @@ class Attendance {
       'date': date,
       'scanIns': scanIns.map((r) => r.toMap()).toList(),
       'scanOuts': scanOuts.map((r) => r.toMap()).toList(),
-      'status': status.name, // store enum as string in Firestore
+      'status': status.name,
+      'applicationStatus': applicationStatus.name, // ✅ store enum as string
     };
   }
 }

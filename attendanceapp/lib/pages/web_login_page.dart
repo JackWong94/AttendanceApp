@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:attendanceapp/pages/login_user_page.dart';
+import 'package:attendanceapp/pages/non_admin_page.dart';
 import 'package:attendanceapp/services/authentication_service.dart';
 import 'package:attendanceapp/services/user_model_service.dart';
 import 'package:attendanceapp/services/attendance_model_service.dart';
@@ -83,7 +84,9 @@ class _WebLoginPageState extends State<WebLoginPage> {
       if (mounted) {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => const LoginUserPage()),
+          TenantModelService.instance.getCurrentTenantRole == "admin"
+              ? MaterialPageRoute(builder: (_) => const LoginUserPage())
+              : MaterialPageRoute(builder: (_) => const NonAdminPage()),
         );
       }
     } catch (e) {
@@ -130,7 +133,7 @@ class _WebLoginPageState extends State<WebLoginPage> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     const Text(
-                      "Admin Login",
+                      "Attendance App Login",
                       style:
                       TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                     ),

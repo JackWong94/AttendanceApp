@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/user_model.dart';
+import '../utils/password_hasher.dart';
 
 class UserModelService {
   static UserModelService? _instance;
@@ -9,20 +10,16 @@ class UserModelService {
   UserModelService._internal(this.tenantId)
       : _usersRef = FirebaseFirestore.instance.collection('${tenantId}_Users');
 
-  // Public getter for users collection
   CollectionReference<Map<String, dynamic>> get usersCollection => _usersRef;
 
-  /// Initialize singleton with tenantId
   static void init({required String tenantId}) {
-    _instance = UserModelService._internal(tenantId); // overwrite old instance
+    _instance = UserModelService._internal(tenantId);
   }
 
-  /// Clear instance (call on logout)
   static void clear() {
     _instance = null;
   }
 
-  /// Get singleton instance
   static UserModelService get instance {
     if (_instance == null) {
       throw Exception("UserModelService not initialized yet!");
@@ -38,23 +35,21 @@ class UserModelService {
   /// Get all users
   Future<List<UserModel>> getAllUsers() async {
     final snapshot = await _usersRef.get();
-    return snapshot.docs.map((doc) => UserModel.fromDocument(doc)).toList();
+    return snapshot.docs.map(UserModel.fromDocument).toList();
   }
 
-  /// Get user by Firestore document ID
+  /// Get user by ID
   Future<UserModel?> getUserById(String id) async {
     final doc = await _usersRef.doc(id).get();
     if (!doc.exists) return null;
     return UserModel.fromDocument(doc);
   }
 
-  /// Check if a user name already exists
   Future<bool> isNameExists(String name) async {
     final query = await _usersRef.where('name', isEqualTo: name).limit(1).get();
     return query.docs.isNotEmpty;
   }
 
-  /// Check if an employee ID already exists
   Future<bool> isEmployeeIdExists(String employeeId) async {
     final doc = await _usersRef.doc(employeeId).get();
     return doc.exists;
@@ -63,14 +58,53 @@ class UserModelService {
   DocumentReference<Map<String, dynamic>> getUserDocRef(String userId) {
     return _usersRef.doc(userId);
   }
-  /// Update user data (overwrite)
+
+  /// Update user data (merge)
   Future<void> updateUser(UserModel user) async {
-    await _usersRef.doc(user.id).set(user.toMap(), SetOptions(merge: true));
+    await _usersRef.doc(user.id).set(
+      user.toMap(),
+      SetOptions(merge: true),
+    );
   }
 
-  /// Delete user (remove Firestore doc)
   Future<void> deleteUser(String userId) async {
     await _usersRef.doc(userId).delete();
   }
 
+  // =====================================================
+  // 🔐 PASSWORD MANAGEMENT (NEW)
+  // =====================================================
+  /// Set / change password using async isolate hashing
+  Future<void> setUserPassword({
+    required String userId,
+    required String plainPassword,
+  }) async {
+    // 🔹 Hash password off main thread
+    final hash = await PasswordHasher.hashAsync(plainPassword);
+
+    // 🔹 Save hash to Firestore
+    await _usersRef.doc(userId).set(
+      {'passwordHash': hash},
+      SetOptions(merge: true),
+    );
+  }
+  /// Verify password
+  Future<bool> verifyUserPassword({
+    required String userId,
+    required String plainPassword,
+  }) async {
+    final doc = await _usersRef.doc(userId).get();
+    if (!doc.exists) return false;
+
+    final hash = doc.data()?['passwordHash'];
+    if (hash == null || hash is! String) return false;
+
+    return PasswordHasher.verify(plainPassword, hash);
+  }
+
+  /// Check if password exists
+  Future<bool> hasPassword(String userId) async {
+    final doc = await _usersRef.doc(userId).get();
+    return doc.exists && doc.data()?['passwordHash'] != null;
+  }
 }

@@ -56,6 +56,9 @@ class TenantModelService {
   /// ✅ Getter for current tenant ID
   String? get currentTenantId => _currentTenant?.tenantId;
 
+  /// ✅ Getter for current tenant role
+  String? get getCurrentTenantRole => _currentTenant?.role;
+
   /// ✅ Clear current tenant (e.g., on logout)
   void clearCurrentTenant() {
     _currentTenant = null;

@@ -33,7 +33,7 @@ class _AttendancePageState extends State<AttendancePage> {
   Map<String, Map<String, String>> attendanceMap = {};
 
   // {userId: {date: "status"}}
-  Map<String, Map<String, String>> attendanceStatusMap = {};
+  Map<String, Map<String, Map<String, String>>> attendanceStatusMap = {};
 
   Map<String, String> userNames = {};
 
@@ -79,7 +79,7 @@ class _AttendancePageState extends State<AttendancePage> {
     periodEnd = DateTime(year, month, 25);
 
     Map<String, Map<String, String>> newMap = {};
-    Map<String, Map<String, String>> newStatusMap = {};
+    Map<String, Map<String, Map<String, String>>> newStatusMap = {};
 
     // Initialize map for all users
     for (var uid in userNames.keys) {
@@ -93,7 +93,10 @@ class _AttendancePageState extends State<AttendancePage> {
         newMap[uid]![dayStr] = List.filled(maxScans * 2, 'N/A').join('|');
 
         // Default status
-        newStatusMap[uid]![dayStr] = 'na';
+        newStatusMap[uid]![dayStr] = {
+          'status': 'na',
+          'applicationStatus': 'na',
+        };
 
         current = current.add(const Duration(days: 1));
       }
@@ -149,7 +152,12 @@ class _AttendancePageState extends State<AttendancePage> {
       if (!newMap.containsKey(uid)) continue;
 
       // ✅ STATUS (store Status enum as string)
-      newStatusMap[uid]![att.date] = att.status.name; // <-- Status enum name
+      newStatusMap[uid]![att.date] = {
+        'status': att.status.name,
+        'applicationStatus': att.applicationStatus.name,
+        // keep future logic commented
+        // if notification approved → update attendance
+      };
     }
 
     setState(() {

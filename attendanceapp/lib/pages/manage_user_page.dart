@@ -7,6 +7,7 @@ import 'package:attendanceapp/services/face_model_service.dart';
 import 'package:attendanceapp/models/user_model.dart';
 import 'package:attendanceapp/widgets/face_capture_widget.dart';
 import 'package:attendanceapp/services/image_model_service.dart';
+import 'package:attendanceapp/services/non_admin_authentication_service.dart';
 import '../main.dart'; // routeObserver
 
 class ManageUserPage extends StatefulWidget {
@@ -60,6 +61,75 @@ class _ManageUserPageState extends State<ManageUserPage> with RouteAware {
   void _initCamera() {
     _cameraService.initCamera(forceReinitOnWeb: true);
     if (mounted) setState(() {});
+  }
+
+  Future<void> _showChangePasswordDialog(UserModel user) async {
+    final TextEditingController pwdController = TextEditingController();
+    final authService = NonAdminAuthenticationService.instance;
+
+    await showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text("Change Password"),
+        content: TextField(
+          controller: pwdController,
+          obscureText: true,
+          decoration: const InputDecoration(
+            labelText: "New Password",
+            border: OutlineInputBorder(),
+            helperText: "Minimum ${NonAdminAuthenticationService.minPasswordLength} characters",
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Cancel"),
+          ),
+          TextButton(
+            onPressed: () async {
+              final pwd = pwdController.text.trim();
+
+              // ✅ Validate
+              final validationError = authService.validatePassword(pwd);
+              if (validationError != null) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text(validationError)),
+                );
+                return;
+              }
+
+              Navigator.pop(context); // close dialog
+
+              // Loader overlay
+              showDialog(
+                context: context,
+                barrierDismissible: false,
+                builder: (_) => const Center(child: CircularProgressIndicator()),
+              );
+
+              try {
+                await Future.delayed(const Duration(seconds: 1));
+                await authService.changePassword(
+                  userId: user.id,
+                  plainPassword: pwd,
+                );
+
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text("✅ Password updated successfully")),
+                );
+              } catch (e) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text("❌ ${e.toString().replaceAll('Exception: ', '')}")),
+                );
+              } finally {
+                Navigator.of(context, rootNavigator: true).pop();
+              }
+            },
+            child: const Text("Change Password"),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _loadUsers() async {
@@ -292,37 +362,81 @@ class _ManageUserPageState extends State<ManageUserPage> with RouteAware {
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 8),
       child: Padding(
-        padding: const EdgeInsets.all(8),
-        child: Row(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text("${index + 1}.", style: const TextStyle(fontWeight: FontWeight.bold)),
-            const SizedBox(width: 8),
-            Expanded(
-              flex: 2,
-              child: isEditing
-                  ? TextField(
-                controller: _nameControllers[user.id],
-                decoration: const InputDecoration(labelText: "Name"),
-              )
-                  : Text(user.name, style: const TextStyle(fontSize: 16)),
+            // ── Name row ─────────────────────────────
+            Row(
+              children: [
+                Text(
+                  "${index + 1}.",
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: isEditing
+                      ? TextField(
+                    controller: _nameControllers[user.id],
+                    decoration: const InputDecoration(
+                      labelText: "Name",
+                      isDense: true,
+                    ),
+                  )
+                      : Text(
+                    user.name,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
             ),
-            IconButton(
-              icon: Icon(isEditing ? Icons.save : Icons.edit, color: Colors.blue),
-              onPressed: () {
-                if (isEditing) {
-                  _updateUserName(user, _nameControllers[user.id]!.text);
-                }
-                _toggleEdit(user.id);
-              },
-            ),
-            IconButton(
-              icon: const Icon(Icons.delete),
-              onPressed: () => _deleteUser(user),
-            ),
-            IconButton(
-              icon: const Icon(Icons.face, color: Colors.green),
-              tooltip: "View / Retrain Face",
-              onPressed: () => _showFacePreview(user),
+
+            const SizedBox(height: 8),
+
+            // ── Action row ────────────────────────────
+            Wrap(
+              spacing: 12,
+              alignment: WrapAlignment.start,
+              children: [
+                // 🔒 PWD (Change Password)
+                TextButton.icon(
+                  icon: const Icon(Icons.lock, size: 18),
+                  label: const Text("Pwd"),
+                  onPressed: () => _showChangePasswordDialog(user),
+                ),
+
+                // ✏️ Edit / Save
+                TextButton.icon(
+                  icon: Icon(isEditing ? Icons.save : Icons.edit, size: 18),
+                  label: Text(isEditing ? "Save" : "Edit"),
+                  onPressed: () {
+                    if (isEditing) {
+                      _updateUserName(user, _nameControllers[user.id]!.text);
+                    }
+                    _toggleEdit(user.id);
+                  },
+                ),
+
+                // 🗑 Delete
+                TextButton.icon(
+                  icon: const Icon(Icons.delete, size: 18, color: Colors.red),
+                  label: const Text(
+                    "Delete",
+                    style: TextStyle(color: Colors.red),
+                  ),
+                  onPressed: () => _deleteUser(user),
+                ),
+
+                // 🙂 Recapture
+                TextButton.icon(
+                  icon: const Icon(Icons.face, size: 18, color: Colors.green),
+                  label: const Text("Recapture"),
+                  onPressed: () => _showFacePreview(user),
+                ),
+              ],
             ),
           ],
         ),
