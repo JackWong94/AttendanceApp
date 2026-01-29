@@ -26,6 +26,7 @@ class _AttendancePageState extends State<AttendancePage> {
   DateTime selectedDate = DateTime.now();
   DateTime periodStart = DateTime.now();
   DateTime periodEnd = DateTime.now();
+  DateTime periodEndForReport = DateTime.now();
   FilterType selectedFilter = FilterType.day;
   String? selectedUserId;
 
@@ -68,7 +69,7 @@ class _AttendancePageState extends State<AttendancePage> {
   Future<void> _loadAttendance() async {
     setState(() => loading = true);
 
-    // --- Custom month range: 26th previous month → 25th selected month ---
+    // --- Custom month range: 26th previous month → last day of selected month ---
     final int year = selectedDate.year;
     final int month = selectedDate.month;
 
@@ -76,7 +77,8 @@ class _AttendancePageState extends State<AttendancePage> {
     final int prevYear = month == 1 ? year - 1 : year;
 
     periodStart = DateTime(prevYear, prevMonth, 26);
-    periodEnd = DateTime(year, month, 25);
+    periodEnd = DateTime(year, month + 1, 0);
+    periodEndForReport = DateTime(year, month, 25);
 
     Map<String, Map<String, String>> newMap = {};
     Map<String, Map<String, Map<String, String>>> newStatusMap = {};
@@ -179,7 +181,7 @@ class _AttendancePageState extends State<AttendancePage> {
         userNames: userNames,
         selectedDate: selectedDate,
         periodStart: periodStart,
-        periodEnd: periodEnd,
+        periodEnd: periodEndForReport,
         selectedUserId: selectedUserId,
       );
     } else {
@@ -189,7 +191,7 @@ class _AttendancePageState extends State<AttendancePage> {
         userNames: userNames,
         selectedDate: selectedDate,
         periodStart: periodStart,
-        periodEnd: periodEnd,
+        periodEnd: periodEndForReport,
         selectedUserId: selectedUserId,
       );
     }
