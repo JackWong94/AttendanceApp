@@ -29,6 +29,7 @@ class _RegisterUserPageState extends State<RegisterUserPage> {
   List<Uint8List> capturedPhotos = [];
   List<List<double>> capturedEmbeddings = [];
   bool _isCreating = false;
+  bool _obscurePassword = true;
 
   bool _cameraTimedOut = false;
   Timer? _cameraTimer;
@@ -196,11 +197,21 @@ class _RegisterUserPageState extends State<RegisterUserPage> {
 
                         TextFormField(
                           controller: _passwordController,
-                          obscureText: true,
-                          decoration: const InputDecoration(
+                          obscureText: _obscurePassword,
+                          decoration: InputDecoration(
                             labelText: "Password",
-                            border: OutlineInputBorder(),
+                            border: const OutlineInputBorder(),
                             hintText: "Input Password",
+                            suffixIcon: IconButton(
+                              icon: Icon(
+                                _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                              ),
+                              onPressed: () {
+                                setState(() {
+                                  _obscurePassword = !_obscurePassword;
+                                });
+                              },
+                            ),
                           ),
                           validator: (value) =>
                               _authService.validatePassword(value ?? ""),
