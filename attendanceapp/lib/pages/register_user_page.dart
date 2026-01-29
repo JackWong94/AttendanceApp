@@ -20,6 +20,7 @@ class RegisterUserPage extends StatefulWidget {
 class _RegisterUserPageState extends State<RegisterUserPage> {
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
   final CameraService _cameraService = CameraService.instance; // ✅ fixed
   final UserModelService _userService = UserModelService.instance;
 
@@ -40,6 +41,7 @@ class _RegisterUserPageState extends State<RegisterUserPage> {
   void dispose() {
     _cameraTimer?.cancel();
     _nameController.dispose();
+    _passwordController.dispose();
     super.dispose();
   }
 
@@ -99,6 +101,7 @@ class _RegisterUserPageState extends State<RegisterUserPage> {
     if (!_formKey.currentState!.validate()) return;
 
     final name = _nameController.text.trim();
+    final password = _passwordController.text;
 
     if (capturedEmbeddings.length != 3) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -169,14 +172,29 @@ class _RegisterUserPageState extends State<RegisterUserPage> {
                   const SizedBox(height: 24),
                   Form(
                     key: _formKey,
-                    child: TextFormField(
-                      controller: _nameController,
-                      decoration: const InputDecoration(
-                        labelText: "Full Name",
-                        border: OutlineInputBorder(),
-                      ),
-                      validator: (value) =>
-                      value == null || value.isEmpty ? "Enter name" : null,
+                    child: Column(
+                      children: [
+                        TextFormField(
+                          controller: _nameController,
+                          decoration: const InputDecoration(
+                            labelText: "Full Name",
+                            border: OutlineInputBorder(),
+                          ),
+                          validator: (v) =>
+                          v == null || v.isEmpty ? "Enter name" : null,
+                        ),
+                        const SizedBox(height: 16),
+
+                        TextFormField(
+                          controller: _passwordController,
+                          obscureText: true,
+                          decoration: const InputDecoration(
+                            labelText: "Password",
+                            border: OutlineInputBorder(),
+                            hintText: "Input Password",
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                   const SizedBox(height: 24),
