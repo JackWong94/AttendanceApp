@@ -448,6 +448,7 @@ class ExportExcelService {
 
         // Add dropdown to the "normStatus" cell
         final include = [
+          Status.FullDay,
           Status.AL_FullDay,
           Status.AL_HalfDay,
           Status.UL_FullDay,
@@ -591,14 +592,14 @@ class ExportExcelService {
       // Status counts (fixed order)
       final statusSummary = <List<String>>[
         [
-          'ANNUAL LEAVE',
-          '=COUNTIF($statusColLetter$firstDataRow:$statusColLetter${totalRow - 1},"${Status.AL_FullDay.name}")'
-              '+0.5*COUNTIF($statusColLetter$firstDataRow:$statusColLetter${totalRow - 1},"${Status.AL_HalfDay.name}")'
-        ],
-        [
           'UNPAID LEAVE',
           '=COUNTIF($statusColLetter$firstDataRow:$statusColLetter${totalRow - 1},"${Status.UL_FullDay.name}")'
               '+0.5*COUNTIF($statusColLetter$firstDataRow:$statusColLetter${totalRow - 1},"${Status.UL_HalfDay.name}")'
+        ],
+        [
+          'ANNUAL LEAVE',
+          '=COUNTIF($statusColLetter$firstDataRow:$statusColLetter${totalRow - 1},"${Status.AL_FullDay.name}")'
+              '+0.5*COUNTIF($statusColLetter$firstDataRow:$statusColLetter${totalRow - 1},"${Status.AL_HalfDay.name}")'
         ],
         [
           'PUBLIC HOLIDAY',
