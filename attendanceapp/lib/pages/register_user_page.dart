@@ -9,6 +9,7 @@ import 'package:attendanceapp/services/image_model_service.dart';
 import 'package:attendanceapp/models/user_model.dart';
 import 'package:attendanceapp/pages/login_user_page.dart';
 import 'package:attendanceapp/widgets/face_capture_widget.dart';
+import 'package:attendanceapp/services/non_admin_authentication_service.dart';
 
 class RegisterUserPage extends StatefulWidget {
   const RegisterUserPage({super.key});
@@ -23,6 +24,7 @@ class _RegisterUserPageState extends State<RegisterUserPage> {
   final TextEditingController _passwordController = TextEditingController();
   final CameraService _cameraService = CameraService.instance; // ✅ fixed
   final UserModelService _userService = UserModelService.instance;
+  final _authService = NonAdminAuthenticationService.instance;
 
   List<Uint8List> capturedPhotos = [];
   List<List<double>> capturedEmbeddings = [];
@@ -131,6 +133,13 @@ class _RegisterUserPageState extends State<RegisterUserPage> {
       );
 
       await _userService.addUser(user);
+      // Save password using shared auth service
+      if (password.isNotEmpty) {
+        await _authService.changePassword(
+          userId: employeeId,
+          plainPassword: password,
+        );
+      }
       await FaceModelService.reload();
 
       await ImageModelService.instance.saveCapturedPhotos(
@@ -193,6 +202,8 @@ class _RegisterUserPageState extends State<RegisterUserPage> {
                             border: OutlineInputBorder(),
                             hintText: "Input Password",
                           ),
+                          validator: (value) =>
+                              _authService.validatePassword(value ?? ""),
                         ),
                       ],
                     ),
