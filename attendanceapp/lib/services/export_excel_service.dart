@@ -9,7 +9,7 @@ Debug debug = Debug(module: "export_excel_service", enable: true);
 
 //Work Hour Setting Change Here
 const double workHour = 7.5;          //half hour = 0.50
-const double halfDayWorkHour = 4.0;
+const double halfDayWorkHour = workHour/2;
 const double noWorkHour = 0.0;
 
 /// ======================
@@ -54,8 +54,8 @@ enum AttendanceColumn {
   status,            // col H: status code (fullday, halfday, etc.)
   expectedWorkHour,  // col I: expected work hours (number or "N/A")
   workHour,          // col J: total worked hours
-  overtime,          // col K: worked - expected, with threshold 0.5
-  undertime,         // col L: expected - worked, with threshold 0.15
+  overtime,          // col K: worked - expected
+  undertime,         // col L: expected - worked
   present,           // col M: SUN / P/H / U/L / A/L / MC / HF / 1 / 0
 }
 
@@ -347,7 +347,6 @@ class ExportExcelService {
         'Workhour (h)',
         'Overtime (h)',
         'Undertime (h)',
-        'Present',
       ];
       addHeaderRow(sheet, headers, headerRow);
 
@@ -364,7 +363,6 @@ class ExportExcelService {
         16, // Workhour
         16, // OT
         16, // Undertime
-        10, // Present
       ]);
 
       // ----- Build full date list -----
@@ -423,8 +421,10 @@ class ExportExcelService {
           }
         }
 
-        var normStatus = (_normalizeStatus(rawStatus) == 'n/a' || _normalizeStatus(rawStatus).isEmpty)
-            ? (attendanceStatusMap?['status']?.toString() ?? Status.FullDay.name)
+        var normStatus = (_normalizeStatus(rawStatus) == 'n/a' ||
+            _normalizeStatus(rawStatus).isEmpty)
+            ? (attendanceStatusMap?['status']?.toString() ??
+            Status.FullDay.name)
             : _normalizeStatus(rawStatus);
 
         final rowNum = firstDataRow + j;
@@ -447,25 +447,38 @@ class ExportExcelService {
         );
 
         // Add dropdown to the "normStatus" cell
-        final include = [Status.AL_FullDay, Status.AL_HalfDay, Status.UL_FullDay, Status.UL_HalfDay, Status.MC_FullDay, Status.MC_HalfDay, Status.PH_FullDay, Status.PH_HalfDay,];
+        final include = [
+          Status.AL_FullDay,
+          Status.AL_HalfDay,
+          Status.UL_FullDay,
+          Status.UL_HalfDay,
+          Status.MC_FullDay,
+          Status.MC_HalfDay,
+          Status.PH_FullDay,
+          Status.PH_HalfDay,
+        ];
         addStatusDropdown(
           sheet,
           rowNum,
-          colIndex(AttendanceColumn.status),   // status column (H)
+          colIndex(AttendanceColumn.status), // status column (H)
           Status.values
               .where((s) => include.contains(s))
-              .map((s) => s.name)               // or .code if you want codes
+              .map((s) => s.name) // or .code if you want codes
               .toList(),
         );
 
         // 2) Expected Workhour
         final statusConfig =
-            attendanceStatusConfig[normStatus] ?? attendanceStatusConfig[Status.FullDay.name]!;
+            attendanceStatusConfig[normStatus] ??
+                attendanceStatusConfig[Status.FullDay.name]!;
         final expectedCell =
-        sheet.getRangeByIndex(rowNum, colIndex(AttendanceColumn.expectedWorkHour));
+        sheet.getRangeByIndex(
+            rowNum, colIndex(AttendanceColumn.expectedWorkHour));
 
         expectedCell.formula =
-        '=IFERROR(VLOOKUP(H$rowNum,\$A\$${statusTableStartRow + 1}:\$B\$${statusTableStartRow + statusTable.length},2,FALSE),"N/A")';
+        '=IFERROR(VLOOKUP(H$rowNum,\$A\$${statusTableStartRow +
+            1}:\$B\$${statusTableStartRow +
+            statusTable.length},2,FALSE),"N/A")';
 
         // ✅ Add table lining (borders)
         expectedCell.cellStyle.borders.all.lineStyle = LineStyle.thin;
@@ -492,7 +505,7 @@ class ExportExcelService {
         }
         workCell.cellStyle.borders.all.lineStyle = LineStyle.thin;
 
-        // 4) Overtime = workhour - expected, threshold > 0.5
+        // 4) Overtime = workhour - expected
         final expectedRef = '$expectedColLetter$rowNum';
         final workRef = '$workColLetter$rowNum';
         final overtimeCell =
@@ -506,12 +519,12 @@ class ExportExcelService {
             ..formula =
                 '=IF(OR($expectedRef="N/A",$expectedRef="",NOT(ISNUMBER($expectedRef))),'
                 '0,'
-                'IF($workRef-$expectedRef>0.5,$workRef-$expectedRef,0))'
+                'IF(($workRef-$expectedRef)>0,($workRef-$expectedRef),0))'
             ..numberFormat = '0.00';
         }
         overtimeCell.cellStyle.borders.all.lineStyle = LineStyle.thin;
 
-        // 5) Undertime = expected - workhour, threshold > 0.15
+        // 5) Undertime = expected - workhour
         final undertimeCell =
         sheet.getRangeByIndex(rowNum, colIndex(AttendanceColumn.undertime));
         if (isSunday) {
@@ -523,46 +536,10 @@ class ExportExcelService {
             ..formula =
                 '=IF(OR($expectedRef="N/A",$expectedRef="",NOT(ISNUMBER($expectedRef))),'
                 '0,'
-                'IF($expectedRef-$workRef>0.15,$expectedRef-$workRef,0))'
+                'IF(($expectedRef-$workRef)>0,($expectedRef-$workRef),0))'
             ..numberFormat = '0.00';
         }
         undertimeCell.cellStyle.borders.all.lineStyle = LineStyle.thin;
-
-        // 6) Present (Dart)
-        final workHoursForPresent = _calculateWorkHoursFromStrings(scans);
-        final presentCell = sheet.getRangeByIndex(rowNum, colIndex(AttendanceColumn.present));
-        presentCell.formula =
-        '=IF($statusColLetter$rowNum="${Status.SUN.name}","${Status.SUN.code}",'
-            'IF($statusColLetter$rowNum="${Status.PH_FullDay.name}","${Status.PH_FullDay.code}",'
-            'IF($statusColLetter$rowNum="${Status.PH_HalfDay.name}","${Status.PH_HalfDay.code}",'
-            'IF($statusColLetter$rowNum="${Status.UL_FullDay.name}","${Status.UL_FullDay.code}",'
-            'IF($statusColLetter$rowNum="${Status.UL_HalfDay.name}","${Status.UL_HalfDay.code}",'
-            'IF($statusColLetter$rowNum="${Status.AL_FullDay.name}","${Status.AL_FullDay.code}",'
-            'IF($statusColLetter$rowNum="${Status.AL_HalfDay.name}","${Status.AL_HalfDay.code}",'
-            'IF($statusColLetter$rowNum="${Status.MC_FullDay.name}","${Status.MC_FullDay.code}",'
-            'IF($statusColLetter$rowNum="${Status.MC_HalfDay.name}","${Status.MC_HalfDay.code}",'
-            'IF($statusColLetter$rowNum="${Status.FullDay.name}","${Status.FullDay.code}",'
-            'IF($statusColLetter$rowNum="${Status.HalfDay.name}","${Status.HalfDay.code}","${Status.Absent.code}")))))))))))';
-
-        presentCell.cellStyle.borders.all.lineStyle = LineStyle.thin;
-
-        // 🔶 Ensure Sunday orange covers all the extra columns too
-        if (isSunday) {
-          const sundayColor = '#FFA500';
-          for (final col in [
-            AttendanceColumn.status,
-            AttendanceColumn.expectedWorkHour,
-            AttendanceColumn.workHour,
-            AttendanceColumn.overtime,
-            AttendanceColumn.undertime,
-            AttendanceColumn.present,
-          ]) {
-            sheet
-                .getRangeByIndex(rowNum, colIndex(col))
-                .cellStyle
-                .backColor = sundayColor;
-          }
-        }
       }
 
       // Totals for this user's sheet
@@ -603,22 +580,6 @@ class ExportExcelService {
       totalUtCell
         ..formula = 'SUM($utFrom:$utTo)'
         ..numberFormat = '0.00'
-        ..cellStyle.borders.all.lineStyle = LineStyle.thin;
-
-      // SUM Present (1 = full day, HF = 0.5)
-      final presentFrom = '$presentColLetter$firstDataRow';
-      final presentTo = '$presentColLetter${totalRow - 1}';
-      final totalPresentCell =
-      sheet.getRangeByIndex(totalRow, colIndex(AttendanceColumn.present));
-      totalPresentCell
-        ..formula =
-            '=COUNTIF($presentFrom:$presentTo,"${Status.FullDay.code}")'
-            '+0.5*COUNTIF($presentFrom:$presentTo,"${Status.HalfDay.code}")'
-            '+0.5*COUNTIF($presentFrom:$presentTo,"${Status.AL_HalfDay.code}")'
-            '+0.5*COUNTIF($presentFrom:$presentTo,"${Status.UL_HalfDay.code}")'
-            '+0.5*COUNTIF($presentFrom:$presentTo,"${Status.MC_HalfDay.code}")'
-            '+0.5*COUNTIF($presentFrom:$presentTo,"${Status.PH_HalfDay.code}")'
-        ..cellStyle.bold = true
         ..cellStyle.borders.all.lineStyle = LineStyle.thin;
 
       // ============================================================
@@ -662,13 +623,15 @@ class ExportExcelService {
 
       summaryRow++;
 
-      // Total Present Days (1 + 0.5 HF)
+      // Total Present Days ([Total Work Hour - Total Overtime + Total Undertime] / WorkHour per day)
+      // 🔑 Get Excel cell address of total work hour cell (e.g. "F32")
+      final totalWorkAddress = totalWorkCell.addressLocal;
+      final totalUnderTime = totalUtCell.addressLocal;
+      final totalOverTime = totalOtCell.addressLocal;
 
       sheet.getRangeByIndex(summaryRow, 1).setText('TOTAL PRESENT DAYS');
       sheet.getRangeByIndex(summaryRow, 2)
-        ..formula =
-            '=COUNTIF($presentFrom:$presentTo,"${Status.FullDay.code}")'
-            '+0.5*COUNTIF($presentFrom:$presentTo,"${Status.HalfDay.code}")'
+        ..formula = '($totalWorkAddress-$totalOverTime+$totalUnderTime)/$workHour'
         ..numberFormat = '0.00'
         ..cellStyle.borders.all.lineStyle = LineStyle.thin;
       summaryRow++;
