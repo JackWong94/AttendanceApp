@@ -39,17 +39,8 @@ class NavigationService {
     );
   }
 
-  static void goToServicePortalAdmin(BuildContext context) {
-    Navigator.pop(context);
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const ServicePortalAdminPage()),
-    );
-  }
-
-  /// Password verification before opening ManageUserPage
-  static void goToManageUser(BuildContext context) async {
-    /*final passwordController = TextEditingController();
+  static void goToServicePortalAdmin(BuildContext context) async {
+    final passwordController = TextEditingController();
     final authService = AuthenticationService();
 
     final bool? verified = await showDialog<bool>(
@@ -77,8 +68,51 @@ class NavigationService {
           ),
         ],
       ),
-    );*/
-    bool verified=true;
+    );
+    if (verified == true) {
+      Navigator.pop(context);
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const ServicePortalAdminPage()),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Incorrect password')),
+      );
+    }
+  }
+
+  /// Password verification before opening ManageUserPage
+  static void goToManageUser(BuildContext context) async {
+    final passwordController = TextEditingController();
+    final authService = AuthenticationService();
+
+    final bool? verified = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Password Verification'),
+        content: TextField(
+          controller: passwordController,
+          obscureText: true,
+          decoration: const InputDecoration(
+            labelText: 'Enter your password',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () async {
+              final success = await authService.verifyPassword(passwordController.text);
+              Navigator.pop(context, success);
+            },
+            child: const Text('Verify'),
+          ),
+        ],
+      ),
+    );
     if (verified == true) {
       // Only close drawer **after verification**
       Navigator.pop(context);
