@@ -29,7 +29,7 @@ class ImageCollectionService {
   ImageCollectionService({
     required this.tenantId,
     required this.baseCollection,
-    this.maxEntriesPerDoc = 800,
+    required this.maxEntriesPerDoc,
   });
 
   String get collectionPath => "${tenantId}_Photos";
@@ -58,8 +58,11 @@ class ImageCollectionService {
       targetDoc = lastDoc;
       currentCount = (data["counts"]?[lastDoc] ?? 0) as int;
     }
+    debug.log("Target doc: $targetDoc, current count: $currentCount");
+    debug.log("Max entries per doc: $maxEntriesPerDoc");
 
     if (currentCount >= maxEntriesPerDoc) {
+      debug.log("Reached max entries. Creating new document...");
       final nextIndex = int.parse(targetDoc.split('_').last) + 1;
       targetDoc = "${defaultPrefix}_$nextIndex";
       currentCount = 0;

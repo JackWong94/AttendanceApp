@@ -12,8 +12,8 @@ class ImageModelService {
   final String tenantId;
 
   static ImageModelService? _instance;
-  static const int _maxUserEntriesPerDoc = 800;
-  static const int _maxAttendanceEntriesPerDoc = 800;
+  static const int _maxUserEntriesPerDoc = 4;
+  static const int _maxAttendanceEntriesPerDoc = 500;
 
   final _uuid = const Uuid();
   final Map<String, Map<String, Uint8List>> _cache = {};
