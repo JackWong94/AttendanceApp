@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import '../services/attendance_service.dart';
+import '../services/date_service.dart';
+import '../models/attendance_model.dart';
 
 class ServicePortalAdminDeletePastDataPage extends StatefulWidget {
   const ServicePortalAdminDeletePastDataPage({super.key});
@@ -10,10 +13,14 @@ class ServicePortalAdminDeletePastDataPage extends StatefulWidget {
 
 class _ServicePortalAdminDeletePastDataPageState
     extends State<ServicePortalAdminDeletePastDataPage> {
-
   DateTime? selectedDate;
   bool isLoading = false;
 
+  List<Attendance> attendances = []; // ✅ store all attendance for month
+
+  final AttendanceService attendanceService = AttendanceService();
+
+  // Month picker
   Future<void> _pickMonth() async {
     int selectedYear = DateTime.now().year;
     int selectedMonth = DateTime.now().month;
@@ -25,7 +32,6 @@ class _ServicePortalAdminDeletePastDataPageState
           title: const Text("Select Month"),
           content: Row(
             children: [
-              // Month Dropdown
               Expanded(
                 child: DropdownButton<int>(
                   value: selectedMonth,
@@ -43,7 +49,6 @@ class _ServicePortalAdminDeletePastDataPageState
                 ),
               ),
               const SizedBox(width: 10),
-              // Year Dropdown
               Expanded(
                 child: DropdownButton<int>(
                   value: selectedYear,
@@ -73,6 +78,7 @@ class _ServicePortalAdminDeletePastDataPageState
                   selectedDate = DateTime(selectedYear, selectedMonth);
                 });
                 Navigator.pop(context);
+                _fetchMonthAttendance(); // ✅ fetch after selection
               },
               child: const Text("Confirm"),
             ),
@@ -82,10 +88,43 @@ class _ServicePortalAdminDeletePastDataPageState
     );
   }
 
-  Future<void> _deletePastData() async {
-    if (selectedDate == null) {
+  // Fetch all attendance for the selected month
+  Future<void> _fetchMonthAttendance() async {
+    if (selectedDate == null) return;
+
+    setState(() {
+      isLoading = true;
+      attendances = [];
+    });
+
+    final year = selectedDate!.year;
+    final month = selectedDate!.month;
+    final startDate = DateTime(year, month, 1);
+    final endDate = DateTime(year, month + 1, 0); // last day of month
+
+    try {
+      final data = await attendanceService.getAttendanceForAllUsers(
+        startDate: startDate,
+        endDate: endDate,
+      );
+
+      setState(() {
+        attendances = data;
+      });
+    } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please select a date first")),
+        SnackBar(content: Text("Failed to fetch attendance: $e")),
+      );
+    }
+
+    setState(() => isLoading = false);
+  }
+
+  // Delete all fetched attendance
+  Future<void> _deletePastData() async {
+    if (attendances.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("No attendance to delete")),
       );
       return;
     }
@@ -93,14 +132,17 @@ class _ServicePortalAdminDeletePastDataPageState
     setState(() => isLoading = true);
 
     try {
-      // TODO: call your delete service here
-      // await AttendanceService.instance.deleteBefore(selectedDate!);
-
-      await Future.delayed(const Duration(seconds: 2)); // simulate
+      for (var att in attendances) {
+        //await AttendanceService.deleteAttendance(att.id);
+      }
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Past data deleted successfully")),
       );
+
+      setState(() {
+        attendances = [];
+      });
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Error deleting data: $e")),
@@ -113,47 +155,55 @@ class _ServicePortalAdminDeletePastDataPageState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Delete Past Data"),
-      ),
-      body: Center( // 👈 Wrap with Center to horizontally center
-        child: ConstrainedBox( // 👈 Prevents stretching on wide screens
-          constraints: const BoxConstraints(maxWidth: 400),
+      appBar: AppBar(title: const Text("Delete Past Data")),
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 600),
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
-              mainAxisSize: MainAxisSize.min, // 👈 centers vertically if needed
-              crossAxisAlignment: CrossAxisAlignment.center, // horizontal center
               children: [
-                const Text(
-                  "Select a date. All records before this date will be deleted.",
-                  style: TextStyle(fontSize: 16),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 20),
-
                 ElevatedButton(
                   onPressed: _pickMonth,
-                  child: const Text("Select Month"),
+                  child: Text(selectedDate == null
+                      ? "Select Month"
+                      : "${selectedDate!.year}-${selectedDate!.month.toString().padLeft(2, '0')}"),
                 ),
-
-                const SizedBox(height: 10),
-
-                if (selectedDate != null)
-                  Text(
-                    "Selected: ${selectedDate!.year}-${selectedDate!.month.toString().padLeft(2, '0')}",
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                  ),
-
-                const SizedBox(height: 30),
-
+                const SizedBox(height: 20),
                 isLoading
                     ? const CircularProgressIndicator()
-                    : ElevatedButton(
-                  onPressed: _deletePastData,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.red,
+                    : Expanded(
+                  child: attendances.isEmpty
+                      ? const Text("No attendance found")
+                      : ListView.builder(
+                    itemCount: attendances.length,
+                    itemBuilder: (context, index) {
+                      final att = attendances[index];
+                      return Card(
+                        margin: const EdgeInsets.symmetric(vertical: 4),
+                        child: ListTile(
+                          title: Text(att.userRef.id),
+                          subtitle: Text(att.date),
+                          trailing: Text(
+                            att.scanIns
+                                .map((s) =>
+                                DateService.toDisplayTime(s.time))
+                                .join(" | ") +
+                                " | " +
+                                att.scanOuts
+                                    .map((s) =>
+                                    DateService.toDisplayTime(s.time))
+                                    .join(" | "),
+                          ),
+                        ),
+                      );
+                    },
                   ),
+                ),
+                const SizedBox(height: 20),
+                ElevatedButton(
+                  onPressed: _deletePastData,
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
                   child: const Text("Delete Past Records"),
                 ),
               ],
