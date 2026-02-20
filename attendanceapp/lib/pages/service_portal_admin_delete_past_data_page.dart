@@ -133,7 +133,7 @@ class _ServicePortalAdminDeletePastDataPageState
 
     try {
       for (var att in attendances) {
-        //await AttendanceService.deleteAttendance(att.id);
+        await attendanceService.deleteAttendanceForAttendanceID(att.id);
       }
 
       ScaffoldMessenger.of(context).showSnackBar(

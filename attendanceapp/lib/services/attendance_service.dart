@@ -128,4 +128,9 @@ class AttendanceService {
       endDate: endDate,
     );
   }
+
+  /// Delete attendance with id
+  Future<void> deleteAttendanceForAttendanceID(String attendanceId) async {
+    await _modelService.deleteAttendance(attendanceId);
+  }
 }
