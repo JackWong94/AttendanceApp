@@ -16,73 +16,85 @@ class _ServicePortalAdminDeletePastDataPageState
   DateTime? selectedDate;
   bool isLoading = false;
 
-  List<Attendance> attendances = []; // ✅ store all attendance for month
+  int selectedYear = DateTime.now().year;
+  int selectedMonth = DateTime.now().month;
 
+  List<Attendance> attendances = [];
   final AttendanceService attendanceService = AttendanceService();
 
-  // Month picker
+  // Month picker dialog
   Future<void> _pickMonth() async {
-    int selectedYear = DateTime.now().year;
-    int selectedMonth = DateTime.now().month;
+    int tempYear = selectedYear;
+    int tempMonth = selectedMonth;
 
     await showDialog(
       context: context,
       builder: (context) {
-        return AlertDialog(
-          title: const Text("Select Month"),
-          content: Row(
-            children: [
-              Expanded(
-                child: DropdownButton<int>(
-                  value: selectedMonth,
-                  isExpanded: true,
-                  items: List.generate(12, (index) {
-                    final month = index + 1;
-                    return DropdownMenuItem(
-                      value: month,
-                      child: Text(month.toString().padLeft(2, '0')),
-                    );
-                  }),
-                  onChanged: (value) {
-                    selectedMonth = value!;
-                  },
-                ),
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text("Select Month"),
+              content: Row(
+                children: [
+                  Expanded(
+                    child: DropdownButton<int>(
+                      value: tempMonth,
+                      isExpanded: true,
+                      items: List.generate(12, (index) {
+                        final month = index + 1;
+                        return DropdownMenuItem(
+                          value: month,
+                          child: Text(month.toString().padLeft(2, '0')),
+                        );
+                      }),
+                      onChanged: (value) {
+                        setDialogState(() {
+                          tempMonth = value!;
+                        });
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: DropdownButton<int>(
+                      value: tempYear,
+                      isExpanded: true,
+                      items: List.generate(10, (index) {
+                        final year = DateTime.now().year - index;
+                        return DropdownMenuItem(
+                          value: year,
+                          child: Text(year.toString()),
+                        );
+                      }),
+                      onChanged: (value) {
+                        setDialogState(() {
+                          tempYear = value!;
+                        });
+                      },
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: DropdownButton<int>(
-                  value: selectedYear,
-                  isExpanded: true,
-                  items: List.generate(10, (index) {
-                    final year = DateTime.now().year - index;
-                    return DropdownMenuItem(
-                      value: year,
-                      child: Text(year.toString()),
-                    );
-                  }),
-                  onChanged: (value) {
-                    selectedYear = value!;
-                  },
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text("Cancel"),
                 ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text("Cancel"),
-            ),
-            TextButton(
-              onPressed: () {
-                setState(() {
-                  selectedDate = DateTime(selectedYear, selectedMonth);
-                });
-                Navigator.pop(context);
-                _fetchMonthAttendance(); // ✅ fetch after selection
-              },
-              child: const Text("Confirm"),
-            ),
-          ],
+                TextButton(
+                  onPressed: () {
+                    setState(() {
+                      selectedYear = tempYear;
+                      selectedMonth = tempMonth;
+                      selectedDate = DateTime(tempYear, tempMonth);
+                    });
+                    Navigator.pop(context);
+                    _fetchMonthAttendance();
+                  },
+                  child: const Text("Confirm"),
+                ),
+              ],
+            );
+          },
         );
       },
     );
@@ -100,7 +112,7 @@ class _ServicePortalAdminDeletePastDataPageState
     final year = selectedDate!.year;
     final month = selectedDate!.month;
     final startDate = DateTime(year, month, 1);
-    final endDate = DateTime(year, month + 1, 0); // last day of month
+    final endDate = DateTime(year, month + 1, 0);
 
     try {
       final data = await attendanceService.getAttendanceForAllUsers(
@@ -152,6 +164,50 @@ class _ServicePortalAdminDeletePastDataPageState
     setState(() => isLoading = false);
   }
 
+  // Attendance list with title
+  Widget _buildAttendanceList() {
+    return Expanded(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            "Attendance",
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 10),
+          Expanded(
+            child: attendances.isEmpty
+                ? const Center(child: Text("No attendance found"))
+                : ListView.builder(
+              itemCount: attendances.length,
+              itemBuilder: (context, index) {
+                final att = attendances[index];
+                return Card(
+                  margin: const EdgeInsets.symmetric(vertical: 4),
+                  child: ListTile(
+                    title: Text(att.userRef.id),
+                    subtitle: Text(att.date),
+                    trailing: Text(
+                      att.scanIns
+                          .map((s) =>
+                          DateService.toDisplayTime(s.time))
+                          .join(" | ") +
+                          " | " +
+                          att.scanOuts
+                              .map((s) =>
+                              DateService.toDisplayTime(s.time))
+                              .join(" | "),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -172,34 +228,7 @@ class _ServicePortalAdminDeletePastDataPageState
                 const SizedBox(height: 20),
                 isLoading
                     ? const CircularProgressIndicator()
-                    : Expanded(
-                  child: attendances.isEmpty
-                      ? const Text("No attendance found")
-                      : ListView.builder(
-                    itemCount: attendances.length,
-                    itemBuilder: (context, index) {
-                      final att = attendances[index];
-                      return Card(
-                        margin: const EdgeInsets.symmetric(vertical: 4),
-                        child: ListTile(
-                          title: Text(att.userRef.id),
-                          subtitle: Text(att.date),
-                          trailing: Text(
-                            att.scanIns
-                                .map((s) =>
-                                DateService.toDisplayTime(s.time))
-                                .join(" | ") +
-                                " | " +
-                                att.scanOuts
-                                    .map((s) =>
-                                    DateService.toDisplayTime(s.time))
-                                    .join(" | "),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ),
+                    : _buildAttendanceList(),
                 const SizedBox(height: 20),
                 ElevatedButton(
                   onPressed: _deletePastData,
