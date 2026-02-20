@@ -43,7 +43,6 @@ class _ServicePortalAdminDeletePastDataPageState
                 ),
               ),
               const SizedBox(width: 10),
-
               // Year Dropdown
               Expanded(
                 child: DropdownButton<int>(
@@ -117,41 +116,49 @@ class _ServicePortalAdminDeletePastDataPageState
       appBar: AppBar(
         title: const Text("Delete Past Data"),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            const Text(
-              "Select a date. All records before this date will be deleted.",
-              style: TextStyle(fontSize: 16),
+      body: Center( // 👈 Wrap with Center to horizontally center
+        child: ConstrainedBox( // 👈 Prevents stretching on wide screens
+          constraints: const BoxConstraints(maxWidth: 400),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min, // 👈 centers vertically if needed
+              crossAxisAlignment: CrossAxisAlignment.center, // horizontal center
+              children: [
+                const Text(
+                  "Select a date. All records before this date will be deleted.",
+                  style: TextStyle(fontSize: 16),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 20),
+
+                ElevatedButton(
+                  onPressed: _pickMonth,
+                  child: const Text("Select Month"),
+                ),
+
+                const SizedBox(height: 10),
+
+                if (selectedDate != null)
+                  Text(
+                    "Selected: ${selectedDate!.year}-${selectedDate!.month.toString().padLeft(2, '0')}",
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+
+                const SizedBox(height: 30),
+
+                isLoading
+                    ? const CircularProgressIndicator()
+                    : ElevatedButton(
+                  onPressed: _deletePastData,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red,
+                  ),
+                  child: const Text("Delete Past Records"),
+                ),
+              ],
             ),
-            const SizedBox(height: 20),
-
-            ElevatedButton(
-              onPressed: _pickMonth,
-              child: const Text("Select Month"),
-            ),
-
-            const SizedBox(height: 10),
-
-            if (selectedDate != null)
-              Text(
-                "Selected: ${selectedDate!.toLocal()}".split(' ')[0],
-                style: const TextStyle(fontWeight: FontWeight.bold),
-              ),
-
-            const SizedBox(height: 30),
-
-            isLoading
-                ? const CircularProgressIndicator()
-                : ElevatedButton(
-              onPressed: _deletePastData,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
-              ),
-              child: const Text("Delete Past Records"),
-            ),
-          ],
+          ),
         ),
       ),
     );
