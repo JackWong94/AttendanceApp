@@ -159,7 +159,7 @@ class _ServicePortalAdminNotificationPageState
                 );
               } else if (notif is EmergencyAttendanceNotification) {
                 subtitleText =
-                "Emergency Photo Doc: ${notif.attendancePhotoDoc}\nRemark: ${notif.remark ?? ""}";
+                "Emergency Photo Doc: ${notif.attendancePhotoDoc}\nRemark: Emergency Attendance Detected";
                 leadingIcon = const Icon(Icons.photo_camera, color: Colors.blue);
               } else {
                 subtitleText = "Remark: ${notif.remark ?? ""}";
@@ -196,6 +196,13 @@ class _ServicePortalAdminNotificationPageState
                       },
                     ),
                   ],
+                )
+                    : notif is EmergencyAttendanceNotification && allowAction
+                    ? IconButton(
+                  icon: const Icon(Icons.check, color: Colors.green),
+                  onPressed: () async {
+                    await _notifService.approve(notif);
+                  },
                 )
                     : allowDelete
                     ? IconButton(
