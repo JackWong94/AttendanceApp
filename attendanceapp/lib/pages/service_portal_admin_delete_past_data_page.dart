@@ -14,19 +14,73 @@ class _ServicePortalAdminDeletePastDataPageState
   DateTime? selectedDate;
   bool isLoading = false;
 
-  Future<void> _pickDate() async {
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: DateTime.now(),
-      firstDate: DateTime(2020),
-      lastDate: DateTime.now(),
-    );
+  Future<void> _pickMonth() async {
+    int selectedYear = DateTime.now().year;
+    int selectedMonth = DateTime.now().month;
 
-    if (picked != null) {
-      setState(() {
-        selectedDate = picked;
-      });
-    }
+    await showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text("Select Month"),
+          content: Row(
+            children: [
+              // Month Dropdown
+              Expanded(
+                child: DropdownButton<int>(
+                  value: selectedMonth,
+                  isExpanded: true,
+                  items: List.generate(12, (index) {
+                    final month = index + 1;
+                    return DropdownMenuItem(
+                      value: month,
+                      child: Text(month.toString().padLeft(2, '0')),
+                    );
+                  }),
+                  onChanged: (value) {
+                    selectedMonth = value!;
+                  },
+                ),
+              ),
+              const SizedBox(width: 10),
+
+              // Year Dropdown
+              Expanded(
+                child: DropdownButton<int>(
+                  value: selectedYear,
+                  isExpanded: true,
+                  items: List.generate(10, (index) {
+                    final year = DateTime.now().year - index;
+                    return DropdownMenuItem(
+                      value: year,
+                      child: Text(year.toString()),
+                    );
+                  }),
+                  onChanged: (value) {
+                    selectedYear = value!;
+                  },
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Cancel"),
+            ),
+            TextButton(
+              onPressed: () {
+                setState(() {
+                  selectedDate = DateTime(selectedYear, selectedMonth);
+                });
+                Navigator.pop(context);
+              },
+              child: const Text("Confirm"),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   Future<void> _deletePastData() async {
@@ -74,8 +128,8 @@ class _ServicePortalAdminDeletePastDataPageState
             const SizedBox(height: 20),
 
             ElevatedButton(
-              onPressed: _pickDate,
-              child: const Text("Select Date"),
+              onPressed: _pickMonth,
+              child: const Text("Select Month"),
             ),
 
             const SizedBox(height: 10),
