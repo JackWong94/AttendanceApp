@@ -275,11 +275,13 @@ class _LoginUserPageState extends State<LoginUserPage>
             userId: selectedUser.id,
             time: now,
             url: photoUuid,
+            emergency: true,
           )
               : await _attendanceService.addScanOut(
             userId: selectedUser.id,
             time: now,
             url: photoUuid,
+            emergency: true,
           );
 
           final success = message.contains("recorded successfully");

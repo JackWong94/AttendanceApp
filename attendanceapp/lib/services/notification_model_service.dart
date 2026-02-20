@@ -58,6 +58,30 @@ class NotificationModelService {
     await doc.set(notification.toMap());
   }
 
+  /// 🔔 Create notification when emergency attendance is made
+  Future<void> createForEmergencyAttendance({
+    required String attendanceId,      // e.g., "2025-10-25_EMP0001"
+    required String attendancePhotoDoc,
+    required DocumentReference userRef,
+  }) async {
+    // Extract date part from attendanceId (assuming attendanceId = "yyyy-MM-dd_USERID")
+    final datePart = attendanceId.split('_').first;
+
+    // Use user ID from DocumentReference
+    final userId = userRef.id;
+
+    // Construct custom doc ID: "2025-10-25_EMP0001"
+    final docId = '${datePart}_${userId}_photo';
+
+    final doc = _notificationRef.doc(docId);
+    final notification = EmergencyAttendanceNotification(
+      id: doc.id,
+      user: userRef,
+      attendancePhotoDoc: attendancePhotoDoc,
+    );
+
+    await doc.set(notification.toMap());
+  }
 
   /// ✅ Approve notification
   Future<void> approve(NotificationModel notification) async {

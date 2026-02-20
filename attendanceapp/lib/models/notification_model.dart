@@ -96,3 +96,44 @@ class LeaveNotification extends NotificationModel {
     );
   }
 }
+
+class EmergencyAttendanceNotification extends NotificationModel {
+  final String attendancePhotoDoc; // Name of the attendance photo document
+
+  EmergencyAttendanceNotification({
+    required String id,
+    required DocumentReference user,
+    required this.attendancePhotoDoc,
+    DateTime? createdAt,
+    DateTime? dateSafeForDelete,
+    String? remark,
+  }) : super(
+    id: id,
+    user: user,
+    createdAt: createdAt,
+    dateSafeForDelete: dateSafeForDelete,
+    remark: remark,
+  );
+
+  @override
+  Map<String, dynamic> toMap() {
+    final map = super.toMap();
+    map.addAll({
+      'attendancePhotoDoc': attendancePhotoDoc,
+    });
+    return map;
+  }
+
+  factory EmergencyAttendanceNotification.fromDoc(
+      DocumentSnapshot<Map<String, dynamic>> doc) {
+    final data = doc.data()!;
+    return EmergencyAttendanceNotification(
+      id: doc.id,
+      user: data['user'],
+      attendancePhotoDoc: data['attendancePhotoDoc'] ?? "",
+      createdAt: (data['createdAt'] as Timestamp).toDate(),
+      dateSafeForDelete: (data['dateSafeForDelete'] as Timestamp?)?.toDate(),
+      remark: data['remark'],
+    );
+  }
+}

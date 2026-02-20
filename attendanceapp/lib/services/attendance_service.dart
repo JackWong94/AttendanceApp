@@ -2,7 +2,10 @@ import '../models/attendance_model.dart';
 import 'user_model_service.dart';
 import 'attendance_model_service.dart';
 import '../services/date_service.dart';
+import 'package:attendanceapp/services/notification_model_service.dart';
+import 'package:attendanceapp/configs_and_tools/debug.dart';
 
+Debug debug = Debug(module: "main", enable: true);
 class AttendanceService {
   final AttendanceModelService _modelService = AttendanceModelService.instance;
 
@@ -17,6 +20,7 @@ class AttendanceService {
     required String userId,
     required DateTime time,
     required String url,
+    bool emergency = false,
   }) async {
     final dateKey = DateService.toStorageDate(time);
     final docId = _generateDocId(dateKey, userId);
@@ -43,6 +47,16 @@ class AttendanceService {
     );
 
     await saveAttendance(attendance);
+
+    if (emergency) {
+      debug.log("Emergency scan in detected");
+      await NotificationModelService.instance.createForEmergencyAttendance(
+        attendanceId: attendance.id,
+        attendancePhotoDoc: url,
+        userRef: UserModelService.instance.getUserDocRef(userId),
+      );
+    }
+
     return "Scan-in recorded successfully (${attendance.scanIns.length}/3).";
   }
 
@@ -51,6 +65,7 @@ class AttendanceService {
     required String userId,
     required DateTime time,
     required String url,
+    bool emergency = false,
   }) async {
     final dateKey = DateService.toStorageDate(time);
     final docId = _generateDocId(dateKey, userId);
@@ -77,6 +92,16 @@ class AttendanceService {
     );
 
     await saveAttendance(attendance);
+
+    if (emergency) {
+      debug.log("Emergency scan out detected");
+      await NotificationModelService.instance.createForEmergencyAttendance(
+        attendanceId: attendance.id,
+        attendancePhotoDoc: url,
+        userRef: UserModelService.instance.getUserDocRef(userId),
+      );
+    }
+
     return "Scan-out recorded successfully (${attendance.scanOuts.length}/3).";
   }
 
