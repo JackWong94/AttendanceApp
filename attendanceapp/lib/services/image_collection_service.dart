@@ -140,4 +140,82 @@ class ImageCollectionService {
 
     debug.log("🗑️ Deleted image $entryKey from $targetDocName");
   }
+
+  /// ------------------------------
+  /// RANGE QUERY METHODS
+  /// ------------------------------
+
+  /// Returns a list of Firestore document names like attendancePhoto_YYYYMM_X
+  Future<List<String>> getAttendancePhotoDocsInRange({
+    required String indexName,
+    required DateTime start,
+    required DateTime end,
+  }) async {
+    final indexData = await _getIndexDoc(indexName);
+    if (indexData.isEmpty) return [];
+
+    final Map<String, String> entryIndex =
+    Map<String, String>.from(indexData["index"] ?? {});
+
+    // 1️⃣ Build month-based doc prefixes
+    final List<String> monthDocPrefixes = [];
+    DateTime iter = DateTime(start.year, start.month);
+    while (!iter.isAfter(end)) {
+      final prefix =
+          "attendancePhoto_${iter.year}${iter.month.toString().padLeft(2, '0')}";
+      monthDocPrefixes.add(prefix);
+      iter = DateTime(iter.year, iter.month + 1);
+    }
+
+    // 2️⃣ Collect all docNames that match those prefixes
+    final Set<String> relevantDocs = {};
+    entryIndex.forEach((entryKey, docName) {
+      if (monthDocPrefixes.any((prefix) => docName.startsWith(prefix))) {
+        relevantDocs.add(docName);
+      }
+    });
+
+    final List<String> sortedDocs = relevantDocs.toList()
+      ..sort((a, b) => a.compareTo(b)); // optional: sort by name
+    print("Relevant attendance photo docs: $sortedDocs");
+
+    return sortedDocs;
+  }
+
+  /// Delete multiple attendance photo documents
+  Future<void> deleteAttendancePhotoDocs({
+    required String indexName,
+    required List<String> docNames,
+  }) async {
+    final collection = FirebaseFirestore.instance.collection(collectionPath);
+    final indexRef = collection.doc(indexName);
+
+    for (final docName in docNames) {
+      // 1️⃣ Delete the document itself
+      await collection.doc(docName).delete();
+
+      // 2️⃣ Remove all entries from the index and counts
+      final indexSnap = await indexRef.get();
+      if (!indexSnap.exists) continue;
+
+      final indexData = indexSnap.data() ?? {};
+      final Map<String, String> entryIndex =
+      Map<String, String>.from(indexData["index"] ?? {});
+
+      final keysToDelete = entryIndex.entries
+          .where((e) => e.value == docName)
+          .map((e) => e.key)
+          .toList();
+
+      final Map<String, dynamic> indexUpdates = {};
+      for (final key in keysToDelete) {
+        indexUpdates["index.$key"] = FieldValue.delete();
+      }
+      indexUpdates["counts.$docName"] = FieldValue.delete();
+
+      await indexRef.update(indexUpdates);
+
+      debug.log("🗑️ Deleted entire document $docName with ${keysToDelete.length} entries");
+    }
+  }
 }

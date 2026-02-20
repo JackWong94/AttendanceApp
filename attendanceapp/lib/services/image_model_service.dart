@@ -216,6 +216,59 @@ class ImageModelService {
     }
   }
 
+  Future<List<String>> getAttendancePhotosForMonth({
+    required DateTime start,
+    required DateTime end,
+  }) async {
+    try {
+      // Fetch docs in the provided date range
+      final data = await _attendanceCollection.getAttendancePhotoDocsInRange(
+        indexName: "attendanceIndex",
+        start: start,
+        end: end,
+      );
+
+      debug.log(
+          "📥 Retrieved ${data.length} attendance photo docs from "
+              "${start.toIso8601String()} to ${end.toIso8601String()}"
+      );
+
+      return data;
+    } catch (e) {
+      debug.log("❌ Error retrieving attendance photos: $e");
+      return [];
+    }
+  }
+
+  Future<void> deleteAttendancePhotosForMonth(DateTime month) async {
+    try {
+      // Build month range
+      final start = DateTime(month.year, month.month, 1);
+      final end = DateTime(month.year, month.month + 1, 0);
+
+      // 1️⃣ Get all attendance photo docs for this month
+      final docs = await _attendanceCollection.getAttendancePhotoDocsInRange(
+        indexName: "attendanceIndex",
+        start: start,
+        end: end,
+      );
+
+      if (docs.isEmpty) {
+        debug.log("⚠️ No attendance photo docs found for ${month.year}-${month.month}");
+        return;
+      }
+
+      // 2️⃣ Delete all of them
+      await _attendanceCollection.deleteAttendancePhotoDocs(
+        indexName: "attendanceIndex",
+        docNames: docs,
+      );
+
+      debug.log("🗑️ Deleted ${docs.length} attendance photo docs for ${month.year}-${month.month}");
+    } catch (e) {
+      debug.log("❌ Error deleting attendance photos for $month: $e");
+    }
+  }
   // ==========================================================================
   // 🧩 CACHE + UTILITIES
   // ==========================================================================

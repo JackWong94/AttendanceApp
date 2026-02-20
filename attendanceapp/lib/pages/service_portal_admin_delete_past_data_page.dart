@@ -3,6 +3,7 @@ import '../services/attendance_service.dart';
 import '../services/date_service.dart';
 import '../models/attendance_model.dart';
 import '../services/notification_model_service.dart';
+import '../services/image_model_service.dart';
 import '../models/notification_model.dart';
 
 class ServicePortalAdminDeletePastDataPage extends StatefulWidget {
@@ -23,11 +24,15 @@ class _ServicePortalAdminDeletePastDataPageState
 
   List<Attendance> attendances = [];
   List<NotificationModel> notifications = [];
+  List<String> attendancePhotoDocs = [];
 
   final AttendanceService attendanceService = AttendanceService();
+  final ImageModelService imageService = ImageModelService.instance;
   final NotificationModelService notificationService = NotificationModelService.instance;
 
-  // Month picker dialog
+  // -----------------------------
+  // Month picker
+  // -----------------------------
   Future<void> _pickMonth() async {
     int tempYear = selectedYear;
     int tempMonth = selectedMonth;
@@ -35,161 +40,147 @@ class _ServicePortalAdminDeletePastDataPageState
     await showDialog(
       context: context,
       builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            return AlertDialog(
-              title: const Text("Select Month"),
-              content: Row(
-                children: [
-                  Expanded(
-                    child: DropdownButton<int>(
-                      value: tempMonth,
-                      isExpanded: true,
-                      items: List.generate(12, (index) {
-                        final month = index + 1;
-                        return DropdownMenuItem(
-                          value: month,
-                          child: Text(month.toString().padLeft(2, '0')),
-                        );
-                      }),
-                      onChanged: (value) {
-                        setDialogState(() {
-                          tempMonth = value!;
-                        });
-                      },
-                    ),
+        return StatefulBuilder(builder: (context, setDialogState) {
+          return AlertDialog(
+            title: const Text("Select Month"),
+            content: Row(
+              children: [
+                Expanded(
+                  child: DropdownButton<int>(
+                    value: tempMonth,
+                    isExpanded: true,
+                    items: List.generate(12, (index) => index + 1)
+                        .map((m) => DropdownMenuItem(value: m, child: Text(m.toString().padLeft(2,'0'))))
+                        .toList(),
+                    onChanged: (value) => setDialogState(() => tempMonth = value!),
                   ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: DropdownButton<int>(
-                      value: tempYear,
-                      isExpanded: true,
-                      items: List.generate(10, (index) {
-                        final year = DateTime.now().year - index;
-                        return DropdownMenuItem(
-                          value: year,
-                          child: Text(year.toString()),
-                        );
-                      }),
-                      onChanged: (value) {
-                        setDialogState(() {
-                          tempYear = value!;
-                        });
-                      },
-                    ),
-                  ),
-                ],
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text("Cancel"),
                 ),
-                TextButton(
-                  onPressed: () {
-                    setState(() {
-                      selectedYear = tempYear;
-                      selectedMonth = tempMonth;
-                      selectedDate = DateTime(tempYear, tempMonth);
-                    });
-                    Navigator.pop(context);
-                    _fetchMonthAttendance();
-                    _fetchMonthNotifications();
-                  },
-                  child: const Text("Confirm"),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: DropdownButton<int>(
+                    value: tempYear,
+                    isExpanded: true,
+                    items: List.generate(10, (index) => DateTime.now().year - index)
+                        .map((y) => DropdownMenuItem(value: y, child: Text(y.toString())))
+                        .toList(),
+                    onChanged: (value) => setDialogState(() => tempYear = value!),
+                  ),
                 ),
               ],
-            );
-          },
-        );
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancel")),
+              TextButton(
+                onPressed: () {
+                  setState(() {
+                    selectedYear = tempYear;
+                    selectedMonth = tempMonth;
+                    selectedDate = DateTime(tempYear, tempMonth);
+                  });
+                  Navigator.pop(context);
+                  _fetchMonthAttendance();
+                  _fetchMonthNotifications();
+                  _fetchMonthAttendancePhotos();
+                },
+                child: const Text("Confirm"),
+              ),
+            ],
+          );
+        });
       },
     );
   }
 
-  // Fetch all attendance for the selected month
+  // -----------------------------
+  // Fetch attendance
+  // -----------------------------
   Future<void> _fetchMonthAttendance() async {
     if (selectedDate == null) return;
 
-    setState(() {
-      isLoading = true;
-      attendances = [];
-    });
+    setState(() { isLoading = true; attendances = []; });
 
-    final year = selectedDate!.year;
-    final month = selectedDate!.month;
-    final startDate = DateTime(year, month, 1);
-    final endDate = DateTime(year, month + 1, 0);
+    final start = DateTime(selectedDate!.year, selectedDate!.month, 1);
+    final end = DateTime(selectedDate!.year, selectedDate!.month + 1, 0);
 
     try {
-      final data = await attendanceService.getAttendanceForAllUsers(
-        startDate: startDate,
-        endDate: endDate,
-      );
-
-      setState(() {
-        attendances = data;
-      });
+      final data = await attendanceService.getAttendanceForAllUsers(startDate: start, endDate: end);
+      setState(() => attendances = data);
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Failed to fetch attendance: $e")),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Failed to fetch attendance: $e")));
     }
 
     setState(() => isLoading = false);
   }
 
-  // Fetch notifications for the selected month
+  // -----------------------------
+  // Fetch notifications
+  // -----------------------------
   Future<void> _fetchMonthNotifications() async {
     if (selectedDate == null) return;
 
-    setState(() {
-      isLoading = true;
-      notifications = [];
-    });
+    setState(() { isLoading = true; notifications = []; });
 
-    final year = selectedDate!.year;
-    final month = selectedDate!.month;
-    final startDate = DateTime(year, month, 1);
-    final endDate = DateTime(year, month + 1, 0);
+    final start = DateTime(selectedDate!.year, selectedDate!.month, 1);
+    final end = DateTime(selectedDate!.year, selectedDate!.month + 1, 0);
 
     try {
-      final data = await notificationService.fetchBySafeDeleteDate(
-        start: startDate,
-        end: endDate,
-      );
-
-      setState(() {
-        notifications = data;
-      });
+      final data = await notificationService.fetchBySafeDeleteDate(start: start, end: end);
+      setState(() => notifications = data);
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Failed to fetch notifications: $e")),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Failed to fetch notifications: $e")));
     }
 
     setState(() => isLoading = false);
   }
 
-  // Delete all fetched attendance and notifications
-  Future<void> _deletePastData() async {
-    if (attendances.isEmpty && notifications.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("No data to delete")),
+  // -----------------------------
+  // Fetch attendance photos using ImageModelService
+  // -----------------------------
+  Future<void> _fetchMonthAttendancePhotos() async {
+    if (selectedDate == null) return;
+
+    setState(() { isLoading = true; attendancePhotoDocs = []; });
+
+    final start = DateTime(selectedDate!.year, selectedDate!.month, 1);
+    final end = DateTime(selectedDate!.year, selectedDate!.month + 1, 0);
+
+    try {
+      // Using public method to fetch entries in date range
+      final data = await imageService.getAttendancePhotosForMonth(
+        start: start,
+        end: end,
       );
+      setState(() => attendancePhotoDocs = data);
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Failed to fetch attendance photos: $e")));
+    }
+
+    setState(() => isLoading = false);
+  }
+
+  // -----------------------------
+  // Delete past data including attendance photos
+  // -----------------------------
+  Future<void> _deletePastData() async {
+    if (attendances.isEmpty && notifications.isEmpty && attendancePhotoDocs.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("No data to delete")));
       return;
     }
 
     setState(() => isLoading = true);
 
     try {
-      // Delete attendances
       for (var att in attendances) {
         await attendanceService.deleteAttendanceForAttendanceID(att.id);
       }
 
-      // Delete notifications
       for (var notif in notifications) {
         await notificationService.deleteNotificationById(notif.id);
+      }
+
+      // Delete attendance photos
+      for (var uuid in attendancePhotoDocs) {
+        await imageService.deleteAttendancePhoto(uuid);
       }
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -199,28 +190,24 @@ class _ServicePortalAdminDeletePastDataPageState
       setState(() {
         attendances = [];
         notifications = [];
+        attendancePhotoDocs = [];
       });
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error deleting data: $e")),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error deleting data: $e")));
     }
 
     setState(() => isLoading = false);
   }
 
+  // -----------------------------
   // Attendance list widget
+  // -----------------------------
   Widget _buildAttendanceList() {
     return Expanded(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Center(
-            child: Text(
-              "Attendance",
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-          ),
+          const Center(child: Text("Attendance", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold))),
           const SizedBox(height: 10),
           Expanded(
             child: attendances.isEmpty
@@ -235,15 +222,9 @@ class _ServicePortalAdminDeletePastDataPageState
                     title: Text(att.userRef.id),
                     subtitle: Text(att.date),
                     trailing: Text(
-                      att.scanIns
-                          .map((s) =>
-                          DateService.toDisplayTime(s.time))
-                          .join(" | ") +
+                      att.scanIns.map((s) => DateService.toDisplayTime(s.time)).join(" | ") +
                           " | " +
-                          att.scanOuts
-                              .map((s) =>
-                              DateService.toDisplayTime(s.time))
-                              .join(" | "),
+                          att.scanOuts.map((s) => DateService.toDisplayTime(s.time)).join(" | "),
                     ),
                   ),
                 );
@@ -255,18 +236,15 @@ class _ServicePortalAdminDeletePastDataPageState
     );
   }
 
+  // -----------------------------
   // Notification list widget
+  // -----------------------------
   Widget _buildNotificationList() {
     return Expanded(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Center(
-            child: Text(
-              "Notifications",
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-          ),
+          const Center(child: Text("Notifications", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold))),
           const SizedBox(height: 10),
           Expanded(
             child: notifications.isEmpty
@@ -279,10 +257,8 @@ class _ServicePortalAdminDeletePastDataPageState
                   margin: const EdgeInsets.symmetric(vertical: 4),
                   child: ListTile(
                     title: Text(notif.user.id),
-                    subtitle: Text(
-                        "Created: ${notif.createdAt.toLocal().toString().split(' ')[0]}"),
-                    trailing: Text(
-                        notif.remark ?? "No remark"),
+                    subtitle: Text("Created: ${notif.createdAt.toLocal().toString().split(' ')[0]}"),
+                    trailing: Text(notif.remark ?? "No remark"),
                   ),
                 );
               },
