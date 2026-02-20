@@ -47,6 +47,15 @@ class _ServicePortalAdminNotificationPageState
         .snapshots();
   }
 
+  NotificationModel _parseNotification(DocumentSnapshot<Map<String, dynamic>> doc) {
+    final data = doc.data()!;
+    // Check if the doc has the emergency photo field
+    if (data.containsKey('attendancePhotoDoc')) {
+      return EmergencyAttendanceNotification.fromDoc(doc);
+    }
+    return LeaveNotification.fromDoc(doc);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -70,28 +79,34 @@ class _ServicePortalAdminNotificationPageState
                 return const Center(child: Text("No notifications"));
               }
 
+              // Map docs to correct notification type
               final notifications = snapshot.data!.docs
-                  .map((doc) => LeaveNotification.fromDoc(doc))
+                  .map((doc) => _parseNotification(doc))
                   .toList();
 
+              // Separate new and history
               final newNotifications = notifications
-                  .where((n) => n.notificationStatus == NotificationStatus.pending)
+                  .where((n) =>
+              n is LeaveNotification &&
+                  n.notificationStatus == NotificationStatus.pending)
                   .toList();
 
               final historyNotifications = notifications
-                  .where((n) => n.notificationStatus != NotificationStatus.pending)
+                  .where((n) =>
+              !(n is LeaveNotification &&
+                  n.notificationStatus == NotificationStatus.pending))
                   .toList();
 
               return TabBarView(
                 controller: _tabController,
                 children: [
                   _buildNotificationList(
-                    newNotifications,
+                    newNotifications.cast<NotificationModel>(),
                     allowAction: true,
                     allowDelete: false,
                   ),
                   _buildNotificationList(
-                    historyNotifications,
+                    historyNotifications.cast<NotificationModel>(),
                     allowAction: false,
                     allowDelete: true,
                   ),
@@ -105,7 +120,7 @@ class _ServicePortalAdminNotificationPageState
   }
 
   Widget _buildNotificationList(
-      List<LeaveNotification> notifications, {
+      List<NotificationModel> notifications, {
         required bool allowAction,
         required bool allowDelete,
       }) {
@@ -125,18 +140,37 @@ class _ServicePortalAdminNotificationPageState
               final userName =
                   userSnapshot.data ?? notif.user.id.split('/').last;
 
-              return ListTile(
-                leading: Icon(
+              String subtitleText = "";
+              Icon leadingIcon = const Icon(Icons.notifications);
+
+              if (notif is LeaveNotification) {
+                subtitleText =
+                "Attendance: ${notif.attendanceId}\nLeave: ${notif.leaveStatus.name}\nRemark: ${notif.remark ?? ""}\nStatus: ${notif.notificationStatus.name}";
+                leadingIcon = Icon(
                   notif.notificationStatus == NotificationStatus.pending
                       ? Icons.pending
                       : notif.notificationStatus == NotificationStatus.approved
                       ? Icons.check_circle
                       : Icons.cancel,
-                ),
+                  color: notif.notificationStatus == NotificationStatus.pending
+                      ? Colors.orange
+                      : notif.notificationStatus == NotificationStatus.approved
+                      ? Colors.green
+                      : Colors.red,
+                );
+              } else if (notif is EmergencyAttendanceNotification) {
+                subtitleText =
+                "Emergency Photo Doc: ${notif.attendancePhotoDoc}\nRemark: ${notif.remark ?? ""}";
+                leadingIcon = const Icon(Icons.photo_camera, color: Colors.blue);
+              } else {
+                subtitleText = "Remark: ${notif.remark ?? ""}";
+              }
+
+              return ListTile(
+                leading: leadingIcon,
                 title: Text("User: $userName"),
-                subtitle: Text(
-                    "Attendance: ${notif.attendanceId}\nLeave: ${notif.leaveStatus.name}\nRemark: ${notif.remark}\nStatus: ${notif.notificationStatus.name}"),
-                trailing: allowAction
+                subtitle: Text(subtitleText),
+                trailing: notif is LeaveNotification && allowAction
                     ? Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
