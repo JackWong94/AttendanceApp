@@ -87,13 +87,12 @@ class _ServicePortalAdminNotificationPageState
               // Separate new and history
               final newNotifications = notifications
                   .where((n) =>
-              n is LeaveNotification &&
                   n.notificationStatus == NotificationStatus.pending)
                   .toList();
 
               final historyNotifications = notifications
                   .where((n) =>
-              !(n is LeaveNotification &&
+              !(
                   n.notificationStatus == NotificationStatus.pending))
                   .toList();
 

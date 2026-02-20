@@ -9,6 +9,7 @@ class NotificationModel {
   final DateTime createdAt;
   final DateTime dateSafeForDelete;
   final String? remark;
+  final NotificationStatus notificationStatus; // moved here
 
   NotificationModel({
     required this.id,
@@ -16,7 +17,8 @@ class NotificationModel {
     DateTime? createdAt,
     DateTime? dateSafeForDelete,
     this.remark,
-  }) : createdAt = createdAt ?? DateTime.now(),
+    this.notificationStatus = NotificationStatus.pending, // default
+  })  : createdAt = createdAt ?? DateTime.now(),
         dateSafeForDelete = dateSafeForDelete ?? DateTime.now();
 
   Map<String, dynamic> toMap() {
@@ -25,6 +27,7 @@ class NotificationModel {
       'createdAt': Timestamp.fromDate(createdAt),
       'dateSafeForDelete': Timestamp.fromDate(dateSafeForDelete),
       'remark': remark,
+      'notificationStatus': notificationStatus.name, // include in base map
     };
   }
 
@@ -36,6 +39,9 @@ class NotificationModel {
       createdAt: (data['createdAt'] as Timestamp).toDate(),
       dateSafeForDelete: (data['dateSafeForDelete'] as Timestamp).toDate(),
       remark: data['remark'],
+      notificationStatus: NotificationStatus.values.firstWhere(
+              (e) => e.name == data['notificationStatus'],
+          orElse: () => NotificationStatus.pending),
     );
   }
 }
@@ -44,7 +50,6 @@ class LeaveNotification extends NotificationModel {
   final String attendanceId;
   final Status leaveStatus;
   final ApplicationStatus applicationStatus;
-  final NotificationStatus notificationStatus;
 
   LeaveNotification({
     required String id,
@@ -52,16 +57,17 @@ class LeaveNotification extends NotificationModel {
     required this.attendanceId,
     this.leaveStatus = Status.AL_FullDay,
     this.applicationStatus = ApplicationStatus.pending,
-    this.notificationStatus = NotificationStatus.pending,
     DateTime? createdAt,
     DateTime? dateSafeForDelete,
     String? remark,
+    NotificationStatus notificationStatus = NotificationStatus.pending,
   }) : super(
     id: id,
     user: user,
     createdAt: createdAt,
     dateSafeForDelete: dateSafeForDelete,
     remark: remark,
+    notificationStatus: notificationStatus,
   );
 
   @override
@@ -71,7 +77,6 @@ class LeaveNotification extends NotificationModel {
       'attendanceId': attendanceId,
       'leaveStatus': leaveStatus.name,
       'applicationStatus': applicationStatus.name,
-      'notificationStatus': notificationStatus.name,
     });
     return map;
   }
@@ -107,12 +112,14 @@ class EmergencyAttendanceNotification extends NotificationModel {
     DateTime? createdAt,
     DateTime? dateSafeForDelete,
     String? remark,
+    NotificationStatus notificationStatus = NotificationStatus.pending,
   }) : super(
     id: id,
     user: user,
     createdAt: createdAt,
     dateSafeForDelete: dateSafeForDelete,
     remark: remark,
+    notificationStatus: notificationStatus,
   );
 
   @override
@@ -134,6 +141,9 @@ class EmergencyAttendanceNotification extends NotificationModel {
       createdAt: (data['createdAt'] as Timestamp).toDate(),
       dateSafeForDelete: (data['dateSafeForDelete'] as Timestamp?)?.toDate(),
       remark: data['remark'],
+      notificationStatus: NotificationStatus.values.firstWhere(
+              (e) => e.name == data['notificationStatus'],
+          orElse: () => NotificationStatus.pending),
     );
   }
 }
