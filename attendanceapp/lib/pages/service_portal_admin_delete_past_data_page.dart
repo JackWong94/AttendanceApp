@@ -170,9 +170,11 @@ class _ServicePortalAdminDeletePastDataPageState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            "Attendance",
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          const Center(
+            child: Text(
+              "Attendance",
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
           ),
           const SizedBox(height: 10),
           Expanded(
