@@ -90,4 +90,20 @@ class NotificationModelService {
     return _notificationRef.orderBy('createdAt', descending: true).snapshots();
   }
 
+  /// Fetch notifications whose dateSafeForDelete is between start and end
+  Future<List<NotificationModel>> fetchBySafeDeleteDate({
+    required DateTime start,
+    required DateTime end,
+  }) async {
+    final snapshot = await _notificationRef
+        .where('dateSafeForDelete', isGreaterThanOrEqualTo: Timestamp.fromDate(start))
+        .where('dateSafeForDelete', isLessThanOrEqualTo: Timestamp.fromDate(end))
+        .orderBy('dateSafeForDelete')
+        .get();
+
+    return snapshot.docs
+        .map((doc) => NotificationModel.fromDoc(doc))
+        .toList();
+  }
+
 }

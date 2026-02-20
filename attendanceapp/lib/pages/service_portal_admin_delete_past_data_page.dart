@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../services/attendance_service.dart';
 import '../services/date_service.dart';
 import '../models/attendance_model.dart';
+import '../services/notification_model_service.dart';
+import '../models/notification_model.dart';
 
 class ServicePortalAdminDeletePastDataPage extends StatefulWidget {
   const ServicePortalAdminDeletePastDataPage({super.key});
@@ -20,7 +22,10 @@ class _ServicePortalAdminDeletePastDataPageState
   int selectedMonth = DateTime.now().month;
 
   List<Attendance> attendances = [];
+  List<NotificationModel> notifications = [];
+
   final AttendanceService attendanceService = AttendanceService();
+  final NotificationModelService notificationService = NotificationModelService.instance;
 
   // Month picker dialog
   Future<void> _pickMonth() async {
@@ -89,6 +94,7 @@ class _ServicePortalAdminDeletePastDataPageState
                     });
                     Navigator.pop(context);
                     _fetchMonthAttendance();
+                    _fetchMonthNotifications();
                   },
                   child: const Text("Confirm"),
                 ),
@@ -132,6 +138,38 @@ class _ServicePortalAdminDeletePastDataPageState
     setState(() => isLoading = false);
   }
 
+  // Fetch notifications for the selected month
+  Future<void> _fetchMonthNotifications() async {
+    if (selectedDate == null) return;
+
+    setState(() {
+      isLoading = true;
+      notifications = [];
+    });
+
+    final year = selectedDate!.year;
+    final month = selectedDate!.month;
+    final startDate = DateTime(year, month, 1);
+    final endDate = DateTime(year, month + 1, 0);
+
+    try {
+      final data = await notificationService.fetchBySafeDeleteDate(
+        start: startDate,
+        end: endDate,
+      );
+
+      setState(() {
+        notifications = data;
+      });
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Failed to fetch notifications: $e")),
+      );
+    }
+
+    setState(() => isLoading = false);
+  }
+
   // Delete all fetched attendance
   Future<void> _deletePastData() async {
     if (attendances.isEmpty) {
@@ -164,7 +202,7 @@ class _ServicePortalAdminDeletePastDataPageState
     setState(() => isLoading = false);
   }
 
-  // Attendance list with title
+  // Attendance list widget
   Widget _buildAttendanceList() {
     return Expanded(
       child: Column(
@@ -210,6 +248,44 @@ class _ServicePortalAdminDeletePastDataPageState
     );
   }
 
+  // Notification list widget
+  Widget _buildNotificationList() {
+    return Expanded(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Center(
+            child: Text(
+              "Notifications",
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
+          ),
+          const SizedBox(height: 10),
+          Expanded(
+            child: notifications.isEmpty
+                ? const Center(child: Text("No notifications found"))
+                : ListView.builder(
+              itemCount: notifications.length,
+              itemBuilder: (context, index) {
+                final notif = notifications[index];
+                return Card(
+                  margin: const EdgeInsets.symmetric(vertical: 4),
+                  child: ListTile(
+                    title: Text(notif.user.id),
+                    subtitle: Text(
+                        "Created: ${notif.createdAt.toLocal().toString().split(' ')[0]}"),
+                    trailing: Text(
+                        notif.remark ?? "No remark"),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -230,7 +306,15 @@ class _ServicePortalAdminDeletePastDataPageState
                 const SizedBox(height: 20),
                 isLoading
                     ? const CircularProgressIndicator()
-                    : _buildAttendanceList(),
+                    : Expanded(
+                  child: Column(
+                    children: [
+                      _buildAttendanceList(),
+                      const SizedBox(height: 20),
+                      _buildNotificationList(),
+                    ],
+                  ),
+                ),
                 const SizedBox(height: 20),
                 ElevatedButton(
                   onPressed: _deletePastData,
