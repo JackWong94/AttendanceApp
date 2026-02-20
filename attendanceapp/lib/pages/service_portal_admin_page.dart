@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'service_portal_admin_notification_page.dart';
 import 'service_portal_admin_set_public_holiday_page.dart';
+import 'service_portal_admin_delete_past_data_page.dart';
 
 class ServicePortalAdminPage extends StatefulWidget {
   const ServicePortalAdminPage({super.key});
@@ -16,12 +17,14 @@ class _ServicePortalAdminPageState extends State<ServicePortalAdminPage> {
   final List<Widget> _pages = const [
     ServicePortalAdminNotificationPage(),
     ServicePortalAdminSetPublicHolidayPage(),
+    ServicePortalAdminDeletePastDataPage(),
   ];
 
   // Titles corresponding to the drawer items
   final List<String> _pageTitles = [
     "Service Portal Admin - Notification",
     "Service Portal Admin - Set Public Holiday",
+    "Service Portal Admin - Delete Past Data",
   ];
 
   @override
@@ -66,6 +69,15 @@ class _ServicePortalAdminPageState extends State<ServicePortalAdminPage> {
               selected: _selectedIndex == 1,
               onTap: () {
                 setState(() => _selectedIndex = 1);
+                Navigator.pop(context); // close drawer
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.delete),
+              title: const Text("Delete Past Data"),
+              selected: _selectedIndex == 2,
+              onTap: () {
+                setState(() => _selectedIndex = 2);
                 Navigator.pop(context); // close drawer
               },
             ),
