@@ -170,11 +170,11 @@ class _ServicePortalAdminDeletePastDataPageState
     setState(() => isLoading = false);
   }
 
-  // Delete all fetched attendance
+  // Delete all fetched attendance and notifications
   Future<void> _deletePastData() async {
-    if (attendances.isEmpty) {
+    if (attendances.isEmpty && notifications.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("No attendance to delete")),
+        const SnackBar(content: Text("No data to delete")),
       );
       return;
     }
@@ -182,8 +182,14 @@ class _ServicePortalAdminDeletePastDataPageState
     setState(() => isLoading = true);
 
     try {
+      // Delete attendances
       for (var att in attendances) {
         await attendanceService.deleteAttendanceForAttendanceID(att.id);
+      }
+
+      // Delete notifications
+      for (var notif in notifications) {
+        await notificationService.deleteNotificationById(notif.id);
       }
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -192,6 +198,7 @@ class _ServicePortalAdminDeletePastDataPageState
 
       setState(() {
         attendances = [];
+        notifications = [];
       });
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(

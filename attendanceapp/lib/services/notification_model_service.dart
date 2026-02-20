@@ -46,7 +46,7 @@ class NotificationModelService {
     final docId = '${datePart}_$userId';
 
     final doc = _notificationRef.doc(docId);
-    final dateSafeForDelete = leaveDate?.add(const Duration(days: 1));
+    final dateSafeForDelete = leaveDate;
     final notification = LeaveNotification(
       id: doc.id,
       user: userRef,
@@ -105,5 +105,14 @@ class NotificationModelService {
         .map((doc) => NotificationModel.fromDoc(doc))
         .toList();
   }
-
+  /// Delete a notification by ID
+  Future<void> deleteNotificationById(String notificationId) async {
+    try {
+      await _notificationRef.doc(notificationId).delete();
+      print("Notification $notificationId deleted successfully");
+    } catch (e) {
+      print("Error deleting notification $notificationId: $e");
+      rethrow;
+    }
+  }
 }
