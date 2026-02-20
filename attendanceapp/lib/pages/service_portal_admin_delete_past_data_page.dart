@@ -179,8 +179,8 @@ class _ServicePortalAdminDeletePastDataPageState
       }
 
       // Delete attendance photos
-      for (var uuid in attendancePhotoDocs) {
-        await imageService.deleteAttendancePhoto(uuid);
+      if (selectedDate != null) {
+        await imageService.deleteAttendancePhotosForMonth(selectedDate!);
       }
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -235,7 +235,38 @@ class _ServicePortalAdminDeletePastDataPageState
       ),
     );
   }
-
+// -----------------------------
+// Attendance photo doc list widget
+// -----------------------------
+  Widget _buildAttendancePhotoDocList() {
+    return Expanded(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Center(
+              child: Text("Emergency Attendance Photo",
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold))),
+          const SizedBox(height: 10),
+          Expanded(
+            child: attendancePhotoDocs.isEmpty
+                ? const Center(child: Text("No attendance photo docs found"))
+                : ListView.builder(
+              itemCount: attendancePhotoDocs.length,
+              itemBuilder: (context, index) {
+                final docName = attendancePhotoDocs[index];
+                return Card(
+                  margin: const EdgeInsets.symmetric(vertical: 4),
+                  child: ListTile(
+                    title: Text(docName),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
   // -----------------------------
   // Notification list widget
   // -----------------------------
@@ -293,6 +324,8 @@ class _ServicePortalAdminDeletePastDataPageState
                   child: Column(
                     children: [
                       _buildAttendanceList(),
+                      const SizedBox(height: 20),
+                      _buildAttendancePhotoDocList(),
                       const SizedBox(height: 20),
                       _buildNotificationList(),
                     ],

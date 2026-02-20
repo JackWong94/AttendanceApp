@@ -189,7 +189,6 @@ class ImageCollectionService {
   }) async {
     final collection = FirebaseFirestore.instance.collection(collectionPath);
     final indexRef = collection.doc(indexName);
-
     for (final docName in docNames) {
       // 1️⃣ Delete the document itself
       await collection.doc(docName).delete();
@@ -201,6 +200,7 @@ class ImageCollectionService {
       final indexData = indexSnap.data() ?? {};
       final Map<String, String> entryIndex =
       Map<String, String>.from(indexData["index"] ?? {});
+      print("Entry index: $entryIndex");
 
       final keysToDelete = entryIndex.entries
           .where((e) => e.value == docName)

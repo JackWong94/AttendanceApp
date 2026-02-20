@@ -257,7 +257,6 @@ class ImageModelService {
         debug.log("⚠️ No attendance photo docs found for ${month.year}-${month.month}");
         return;
       }
-
       // 2️⃣ Delete all of them
       await _attendanceCollection.deleteAttendancePhotoDocs(
         indexName: "attendanceIndex",
