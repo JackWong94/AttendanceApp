@@ -7,19 +7,23 @@ class NotificationModel {
   final String id;
   final DocumentReference user;
   final DateTime createdAt;
+  final DateTime dateSafeForDelete;
   final String? remark;
 
   NotificationModel({
     required this.id,
     required this.user,
     DateTime? createdAt,
+    DateTime? dateSafeForDelete,
     this.remark,
-  }) : createdAt = createdAt ?? DateTime.now();
+  }) : createdAt = createdAt ?? DateTime.now(),
+        dateSafeForDelete = dateSafeForDelete ?? DateTime.now();
 
   Map<String, dynamic> toMap() {
     return {
       'user': user,
       'createdAt': Timestamp.fromDate(createdAt),
+      'dateSafeForDelete': Timestamp.fromDate(dateSafeForDelete),
       'remark': remark,
     };
   }
@@ -30,6 +34,7 @@ class NotificationModel {
       id: doc.id,
       user: data['user'],
       createdAt: (data['createdAt'] as Timestamp).toDate(),
+      dateSafeForDelete: (data['dateSafeForDelete'] as Timestamp).toDate(),
       remark: data['remark'],
     );
   }
@@ -49,11 +54,13 @@ class LeaveNotification extends NotificationModel {
     this.applicationStatus = ApplicationStatus.pending,
     this.notificationStatus = NotificationStatus.pending,
     DateTime? createdAt,
+    DateTime? dateSafeForDelete,
     String? remark,
   }) : super(
     id: id,
     user: user,
     createdAt: createdAt,
+    dateSafeForDelete: dateSafeForDelete,
     remark: remark,
   );
 

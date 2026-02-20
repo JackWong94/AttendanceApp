@@ -33,6 +33,7 @@ class NotificationModelService {
     required String attendanceId,      // e.g., "2025-10-25_EMP0001"
     required String status,           // e.g., "AL_FullDay"
     required DocumentReference userRef,
+    required DateTime? leaveDate,
     String? remark,
   }) async {
     // Extract date part from attendanceId (assuming attendanceId = "yyyy-MM-dd_USERID")
@@ -45,11 +46,12 @@ class NotificationModelService {
     final docId = '${datePart}_$userId';
 
     final doc = _notificationRef.doc(docId);
-
+    final dateSafeForDelete = leaveDate?.add(const Duration(days: 1));
     final notification = LeaveNotification(
       id: doc.id,
       user: userRef,
       attendanceId: attendanceId,
+      dateSafeForDelete: dateSafeForDelete,
       remark: remark,
     );
 
