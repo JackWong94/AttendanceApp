@@ -5,7 +5,7 @@ import 'package:attendanceapp/models/notification_model.dart';
 import 'package:attendanceapp/services/notification_model_service.dart';
 import 'package:attendanceapp/services/user_model_service.dart';
 import 'package:attendanceapp/services/attendance_model_service.dart';
-import 'package:attendanceapp/services/image_model_service.dart'; // ✅ added
+import 'package:attendanceapp/services/image_model_service.dart';
 import 'package:attendanceapp/models/user_model.dart';
 import 'package:attendanceapp/models/attendance_model.dart';
 
@@ -86,14 +86,11 @@ class _ServicePortalAdminNotificationPageState
                   .toList();
 
               final newNotifications = notifications
-                  .where((n) =>
-              n.notificationStatus == NotificationStatus.pending)
+                  .where((n) => n.notificationStatus == NotificationStatus.pending)
                   .toList();
 
               final historyNotifications = notifications
-                  .where((n) =>
-              !(n.notificationStatus ==
-                  NotificationStatus.pending))
+                  .where((n) => n.notificationStatus != NotificationStatus.pending)
                   .toList();
 
               return TabBarView(
@@ -141,145 +138,105 @@ class _ServicePortalAdminNotificationPageState
                   userSnapshot.data ?? notif.user.id.split('/').last;
 
               String subtitleText = "";
-              Widget leadingWidget =
-              const Icon(Icons.notifications);
+
+              // Unified leading widget sizing
+              Widget leadingWidget = SizedBox(
+                width: 50,
+                height: 50,
+                child: Center(
+                  child: notif is LeaveNotification
+                      ? Icon(
+                    notif.notificationStatus == NotificationStatus.pending
+                        ? Icons.pending
+                        : notif.notificationStatus == NotificationStatus.approved
+                        ? Icons.check_circle
+                        : Icons.cancel,
+                    color: notif.notificationStatus == NotificationStatus.pending
+                        ? Colors.orange
+                        : notif.notificationStatus == NotificationStatus.approved
+                        ? Colors.green
+                        : Colors.red,
+                    size: 32,
+                  )
+                      : notif is EmergencyAttendanceNotification
+                      ? FutureBuilder<Uint8List?>(
+                    future: ImageModelService.instance
+                        .getAttendancePhotoBytes(notif.attendancePhotoDoc),
+                    builder: (context, snapshot) {
+                      if (!snapshot.hasData) {
+                        return const CircularProgressIndicator(strokeWidth: 2);
+                      }
+                      final bytes = snapshot.data!;
+                      return GestureDetector(
+                        onTap: () => _showImagePreview(context, bytes),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Image.memory(
+                            bytes,
+                            width: 50,
+                            height: 50,
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                      );
+                    },
+                  )
+                      : const Icon(Icons.notifications),
+                ),
+              );
 
               if (notif is LeaveNotification) {
                 subtitleText =
                 "Attendance: ${notif.attendanceId}\nLeave: ${notif.leaveStatus.name}\nRemark: ${notif.remark ?? ""}\nStatus: ${notif.notificationStatus.name}";
-                leadingWidget = Icon(
-                  notif.notificationStatus ==
-                      NotificationStatus.pending
-                      ? Icons.pending
-                      : notif.notificationStatus ==
-                      NotificationStatus.approved
-                      ? Icons.check_circle
-                      : Icons.cancel,
-                  color: notif.notificationStatus ==
-                      NotificationStatus.pending
-                      ? Colors.orange
-                      : notif.notificationStatus ==
-                      NotificationStatus.approved
-                      ? Colors.green
-                      : Colors.red,
-                );
-              } else if (notif
-              is EmergencyAttendanceNotification) {
-                subtitleText =
-                "Emergency Attendance Detected";
-
-                leadingWidget =
-                    FutureBuilder<Uint8List?>(
-                      future: ImageModelService
-                          .instance
-                          .getAttendancePhotoBytes(
-                          notif.attendancePhotoDoc),
-                      builder: (context, snapshot) {
-                        if (!snapshot.hasData) {
-                          return const SizedBox(
-                            width: 50,
-                            height: 50,
-                            child: Center(
-                              child:
-                              CircularProgressIndicator(
-                                  strokeWidth: 2),
-                            ),
-                          );
-                        }
-
-                        final bytes = snapshot.data!;
-
-                        return GestureDetector(
-                          onTap: () {
-                            _showImagePreview(
-                                context, bytes);
-                          },
-                          child: ClipRRect(
-                            borderRadius:
-                            BorderRadius.circular(8),
-                            child: Image.memory(
-                              bytes,
-                              width: 50,
-                              height: 50,
-                              fit: BoxFit.cover,
-                            ),
-                          ),
-                        );
-                      },
-                    );
+              } else if (notif is EmergencyAttendanceNotification) {
+                subtitleText = "Emergency Attendance Detected";
               } else {
-                subtitleText =
-                "Remark: ${notif.remark ?? ""}";
+                subtitleText = "Remark: ${notif.remark ?? ""}";
               }
 
               return ListTile(
                 leading: leadingWidget,
                 title: Text("User: $userName"),
                 subtitle: Text(subtitleText),
-                trailing: notif is LeaveNotification &&
-                    allowAction
+                trailing: notif is LeaveNotification && allowAction
                     ? Row(
-                  mainAxisSize:
-                  MainAxisSize.min,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     IconButton(
-                      icon: const Icon(Icons.check,
-                          color: Colors.green),
+                      icon: const Icon(Icons.check, color: Colors.green),
                       onPressed: () async {
-                        await _notifService
-                            .approve(notif);
-                        await AttendanceModelService
-                            .instance
-                            .setApplicationStatus(
-                          attendanceId:
-                          notif.attendanceId,
-                          applicationStatus:
-                          ApplicationStatus
-                              .approved,
+                        await _notifService.approve(notif);
+                        await AttendanceModelService.instance.setApplicationStatus(
+                          attendanceId: notif.attendanceId,
+                          applicationStatus: ApplicationStatus.approved,
                         );
                       },
                     ),
                     IconButton(
-                      icon: const Icon(Icons.close,
-                          color: Colors.red),
+                      icon: const Icon(Icons.close, color: Colors.red),
                       onPressed: () async {
-                        await _notifService.reject(
-                            notif,
-                            "Rejected by admin");
-                        await AttendanceModelService
-                            .instance
-                            .setApplicationStatus(
-                          attendanceId:
-                          notif.attendanceId,
-                          applicationStatus:
-                          ApplicationStatus
-                              .declined,
+                        await _notifService.reject(notif, "Rejected by admin");
+                        await AttendanceModelService.instance.setApplicationStatus(
+                          attendanceId: notif.attendanceId,
+                          applicationStatus: ApplicationStatus.declined,
                         );
                       },
                     ),
                   ],
                 )
-                    : notif
-                is EmergencyAttendanceNotification &&
-                    allowAction
+                    : notif is EmergencyAttendanceNotification && allowAction
                     ? IconButton(
-                  icon: const Icon(Icons.check,
-                      color: Colors.green),
+                  icon: const Icon(Icons.check, color: Colors.green),
                   onPressed: () async {
-                    await _notifService
-                        .approve(notif);
+                    await _notifService.approve(notif);
                   },
                 )
                     : allowDelete
                     ? IconButton(
-                  icon: const Icon(
-                      Icons.delete,
-                      color: Colors.grey),
+                  icon: const Icon(Icons.delete, color: Colors.grey),
                   onPressed: () async {
-                    await FirebaseFirestore
-                        .instance
-                        .collection(
-                        '${UserModelService.instance.tenantId}_Notifications')
+                    await FirebaseFirestore.instance
+                        .collection('${UserModelService.instance.tenantId}_Notifications')
                         .doc(notif.id)
                         .delete();
                   },
@@ -293,8 +250,7 @@ class _ServicePortalAdminNotificationPageState
     );
   }
 
-  void _showImagePreview(
-      BuildContext context, Uint8List bytes) {
+  void _showImagePreview(BuildContext context, Uint8List bytes) {
     showDialog(
       context: context,
       builder: (_) => Dialog(
