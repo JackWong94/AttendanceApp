@@ -1,9 +1,11 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:attendanceapp/models/notification_model.dart';
 import 'package:attendanceapp/services/notification_model_service.dart';
 import 'package:attendanceapp/services/user_model_service.dart';
 import 'package:attendanceapp/services/attendance_model_service.dart';
+import 'package:attendanceapp/services/image_model_service.dart'; // ✅ added
 import 'package:attendanceapp/models/user_model.dart';
 import 'package:attendanceapp/models/attendance_model.dart';
 
@@ -166,28 +168,45 @@ class _ServicePortalAdminNotificationPageState
                 subtitleText =
                 "Emergency Attendance Detected";
 
-                leadingWidget = GestureDetector(
-                  onTap: () {
-                    _showImagePreview(
-                        context, notif.attendancePhotoDoc);
-                  },
-                  child: ClipRRect(
-                    borderRadius:
-                    BorderRadius.circular(8),
-                    child: Image.network(
-                      notif.attendancePhotoDoc,
-                      width: 50,
-                      height: 50,
-                      fit: BoxFit.cover,
-                      errorBuilder:
-                          (context, error, stackTrace) =>
-                      const Icon(
-                        Icons.broken_image,
-                        color: Colors.red,
-                      ),
-                    ),
-                  ),
-                );
+                leadingWidget =
+                    FutureBuilder<Uint8List?>(
+                      future: ImageModelService
+                          .instance
+                          .getAttendancePhotoBytes(
+                          notif.attendancePhotoDoc),
+                      builder: (context, snapshot) {
+                        if (!snapshot.hasData) {
+                          return const SizedBox(
+                            width: 50,
+                            height: 50,
+                            child: Center(
+                              child:
+                              CircularProgressIndicator(
+                                  strokeWidth: 2),
+                            ),
+                          );
+                        }
+
+                        final bytes = snapshot.data!;
+
+                        return GestureDetector(
+                          onTap: () {
+                            _showImagePreview(
+                                context, bytes);
+                          },
+                          child: ClipRRect(
+                            borderRadius:
+                            BorderRadius.circular(8),
+                            child: Image.memory(
+                              bytes,
+                              width: 50,
+                              height: 50,
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+                        );
+                      },
+                    );
               } else {
                 subtitleText =
                 "Remark: ${notif.remark ?? ""}";
@@ -275,12 +294,12 @@ class _ServicePortalAdminNotificationPageState
   }
 
   void _showImagePreview(
-      BuildContext context, String imageUrl) {
+      BuildContext context, Uint8List bytes) {
     showDialog(
       context: context,
       builder: (_) => Dialog(
         child: InteractiveViewer(
-          child: Image.network(imageUrl),
+          child: Image.memory(bytes),
         ),
       ),
     );

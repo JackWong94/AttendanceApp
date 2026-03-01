@@ -308,4 +308,20 @@ class ImageModelService {
       debug.log("❌ Firestore connection failed: $e");
     }
   }
+  Future<Uint8List?> getAttendancePhotoBytes(String uuid) async {
+    try {
+      final data = await getAttendancePhotoByUuid(uuid);
+      if (data == null) return null;
+
+      final base64String = data["base64"];
+      if (base64String is String) {
+        return base64Decode(base64String);
+      }
+
+      return null;
+    } catch (e) {
+      debug.log("❌ Error decoding attendance photo for $uuid: $e");
+      return null;
+    }
+  }
 }
