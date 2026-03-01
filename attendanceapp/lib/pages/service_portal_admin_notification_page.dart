@@ -47,9 +47,9 @@ class _ServicePortalAdminNotificationPageState
         .snapshots();
   }
 
-  NotificationModel _parseNotification(DocumentSnapshot<Map<String, dynamic>> doc) {
+  NotificationModel _parseNotification(
+      DocumentSnapshot<Map<String, dynamic>> doc) {
     final data = doc.data()!;
-    // Check if the doc has the emergency photo field
     if (data.containsKey('attendancePhotoDoc')) {
       return EmergencyAttendanceNotification.fromDoc(doc);
     }
@@ -79,21 +79,19 @@ class _ServicePortalAdminNotificationPageState
                 return const Center(child: Text("No notifications"));
               }
 
-              // Map docs to correct notification type
               final notifications = snapshot.data!.docs
                   .map((doc) => _parseNotification(doc))
                   .toList();
 
-              // Separate new and history
               final newNotifications = notifications
                   .where((n) =>
-                  n.notificationStatus == NotificationStatus.pending)
+              n.notificationStatus == NotificationStatus.pending)
                   .toList();
 
               final historyNotifications = notifications
                   .where((n) =>
-              !(
-                  n.notificationStatus == NotificationStatus.pending))
+              !(n.notificationStatus ==
+                  NotificationStatus.pending))
                   .toList();
 
               return TabBarView(
@@ -123,7 +121,8 @@ class _ServicePortalAdminNotificationPageState
         required bool allowAction,
         required bool allowDelete,
       }) {
-    if (notifications.isEmpty) return const Center(child: Text("No notifications"));
+    if (notifications.isEmpty)
+      return const Center(child: Text("No notifications"));
 
     return ListView.builder(
       padding: const EdgeInsets.all(16),
@@ -140,75 +139,126 @@ class _ServicePortalAdminNotificationPageState
                   userSnapshot.data ?? notif.user.id.split('/').last;
 
               String subtitleText = "";
-              Icon leadingIcon = const Icon(Icons.notifications);
+              Widget leadingWidget =
+              const Icon(Icons.notifications);
 
               if (notif is LeaveNotification) {
                 subtitleText =
                 "Attendance: ${notif.attendanceId}\nLeave: ${notif.leaveStatus.name}\nRemark: ${notif.remark ?? ""}\nStatus: ${notif.notificationStatus.name}";
-                leadingIcon = Icon(
-                  notif.notificationStatus == NotificationStatus.pending
+                leadingWidget = Icon(
+                  notif.notificationStatus ==
+                      NotificationStatus.pending
                       ? Icons.pending
-                      : notif.notificationStatus == NotificationStatus.approved
+                      : notif.notificationStatus ==
+                      NotificationStatus.approved
                       ? Icons.check_circle
                       : Icons.cancel,
-                  color: notif.notificationStatus == NotificationStatus.pending
+                  color: notif.notificationStatus ==
+                      NotificationStatus.pending
                       ? Colors.orange
-                      : notif.notificationStatus == NotificationStatus.approved
+                      : notif.notificationStatus ==
+                      NotificationStatus.approved
                       ? Colors.green
                       : Colors.red,
                 );
-              } else if (notif is EmergencyAttendanceNotification) {
+              } else if (notif
+              is EmergencyAttendanceNotification) {
                 subtitleText =
-                "Emergency Photo Doc: ${notif.attendancePhotoDoc}\nRemark: Emergency Attendance Detected";
-                leadingIcon = const Icon(Icons.photo_camera, color: Colors.blue);
+                "Emergency Attendance Detected";
+
+                leadingWidget = GestureDetector(
+                  onTap: () {
+                    _showImagePreview(
+                        context, notif.attendancePhotoDoc);
+                  },
+                  child: ClipRRect(
+                    borderRadius:
+                    BorderRadius.circular(8),
+                    child: Image.network(
+                      notif.attendancePhotoDoc,
+                      width: 50,
+                      height: 50,
+                      fit: BoxFit.cover,
+                      errorBuilder:
+                          (context, error, stackTrace) =>
+                      const Icon(
+                        Icons.broken_image,
+                        color: Colors.red,
+                      ),
+                    ),
+                  ),
+                );
               } else {
-                subtitleText = "Remark: ${notif.remark ?? ""}";
+                subtitleText =
+                "Remark: ${notif.remark ?? ""}";
               }
 
               return ListTile(
-                leading: leadingIcon,
+                leading: leadingWidget,
                 title: Text("User: $userName"),
                 subtitle: Text(subtitleText),
-                trailing: notif is LeaveNotification && allowAction
+                trailing: notif is LeaveNotification &&
+                    allowAction
                     ? Row(
-                  mainAxisSize: MainAxisSize.min,
+                  mainAxisSize:
+                  MainAxisSize.min,
                   children: [
                     IconButton(
-                      icon: const Icon(Icons.check, color: Colors.green),
+                      icon: const Icon(Icons.check,
+                          color: Colors.green),
                       onPressed: () async {
-                        await _notifService.approve(notif);
-                        await AttendanceModelService.instance
+                        await _notifService
+                            .approve(notif);
+                        await AttendanceModelService
+                            .instance
                             .setApplicationStatus(
-                          attendanceId: notif.attendanceId,
-                          applicationStatus: ApplicationStatus.approved,
+                          attendanceId:
+                          notif.attendanceId,
+                          applicationStatus:
+                          ApplicationStatus
+                              .approved,
                         );
                       },
                     ),
                     IconButton(
-                      icon: const Icon(Icons.close, color: Colors.red),
+                      icon: const Icon(Icons.close,
+                          color: Colors.red),
                       onPressed: () async {
-                        await _notifService.reject(notif, "Rejected by admin");
-                        await AttendanceModelService.instance
+                        await _notifService.reject(
+                            notif,
+                            "Rejected by admin");
+                        await AttendanceModelService
+                            .instance
                             .setApplicationStatus(
-                          attendanceId: notif.attendanceId,
-                          applicationStatus: ApplicationStatus.declined,
+                          attendanceId:
+                          notif.attendanceId,
+                          applicationStatus:
+                          ApplicationStatus
+                              .declined,
                         );
                       },
                     ),
                   ],
                 )
-                    : notif is EmergencyAttendanceNotification && allowAction
+                    : notif
+                is EmergencyAttendanceNotification &&
+                    allowAction
                     ? IconButton(
-                  icon: const Icon(Icons.check, color: Colors.green),
+                  icon: const Icon(Icons.check,
+                      color: Colors.green),
                   onPressed: () async {
-                    await _notifService.approve(notif);
+                    await _notifService
+                        .approve(notif);
                   },
                 )
                     : allowDelete
                     ? IconButton(
-                  icon: const Icon(Icons.delete, color: Colors.grey),
+                  icon: const Icon(
+                      Icons.delete,
+                      color: Colors.grey),
                   onPressed: () async {
-                    await FirebaseFirestore.instance
+                    await FirebaseFirestore
+                        .instance
                         .collection(
                         '${UserModelService.instance.tenantId}_Notifications')
                         .doc(notif.id)
@@ -221,6 +271,18 @@ class _ServicePortalAdminNotificationPageState
           ),
         );
       },
+    );
+  }
+
+  void _showImagePreview(
+      BuildContext context, String imageUrl) {
+    showDialog(
+      context: context,
+      builder: (_) => Dialog(
+        child: InteractiveViewer(
+          child: Image.network(imageUrl),
+        ),
+      ),
     );
   }
 
