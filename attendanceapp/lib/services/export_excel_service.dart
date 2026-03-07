@@ -590,35 +590,37 @@ class ExportExcelService {
       sheet.getRangeByIndex(totalRow + 2, 3).setText('Hour');
       int summaryRow = totalRow + 3;
 
+      String unpaidLeaveDayCalculationFormula = '=(COUNTIF($statusColLetter$firstDataRow:$statusColLetter${totalRow - 1},"${Status.UL_FullDay.name}")+0.5*COUNTIF($statusColLetter$firstDataRow:$statusColLetter${totalRow - 1},"${Status.UL_HalfDay.name}"))';
+      String unpaidLeaveHourCalculationFormula = unpaidLeaveDayCalculationFormula+'*$workHour';
+      String annualLeaveDayCalculationFormula = '=(COUNTIF($statusColLetter$firstDataRow:$statusColLetter${totalRow - 1},"${Status.AL_FullDay.name}")+0.5*COUNTIF($statusColLetter$firstDataRow:$statusColLetter${totalRow - 1},"${Status.AL_HalfDay.name}"))';
+      String annualLeaveHourCalcutationFormula = annualLeaveDayCalculationFormula+'*$workHour';
+      String publicHolidayDayCalculationFormula = '=(COUNTIF($statusColLetter$firstDataRow:$statusColLetter${totalRow - 1},"${Status.PH_FullDay.name}")+0.5*COUNTIF($statusColLetter$firstDataRow:$statusColLetter${totalRow - 1},"${Status.PH_HalfDay.name}"))';
+      String publicHolidayHourCalculationFormula = publicHolidayDayCalculationFormula+'*$workHour';
+      String mcDayCalculationFormula = '=(COUNTIF($statusColLetter$firstDataRow:$statusColLetter${totalRow - 1},"${Status.MC_FullDay.name}")+0.5*COUNTIF($statusColLetter$firstDataRow:$statusColLetter${totalRow - 1},"${Status.MC_HalfDay.name}"))';
+      String mcHourCalculationFormula = mcDayCalculationFormula+'*$workHour';
+      customerRequestCalculation(sheet, summaryRow, 5);
+
       // Status counts (fixed order)
       final statusSummary = <List<String>>[
         [
           'UNPAID LEAVE',
-          '=COUNTIF($statusColLetter$firstDataRow:$statusColLetter${totalRow - 1},"${Status.UL_FullDay.name}")'
-              '+0.5*COUNTIF($statusColLetter$firstDataRow:$statusColLetter${totalRow - 1},"${Status.UL_HalfDay.name}")',
-          '=(COUNTIF($statusColLetter$firstDataRow:$statusColLetter${totalRow - 1},"${Status.UL_FullDay.name}")'
-              '+0.5*COUNTIF($statusColLetter$firstDataRow:$statusColLetter${totalRow - 1},"${Status.UL_HalfDay.name}"))*$workHour'
+          unpaidLeaveDayCalculationFormula,
+          unpaidLeaveHourCalculationFormula
         ],
         [
           'ANNUAL LEAVE',
-          '=COUNTIF($statusColLetter$firstDataRow:$statusColLetter${totalRow - 1},"${Status.AL_FullDay.name}")'
-              '+0.5*COUNTIF($statusColLetter$firstDataRow:$statusColLetter${totalRow - 1},"${Status.AL_HalfDay.name}")',
-          '=(COUNTIF($statusColLetter$firstDataRow:$statusColLetter${totalRow - 1},"${Status.AL_FullDay.name}")'
-              '+0.5*COUNTIF($statusColLetter$firstDataRow:$statusColLetter${totalRow - 1},"${Status.AL_HalfDay.name}"))*$workHour'
+          annualLeaveDayCalculationFormula,
+          annualLeaveHourCalcutationFormula
         ],
         [
           'PUBLIC HOLIDAY',
-          '=COUNTIF($statusColLetter$firstDataRow:$statusColLetter${totalRow - 1},"${Status.PH_FullDay.name}")'
-              '+0.5*COUNTIF($statusColLetter$firstDataRow:$statusColLetter${totalRow - 1},"${Status.PH_HalfDay.name}")',
-          '=(COUNTIF($statusColLetter$firstDataRow:$statusColLetter${totalRow - 1},"${Status.PH_FullDay.name}")'
-              '+0.5*COUNTIF($statusColLetter$firstDataRow:$statusColLetter${totalRow - 1},"${Status.PH_HalfDay.name}"))*$workHour'
+          publicHolidayDayCalculationFormula,
+          publicHolidayHourCalculationFormula
         ],
         [
           'MC',
-          '=COUNTIF($statusColLetter$firstDataRow:$statusColLetter${totalRow - 1},"${Status.MC_FullDay.name}")'
-              '+0.5*COUNTIF($statusColLetter$firstDataRow:$statusColLetter${totalRow - 1},"${Status.MC_HalfDay.name}")',
-          '=(COUNTIF($statusColLetter$firstDataRow:$statusColLetter${totalRow - 1},"${Status.MC_FullDay.name}")'
-              '+0.5*COUNTIF($statusColLetter$firstDataRow:$statusColLetter${totalRow - 1},"${Status.MC_HalfDay.name}"))*$workHour'
+          mcDayCalculationFormula,
+          mcHourCalculationFormula
         ],
       ];
 
@@ -643,13 +645,24 @@ class ExportExcelService {
       final totalUnderTime = totalUtCell.addressLocal;
       final totalOverTime = totalOtCell.addressLocal;
 
+      String totalPresentHourFormula = '($totalWorkAddress-$totalOverTime+$totalUnderTime)';
+      String totalPresentDayFormula = totalPresentHourFormula+'/$workHour';
+      String totalWorkdaysDayFormula = '=(COUNTIF($statusColLetter$firstDataRow:$statusColLetter${totalRow - 1},"<>${Status.SUN.name}"))';
+      String totalWorkdaysHourFormula = totalWorkdaysDayFormula+'*$workHour';
+      String totalOverTimeHourFormula = '(SUM($overtimeColLetter$firstDataRow:$overtimeColLetter${totalRow - 1}))';
+      String totalOverTimeDayFormula = totalOverTimeHourFormula+'/$workHour';
+      String totalHalfDayOvertimeHourFormula = '(SUMIF($statusColLetter$firstDataRow:$statusColLetter${totalRow - 1},"<>${Status.FullDay.name}",$overtimeColLetter$firstDataRow:$overtimeColLetter${totalRow - 1}))';
+      String totalHalfDayOvertimeDayFormula = totalHalfDayOvertimeHourFormula+'/$workHour';
+      String totalUnderTimeHourFormula = '(SUM($undertimeColLetter$firstDataRow:$undertimeColLetter${totalRow - 1}))';
+      String totalUnderTimeDayFormula = totalUnderTimeHourFormula+'/$workHour';
+
       sheet.getRangeByIndex(summaryRow, 1).setText('TOTAL PRESENT DAYS');
       sheet.getRangeByIndex(summaryRow, 2)
-        ..formula = '($totalWorkAddress-$totalOverTime+$totalUnderTime)/$workHour'
+        ..formula = totalPresentDayFormula
         ..numberFormat = '0.00'
         ..cellStyle.borders.all.lineStyle = LineStyle.thin;
       sheet.getRangeByIndex(summaryRow, 3)
-        ..formula = '$totalWorkAddress-$totalOverTime+$totalUnderTime'
+        ..formula = totalPresentHourFormula
         ..numberFormat = '0.00'
         ..cellStyle.borders.all.lineStyle = LineStyle.thin;
       summaryRow++;
@@ -658,13 +671,11 @@ class ExportExcelService {
 
       sheet.getRangeByIndex(summaryRow, 1).setText('TOTAL WORKDAYS');
       sheet.getRangeByIndex(summaryRow, 2)
-        ..formula =
-            '=COUNTIF($statusColLetter$firstDataRow:$statusColLetter${totalRow - 1},"<>${Status.SUN.name}")'
+        ..formula = totalWorkdaysDayFormula
         ..numberFormat = '0.00'
         ..cellStyle.borders.all.lineStyle = LineStyle.thin;
       sheet.getRangeByIndex(summaryRow, 3)
-        ..formula =
-            '=(COUNTIF($statusColLetter$firstDataRow:$statusColLetter${totalRow - 1},"<>${Status.SUN.name}"))*$workHour'
+        ..formula = totalWorkdaysHourFormula
         ..numberFormat = '0.00'
         ..cellStyle.borders.all.lineStyle = LineStyle.thin;
       summaryRow++;
@@ -675,13 +686,11 @@ class ExportExcelService {
       sheet.getRangeByIndex(summaryRow, 1)
           .setText('TOTAL OVERTIME');
       sheet.getRangeByIndex(summaryRow, 2)
-        ..formula =
-            '(SUM($overtimeColLetter$firstDataRow:$overtimeColLetter${totalRow - 1}))/$workHour'
+        ..formula = totalOverTimeDayFormula
         ..numberFormat = '0.00'
         ..cellStyle.borders.all.lineStyle = LineStyle.thin;
       sheet.getRangeByIndex(summaryRow, 3)
-        ..formula =
-            'SUM($overtimeColLetter$firstDataRow:$overtimeColLetter${totalRow - 1})'
+        ..formula = totalOverTimeHourFormula
         ..numberFormat = '0.00'
         ..cellStyle.borders.all.lineStyle = LineStyle.thin;
       summaryRow++;
@@ -692,36 +701,26 @@ class ExportExcelService {
       sheet.getRangeByIndex(summaryRow, 1)
           .setText('TOTAL OVERTIME (HALFDAY)');
       sheet.getRangeByIndex(summaryRow, 2)
-        ..formula =
-            '(SUMIF('
-            '$statusColLetter$firstDataRow:$statusColLetter${totalRow - 1},'
-            '"<>${Status.FullDay.name}",'
-            '$overtimeColLetter$firstDataRow:$overtimeColLetter${totalRow - 1}'
-            '))/$workHour'
+        ..formula = totalHalfDayOvertimeDayFormula
         ..numberFormat = '0.00'
         ..cellStyle.borders.all.lineStyle = LineStyle.thin;
       sheet.getRangeByIndex(summaryRow, 3)
-        ..formula =
-            'SUMIF('
-            '$statusColLetter$firstDataRow:$statusColLetter${totalRow - 1},'
-            '"<>${Status.FullDay.name}",'
-            '$overtimeColLetter$firstDataRow:$overtimeColLetter${totalRow - 1}'
-            ')'
+        ..formula = totalHalfDayOvertimeHourFormula
         ..numberFormat = '0.00'
         ..cellStyle.borders.all.lineStyle = LineStyle.thin;
       summaryRow++;
 
       // Total Effective Overtime
+      String totalEffectiveOvertimeHourFormula = '=(B$totalOvertimeRow-B$totalHalfdayOvertimeRow)';
+      String totalEffectiveOvertimeDayFormula = totalEffectiveOvertimeHourFormula+'/$workHour';
       sheet.getRangeByIndex(summaryRow, 1)
           .setText('TOTAL OVERTIME (EFFECTIVE)');
       sheet.getRangeByIndex(summaryRow, 2)
-        ..formula =
-            '=(B$totalOvertimeRow-B$totalHalfdayOvertimeRow)/$workHour'
+        ..formula = totalEffectiveOvertimeDayFormula
         ..numberFormat = '0.00'
         ..cellStyle.borders.all.lineStyle = LineStyle.thin;
       sheet.getRangeByIndex(summaryRow, 3)
-        ..formula =
-            '=B$totalOvertimeRow-B$totalHalfdayOvertimeRow'
+        ..formula = totalEffectiveOvertimeHourFormula
         ..numberFormat = '0.00'
         ..cellStyle.borders.all.lineStyle = LineStyle.thin;
       summaryRow++;
@@ -729,11 +728,11 @@ class ExportExcelService {
       // Total Undertime
       sheet.getRangeByIndex(summaryRow, 1).setText('TOTAL UNDERTIME');
       sheet.getRangeByIndex(summaryRow, 2)
-        ..formula = '(SUM($undertimeColLetter$firstDataRow:$undertimeColLetter${totalRow - 1}))/$workHour'
+        ..formula = totalUnderTimeDayFormula
         ..numberFormat = '0.00'
         ..cellStyle.borders.all.lineStyle = LineStyle.thin;
       sheet.getRangeByIndex(summaryRow, 3)
-        ..formula = 'SUM($undertimeColLetter$firstDataRow:$undertimeColLetter${totalRow - 1})'
+        ..formula = totalUnderTimeHourFormula
         ..numberFormat = '0.00'
         ..cellStyle.borders.all.lineStyle = LineStyle.thin;
       summaryRow++;
@@ -764,5 +763,16 @@ class ExportExcelService {
         : 'attendance.xlsx';
 
     _saveExcelFile(workbook, fileName);
+  }
+
+  static void customerRequestCalculation(Worksheet sheet, int startRow, int startColumn) {
+    // Customer request calculation
+    sheet.getRangeByIndex(startRow-1, startColumn).setText('Final Calculation');
+    sheet.getRangeByIndex(startRow, startColumn).setText('Total Pay Days');
+      sheet.getRangeByIndex(startRow, startColumn+1).setText('Total Pay Days');
+    sheet.getRangeByIndex(startRow+1, startColumn).setText('Total Unpaid Days');
+      sheet.getRangeByIndex(startRow+1, startColumn+1).setText('Total Pay Days');
+    sheet.getRangeByIndex(startRow+2, startColumn).setText('Total OT Pay Days');
+      sheet.getRangeByIndex(startRow+2, startColumn+1).setText('Total Pay Days');
   }
 }
