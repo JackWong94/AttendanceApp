@@ -796,10 +796,12 @@ class ExportExcelService {
       ..numberFormat = '0.000'
       ..cellStyle.borders.all.lineStyle = LineStyle.thin;
     sheet.getRangeByIndex(startRow+4, startColumn).setText('Final');
-    sheet.getRangeByIndex(startRow+4, startColumn+1)
-      ..formula = '=SUM(F37:F40)'
-      ..numberFormat = '0.000'
-      ..cellStyle.borders.all.lineStyle = LineStyle.thin
-      ..cellStyle.backColor = '#00FF00'; // green background
+    sheet.getRangeByIndex(startRow+4, startColumn+1).setText('[(Workdays + UT + OT HD) * daily wages ]+ [(OT) *OT wages]');
+
+    //Customer signature
+    sheet.getRangeByIndex(47, 10).setText("Approved by :");
+    sheet.getRangeByIndex(47, 11).setText("..............................................................");
+    sheet.getRangeByIndex(50, 10).setText("Date :");
+    sheet.getRangeByIndex(50, 11).setText("..............................................................");
   }
 }
