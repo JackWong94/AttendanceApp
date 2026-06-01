@@ -1,5 +1,6 @@
 ### Miscellaneous ###
 *.log
+.idea/
 migrate_working_dir/
 
 ### Flutter / Dart / Pub ###
