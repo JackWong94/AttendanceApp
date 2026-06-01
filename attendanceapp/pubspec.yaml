@@ -32,16 +32,16 @@ dependencies:
     sdk: flutter
   camera: ^0.12.0+1
   camera_web: ^0.3.0
-  tflite_flutter: ^0.11.0
+  tflite_flutter: ^0.12.1
   firebase_core: ^4.1.0
   cloud_firestore: ^6.0.1
   firebase_auth: ^6.0.2
   csv: ^6.0.0
-  month_picker_dialog: ^2.0.0
-  intl: ^0.18.0  # align with flutter_month_picker
-  js: ^0.6.5
-  syncfusion_flutter_xlsio: ^31.1.21  # or latest
-  package_info_plus: ^8.0.0
+  month_picker_dialog: ^6.7.2
+  intl: ^0.20.2  # align with flutter_month_picker
+  js: ^0.7.2
+  syncfusion_flutter_xlsio: ^33.2.8  # or latest
+  package_info_plus: ^9.0.1
   image: ^4.0.17
   uuid: ^4.5.1
 
@@ -58,7 +58,7 @@ dev_dependencies:
   # activated in the `analysis_options.yaml` file located at the root of your
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
-  flutter_lints: ^5.0.0
+  flutter_lints: ^6.0.0
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
