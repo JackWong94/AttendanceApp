@@ -30,7 +30,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  camera: ^0.11.0+1   # latest stable
+  camera: ^0.12.0+1
   camera_web: ^0.3.0
   tflite_flutter: ^0.11.0
   firebase_core: ^4.1.0
