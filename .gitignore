@@ -1,43 +1,5 @@
-### OS Specific ###
-.DS_Store
-
-### Editors / IDEs ###
-.idea/
-*.iml
-*.ipr
-*.iws
-.vscode/
-.atom/
-.history/
-
-### IntelliJ IDEA ###
-out/
-
-### Eclipse ###
-.apt_generated
-.classpath
-.factorypath
-.project
-.settings/
-.springBeans
-.sts4-cache
-
-### NetBeans ###
-/nbproject/private/
-/nbbuild/
-/dist/
-/nbdist/
-/.nb-gradle/
-
 ### Miscellaneous ###
-*.class
 *.log
-*.pyc
-*.swp
-.build/
-.buildlog/
-.svn/
-.swiftpm/
 migrate_working_dir/
 
 ### Flutter / Dart / Pub ###
@@ -58,22 +20,10 @@ migrate_working_dir/
 **/windows/flutter/generated_*
 **/macos/Flutter/GeneratedPluginRegistrant.*
 
-### Android ###
-/android/app/debug
-/android/app/profile
-/android/app/release
-
-### iOS ###
-# (Handled above with Flutter, but you can add more if needed)
 
 ### Firebase / Secrets ###
 *.json
-
-### Symbolication / Obfuscation ###
-app.*.symbols
-app.*.map.json
-
 /firebase_config.json
+
 attendanceapp/build/
 
-.idea/caches/deviceStreaming.xml
