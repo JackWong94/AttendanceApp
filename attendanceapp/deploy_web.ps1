@@ -37,6 +37,8 @@ $Url        = "https://jackwong94.github.io/$RepoName/$choice/"
 # Confirmation (skip for dev)
 # ---------------------------
 if ($choice -ne "dev") {
+    Write-Host "❌ Deployment cancelled. THIS IS BETA. DO NOT DEPLOY TO PRODUCTION" -ForegroundColor Red
+    exit 0
     $confirmation = Read-Host "⚠️ Deploy to $TargetName ($choice)? (yes/no)"
     if ($confirmation -ne "yes") {
         Write-Host "❌ Deployment cancelled." -ForegroundColor Red
@@ -74,11 +76,46 @@ Set-Location $RepoRoot
 # ---------------------------
 Write-Host "Switching to branch $BranchName..." -ForegroundColor Green
 git fetch origin
+
+# Check for any uncommited changes
+$status = git status --porcelain
+if (-not [string]::IsNullOrWhiteSpace($status)) {
+
+    Write-Host "❌ Working tree is not clean!" -ForegroundColor Red
+    Write-Host "You must commit or stash before continuing." -ForegroundColor Yellow
+
+    Write-Host "`nCurrent status:" -ForegroundColor Cyan
+    git status --short
+
+    exit 1
+}
+
 git checkout $BranchName 2>$null
 if ($LASTEXITCODE -ne 0) {
+
     Write-Host "⚠️ Branch '$BranchName' not found. Creating orphan branch..." -ForegroundColor Yellow
+
     git checkout --orphan $BranchName
     git reset --hard
+
+    # verify again
+    $currentBranch = git branch --show-current
+
+    if ($currentBranch -ne $BranchName) {
+        Write-Host "❌ Failed to create or switch to branch. Exiting..." -ForegroundColor Red
+        exit 0
+    }
+
+} else {
+
+    # success path verification
+    $currentBranch = git branch --show-current
+
+    if ($currentBranch -ne $BranchName) {
+        Write-Host "❌ Branch mismatch after checkout. Exiting..." -ForegroundColor Red
+        exit 0
+    }
+
 }
 
 # ---------------------------
