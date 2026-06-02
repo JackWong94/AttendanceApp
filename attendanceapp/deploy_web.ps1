@@ -8,6 +8,7 @@ Write-Host "=== Flutter Web Deploy Script ===" -ForegroundColor Cyan
 $ProjectPath = $PSScriptRoot
 $RepoName    = "AttendanceApp"  #This is referring to the github page repo Do Not Simply Change
 $BranchName  = "gh-pages-new"
+$originalBranch = git branch --show-current
 
 # Allowed deployment targets
 $targets = @{
@@ -167,7 +168,26 @@ if ($proceed -ne "yes") {
 # Commit and Push
 # ---------------------------
 git commit -m "Deploy Flutter web app to $TargetName ($choice)"
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "❌ Commit failed" -ForegroundColor Red
+    exit 1
+}
+
 git push origin $BranchName
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "❌ Push failed" -ForegroundColor Red
+    exit 1
+}
 
 Write-Host "✅ Deployment to $TargetName complete!" -ForegroundColor Cyan
 Write-Host "Visit: $Url" -ForegroundColor Yellow
+
+# 5. Switch back to original branch
+git checkout $originalBranch 2>$null
+
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "❌ Failed to switch back to '$originalBranch'" -ForegroundColor Red
+    exit 1
+}
+
+Write-Host "Returned to original branch: $originalBranch" -ForegroundColor Green
