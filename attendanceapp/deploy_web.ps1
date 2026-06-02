@@ -5,7 +5,7 @@ Write-Host "=== Flutter Web Deploy Script ===" -ForegroundColor Cyan
 # ---------------------------
 # Configuration
 # ---------------------------
-$ProjectPath = "C:\Users\User\AndroidStudioProjects\AttendanceAppRefractor\attendanceapp"
+$ProjectPath = $PSScriptRoot
 $RepoName    = "AttendanceApp"  #This is referring to the github page repo Do Not Simply Change
 $BranchName  = "gh-pages-new"
 
