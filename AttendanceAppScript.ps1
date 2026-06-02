@@ -11,7 +11,7 @@ function gotoRootFolder {
 
 # Supported Options
 $options = [ordered]@{
-    "r"    = "Run Attendance App"
+    "r" = "Run Attendance App"
     "d" = "Deploy Attendance App To Github"
 }
 
@@ -20,20 +20,20 @@ $options.GetEnumerator() | ForEach-Object {
     Write-Host " - $($_.Key) : $($_.Value)" -ForegroundColor Green
 }
 
-$choice = Read-Host "Enter target name (default = run)"
+$choice = Read-Host "Enter target name (default = r)"
 
 if ([string]::IsNullOrWhiteSpace($choice)) {
-    $choice = "run"
+    $choice = "r"
 }
 
 switch ($choice) {
-    "run" {
+    "r" {
         Write-Host "Running Attendance App..." -ForegroundColor Green
         gotoAppFolder
         flutter run -d chrome --web-port=5000 --dart-define-from-file=env_DoNotExpose/attendanceApp_firebase_config.json
         gotoRootFolder
     }
-    "deploy" {
+    "d" {
         Write-Host "Deploying Attendance App..."
         gotoAppFolder
         ./deploy_web.ps1
