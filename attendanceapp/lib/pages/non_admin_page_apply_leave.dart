@@ -51,7 +51,7 @@ class _NonAdminPageApplyLeaveState extends State<NonAdminPageApplyLeave> {
       // 2️⃣ Create leave notification with remark
       await NotificationModelService.instance.createForLeaveApplication(
         attendanceId: attendanceId,
-        status: _selectedStatus.name,
+        status: _selectedStatus,
         leaveDate: _selectedDate,
         userRef: userRef,
         remark: _remarkController.text.isNotEmpty

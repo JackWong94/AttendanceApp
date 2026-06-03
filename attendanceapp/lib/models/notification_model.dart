@@ -55,7 +55,7 @@ class LeaveNotification extends NotificationModel {
     required String id,
     required DocumentReference user,
     required this.attendanceId,
-    this.leaveStatus = Status.AL_FullDay,
+    required this.leaveStatus,
     this.applicationStatus = ApplicationStatus.pending,
     DateTime? createdAt,
     DateTime? dateSafeForDelete,

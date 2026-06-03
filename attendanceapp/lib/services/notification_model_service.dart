@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/notification_model.dart';
 import 'user_model_service.dart';
+import '../models/attendance_model.dart';
 
 class NotificationModelService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -31,7 +32,7 @@ class NotificationModelService {
   /// 🔔 Create notification when leave is applied
   Future<void> createForLeaveApplication({
     required String attendanceId,      // e.g., "2025-10-25_EMP0001"
-    required String status,           // e.g., "AL_FullDay"
+    required Status status,           // e.g., "AL_FullDay"
     required DocumentReference userRef,
     required DateTime? leaveDate,
     String? remark,
@@ -51,6 +52,7 @@ class NotificationModelService {
       id: doc.id,
       user: userRef,
       attendanceId: attendanceId,
+      leaveStatus: status,
       dateSafeForDelete: dateSafeForDelete,
       remark: remark,
     );
