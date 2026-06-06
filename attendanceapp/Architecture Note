@@ -1,0 +1,22 @@
+Page -> Model Service -> Model
+* Page can import Model to know about the Model Shape
+* Page cant contain logics
+
+Screen (UI)
+   ↓
+ViewModel (UI logic + state)
+   ↓
+UseCase (business rules)
+   ↓
+Service (Firestore / API)
+   ↓
+Mapper (conversion)
+   ↓
+Model (data)
+
+📦 Model = What
+🔄 Mapper = Convert
+🔥 Service = Fetch/Save
+🧠 ViewModel = UI Brain
+⚙️ UseCase = Business Rule
+🧰 Utils = Helper functions

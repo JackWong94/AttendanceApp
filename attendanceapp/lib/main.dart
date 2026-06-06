@@ -5,6 +5,13 @@ import 'package:attendanceapp/pages/web_login_page.dart';
 import 'package:attendanceapp/pages/login_user_page.dart';
 import 'package:attendanceapp/configs_and_tools/data_migrate.dart';
 import 'package:attendanceapp/configs_and_tools/debug.dart';
+import '../repositories/user_repository.dart';
+import 'package:provider/provider.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:attendanceapp/services/user_service.dart';
+import 'package:attendanceapp/viewmodels/user_viewmodel.dart';
+import 'package:attendanceapp/viewmodels/auth_viewmodel.dart';
+import 'package:attendanceapp/repositories/user_repository.dart';
 
 Debug debug = Debug(module: "main", enable: true);
 final RouteObserver<ModalRoute<void>> routeObserver = RouteObserver<ModalRoute<void>>();
@@ -20,7 +27,32 @@ void main() async {
     debug.log("❌ Firebase init failed: $e\n$st");
   }
   //await runMigrationScript(); DO NOT REMOVE OR RUN IT UNLESS YOU KNOW WHAT YOU ARE DOING
-  runApp(const MyApp());
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(
+          create: (_) => AuthViewModel(),
+        ),
+
+        ProxyProvider<AuthViewModel, UserRepository>(
+          update: (_, auth, __) {
+            debug.log("✅ UserRepository initialized");
+            return UserRepository(
+              UserService(FirebaseFirestore.instance),
+              auth.tenantId ?? "dev",
+            );
+          },
+        ),
+
+        ProxyProvider<UserRepository, UserViewModel>(
+          update: (_, repo, __) {
+            return UserViewModel(repo);
+          },
+        ),
+      ],
+      child: const MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {

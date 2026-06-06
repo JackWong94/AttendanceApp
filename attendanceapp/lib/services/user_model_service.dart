@@ -1,14 +1,21 @@
+import '../models/user_model.dart';
+import '../mappers/user_mapper.dart';
+import 'user_service.dart';
+import '../utils/password_hasher.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/user_model.dart';
-import '../utils/password_hasher.dart';
 
 class UserModelService {
   static UserModelService? _instance;
   final String tenantId;
   final CollectionReference<Map<String, dynamic>> _usersRef;
+  static final _userService = UserService(FirebaseFirestore.instance);
 
   UserModelService._internal(this.tenantId)
-      : _usersRef = FirebaseFirestore.instance.collection('${tenantId}_Users');
+      : _usersRef = FirebaseFirestore.instance
+      .collection('tenants')
+      .doc(tenantId)
+      .collection('users');
 
   CollectionReference<Map<String, dynamic>> get usersCollection => _usersRef;
 
@@ -29,20 +36,24 @@ class UserModelService {
 
   /// Add new user
   Future<void> addUser(UserModel user) async {
-    await _usersRef.doc(user.id).set(user.toMap());
+    await _usersRef.doc(user.id).set(UserMapper.toFirestore(user));
   }
 
   /// Get all users
   Future<List<UserModel>> getAllUsers() async {
     final snapshot = await _usersRef.get();
-    return snapshot.docs.map(UserModel.fromDocument).toList();
+
+    return snapshot.docs
+        .where((doc) => doc.data() != null)
+        .map((doc) => UserMapper.fromFirestore(doc.data()!, doc.id))
+        .toList();
   }
 
   /// Get user by ID
   Future<UserModel?> getUserById(String id) async {
     final doc = await _usersRef.doc(id).get();
     if (!doc.exists) return null;
-    return UserModel.fromDocument(doc);
+    return UserMapper.fromFirestore(doc.data()!, doc.id);
   }
 
   Future<bool> isNameExists(String name) async {
@@ -61,10 +72,7 @@ class UserModelService {
 
   /// Update user data (merge)
   Future<void> updateUser(UserModel user) async {
-    await _usersRef.doc(user.id).set(
-      user.toMap(),
-      SetOptions(merge: true),
-    );
+    await _userService.updateUser(user);
   }
 
   Future<void> deleteUser(String userId) async {
