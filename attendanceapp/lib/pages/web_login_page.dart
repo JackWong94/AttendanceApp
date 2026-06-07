@@ -7,6 +7,8 @@ import 'package:attendanceapp/services/user_model_service.dart';
 import 'package:attendanceapp/services/attendance_model_service.dart';
 import 'package:attendanceapp/services/tenant_model_service.dart';
 import 'package:attendanceapp/services/image_model_service.dart';
+import 'package:attendanceapp/viewmodels/auth_viewmodel.dart';
+import 'package:provider/provider.dart';
 
 class WebLoginPage extends StatefulWidget {
   const WebLoginPage({super.key});
@@ -72,7 +74,9 @@ class _WebLoginPageState extends State<WebLoginPage> {
       // 2️⃣ Fetch tenant object
       final tenant = await TenantModelService.instance.getTenantByEmail(email);
       if (tenant == null) throw Exception("No tenant found for this user");
-
+      context.read<AuthViewModel>().login(
+        tenantId: tenant.tenantId,
+      );
       TenantModelService.instance.setCurrentTenant(tenant);
 
       // 3️⃣ Initialize user service

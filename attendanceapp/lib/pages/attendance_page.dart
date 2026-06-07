@@ -7,7 +7,9 @@ import '../services/attendance_model_service.dart';
 import '../services/attendance_service.dart';
 import '../models/attendance_model.dart';
 import '../services/export_excel_service.dart';
-
+import '../viewmodels/user_viewmodel.dart';
+import 'package:flutter/src/widgets/framework.dart';
+import 'package:provider/provider.dart';
 enum FilterType { day, month }
 
 // ✅ Single source of truth for number of scan pairs
@@ -43,7 +45,9 @@ class _AttendancePageState extends State<AttendancePage> {
   @override
   void initState() {
     super.initState();
-    _initUsersAndAttendance();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _initUsersAndAttendance();
+    });
   }
 
   Future<void> _initUsersAndAttendance() async {
@@ -53,9 +57,9 @@ class _AttendancePageState extends State<AttendancePage> {
       attendanceStatusMap.clear();
       userNames.clear();
     });
-
-    final users = await UserModelService.instance.getAllUsers();
-    for (var user in users) {
+    final userVm = context.read<UserViewModel>();
+    await userVm.fetchUsers();
+    for (var user in userVm.users) {
       userNames[user.id] = user.name;
     }
 

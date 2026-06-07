@@ -28,28 +28,8 @@ void main() async {
   }
   //await runMigrationScript(); DO NOT REMOVE OR RUN IT UNLESS YOU KNOW WHAT YOU ARE DOING
   runApp(
-    MultiProvider(
-      providers: [
-        ChangeNotifierProvider(
-          create: (_) => AuthViewModel(),
-        ),
-
-        ProxyProvider<AuthViewModel, UserRepository>(
-          update: (_, auth, __) {
-            debug.log("✅ UserRepository initialized");
-            return UserRepository(
-              UserService(FirebaseFirestore.instance),
-              auth.tenantId ?? "dev",
-            );
-          },
-        ),
-
-        ProxyProvider<UserRepository, UserViewModel>(
-          update: (_, repo, __) {
-            return UserViewModel(repo);
-          },
-        ),
-      ],
+    ChangeNotifierProvider(
+      create: (_) => AuthViewModel(),
       child: const MyApp(),
     ),
   );
