@@ -28,8 +28,36 @@ void main() async {
   }
   //await runMigrationScript(); DO NOT REMOVE OR RUN IT UNLESS YOU KNOW WHAT YOU ARE DOING
   runApp(
-    ChangeNotifierProvider(
-      create: (_) => AuthViewModel(),
+    MultiProvider(
+      providers: [
+        // 1. Auth is global (always exists)
+        ChangeNotifierProvider(
+          create: (_) => AuthViewModel(),
+        ),
+
+        // 2. User depends on Auth → use ProxyProvider
+        ChangeNotifierProxyProvider<AuthViewModel, UserViewModel>(
+          create: (_) => UserViewModel(
+            UserRepository(
+              UserService(FirebaseFirestore.instance),
+              "",
+            ),
+          ),
+
+          update: (_, authVm, userVm) {
+            final tenantId = authVm.tenantId ?? "";
+            print("ProxyProvider VM instance: ${userVm?.hashCode}");
+            userVm!.updateRepository(
+              UserRepository(
+                UserService(FirebaseFirestore.instance),
+                tenantId,
+              ),
+            );
+
+            return userVm;
+          },
+        ),
+      ],
       child: const MyApp(),
     ),
   );

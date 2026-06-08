@@ -1,16 +1,17 @@
 import '../models/user_model.dart';
+import 'package:attendanceapp/configs_and_tools/debug.dart';
+
+Debug debug = Debug(module: "user_mapper", enable: true);
 
 class UserMapper {
   static UserModel fromFirestore(Map<String, dynamic> data, String id) {
+    debug.log("🔥 FROM FIRESTORE: ${data['name']}");
     return UserModel(
       id: id,
       name: data['name'] ?? '',
       employeeId: data['employeeId'] ?? '',
-      faceEmbeddings: (data['faceEmbeddings'] as List?)
-          ?.map((e) => List<double>.from(e))
-          .toList() ??
-          [],
-      passwordHash: data['passwordHash'],
+      faceEmbeddings: _parseEmbeddings(data['faceEmbeddings']),
+      passwordHash: data['passwordHash'] ?? '',
     );
   }
 
@@ -22,5 +23,14 @@ class UserMapper {
       if (user.passwordHash != null)
         'passwordHash': user.passwordHash,
     };
+  }
+
+  static List<List<double>> _parseEmbeddings(dynamic value) {
+    if (value is! List) return [];
+
+    return value
+        .whereType<List>()
+        .map((e) => e.whereType<num>().map((x) => x.toDouble()).toList())
+        .toList();
   }
 }

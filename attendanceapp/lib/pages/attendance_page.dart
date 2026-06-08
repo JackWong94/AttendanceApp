@@ -8,8 +8,11 @@ import '../services/attendance_service.dart';
 import '../models/attendance_model.dart';
 import '../services/export_excel_service.dart';
 import '../viewmodels/user_viewmodel.dart';
-import 'package:flutter/src/widgets/framework.dart';
 import 'package:provider/provider.dart';
+import 'package:attendanceapp/configs_and_tools/debug.dart';
+
+Debug debug = Debug(module: "attendance_page", enable: true);
+
 enum FilterType { day, month }
 
 // ✅ Single source of truth for number of scan pairs
@@ -45,8 +48,13 @@ class _AttendancePageState extends State<AttendancePage> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _initUsersAndAttendance();
+    Future.microtask(() async {
+      final vm = context.read<UserViewModel>();
+
+      debugPrint("VM instance: ${vm.hashCode}");
+      debugPrint("VM users before fetch: ${vm.users.length}");
+
+      await _initUsersAndAttendance();
     });
   }
 
@@ -59,8 +67,10 @@ class _AttendancePageState extends State<AttendancePage> {
     });
     final userVm = context.read<UserViewModel>();
     await userVm.fetchUsers();
+    debug.log("VM users length: ${context.read<UserViewModel>().users.length}");
     for (var user in userVm.users) {
       userNames[user.id] = user.name;
+      debug.log("User: ${user.name}");
     }
 
     await _loadAttendance();

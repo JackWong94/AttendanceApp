@@ -33,9 +33,13 @@ class UserRepository {
   // Get all users
   // -------------------------
   Future<List<UserModel>> getAllUsers() async {
+    print("🔥 COLLECTION: $_collection");
+
     final snapshot = await _service.firestore
         .collection(_collection)
         .get();
+
+    print("🔥 DOC COUNT: ${snapshot.docs.length}");
 
     return snapshot.docs
         .map((doc) => UserMapper.fromFirestore(doc.data(), doc.id))
