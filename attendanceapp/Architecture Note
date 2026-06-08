@@ -1,22 +1,32 @@
-Page -> Model Service -> Model
-* Page can import Model to know about the Model Shape
-* Page cant contain logics
+Screen can only interact with ViewModel
+Screen should not contain business logic
+ViewModel handles UI state and calls UseCase
+UseCase defines business rules
+Repository abstracts data sources
+Service communicates with Firebase/API
+Mapper converts raw data ↔ model
+Model defines data structure only
 
+Provider (DI + state injection)
+   ↓
 Screen (UI)
    ↓
-ViewModel (UI logic + state)
+ViewModel (UI state + logic)
    ↓
 UseCase (business rules)
    ↓
-Service (Firestore / API)
+Repository
    ↓
-Mapper (conversion)
+Service
    ↓
-Model (data)
+Mapper
+   ↓
+Model
 
-📦 Model = What
-🔄 Mapper = Convert
-🔥 Service = Fetch/Save
-🧠 ViewModel = UI Brain
-⚙️ UseCase = Business Rule
-🧰 Utils = Helper functions
+Model	What data is
+Mapper	Convert data
+Service	Fetch/Save data
+Repository	Decide where data comes from
+UseCase	What the system should do
+ViewModel	What UI should show
+Screen	Display only

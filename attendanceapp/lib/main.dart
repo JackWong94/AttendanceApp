@@ -1,19 +1,19 @@
-import 'firebase_options.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'firebase_options.dart';
+import 'package:provider/provider.dart';
 import 'package:attendanceapp/pages/web_login_page.dart';
 import 'package:attendanceapp/pages/login_user_page.dart';
-import 'package:attendanceapp/configs_and_tools/data_migrate.dart';
-import 'package:attendanceapp/configs_and_tools/debug.dart';
-import '../repositories/user_repository.dart';
-import 'package:provider/provider.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:attendanceapp/services/user_service.dart';
+import 'package:attendanceapp/repositories/user_repository.dart';
 import 'package:attendanceapp/viewmodels/user_viewmodel.dart';
 import 'package:attendanceapp/viewmodels/auth_viewmodel.dart';
-import 'package:attendanceapp/repositories/user_repository.dart';
+import 'package:attendanceapp/configs_and_tools/data_migrate.dart';
+import 'package:attendanceapp/configs_and_tools/debug.dart';
 
 Debug debug = Debug(module: "main", enable: true);
+
 final RouteObserver<ModalRoute<void>> routeObserver = RouteObserver<ModalRoute<void>>();
 
 void main() async {
