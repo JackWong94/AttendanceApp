@@ -2,13 +2,14 @@ import 'package:flutter/material.dart';
 import '../models/user_model.dart';
 import '../repositories/user_repository.dart';
 import 'package:attendanceapp/configs_and_tools/debug.dart';
+import 'package:attendanceapp/usecases/user/get_all_users_usecase.dart';
 
 Debug debug = Debug(module: "user_viewmodel", enable: true);
 
 class UserViewModel extends ChangeNotifier {
-  UserRepository _repo;
+  final GetAllUsersUseCase getAllUsers;
 
-  UserViewModel(this._repo);
+  UserViewModel(this.getAllUsers);
 
   List<UserModel> _users = [];
   bool _isLoading = false;
@@ -26,7 +27,7 @@ class UserViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      _users = await _repo.getAllUsers();
+      _users = await getAllUsers();
     } catch (e) {
       _error = e.toString();
     } finally {
@@ -38,11 +39,6 @@ class UserViewModel extends ChangeNotifier {
         debug.log("User: ${user.name}");
       }
     }
-  }
-
-  void updateRepository(UserRepository repo) {
-    debug.log("Updating repository");
-    _repo = repo;
   }
 
   void clear() {

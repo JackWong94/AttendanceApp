@@ -9,6 +9,7 @@ import 'package:attendanceapp/services/user_service.dart';
 import 'package:attendanceapp/repositories/user_repository.dart';
 import 'package:attendanceapp/viewmodels/user_viewmodel.dart';
 import 'package:attendanceapp/viewmodels/auth_viewmodel.dart';
+import 'package:attendanceapp/usecases/user/get_all_users_usecase.dart';
 import 'package:attendanceapp/configs_and_tools/data_migrate.dart';
 import 'package:attendanceapp/configs_and_tools/debug.dart';
 
@@ -38,23 +39,25 @@ void main() async {
         // 2. User depends on Auth → use ProxyProvider
         ChangeNotifierProxyProvider<AuthViewModel, UserViewModel>(
           create: (_) => UserViewModel(
-            UserRepository(
-              UserService(FirebaseFirestore.instance),
-              "",
-            ),
+              GetAllUsersUseCase(
+                UserRepository(
+                  UserService(FirebaseFirestore.instance),
+                  "",
+                ),
+              ),
           ),
 
           update: (_, authVm, userVm) {
             final tenantId = authVm.tenantId ?? "";
-            print("ProxyProvider VM instance: ${userVm?.hashCode}");
-            userVm!.updateRepository(
-              UserRepository(
-                UserService(FirebaseFirestore.instance),
-                tenantId,
+
+            return UserViewModel(
+              GetAllUsersUseCase(
+                UserRepository(
+                  UserService(FirebaseFirestore.instance),
+                  tenantId,
+                ),
               ),
             );
-
-            return userVm;
           },
         ),
       ],
