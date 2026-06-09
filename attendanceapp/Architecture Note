@@ -27,6 +27,6 @@ Model	What data is
 Mapper	Convert data
 Service	Fetch/Save data
 Repository	Decide where data comes from
-UseCase	What the system should do
+UseCase	What the system should do (If removing the UseCase changes nothing except an extra file → don’t create it)
 ViewModel	What UI should show
 Screen	Display only
