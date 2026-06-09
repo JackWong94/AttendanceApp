@@ -39,25 +39,16 @@ void main() async {
         // 2. User depends on Auth → use ProxyProvider
         ChangeNotifierProxyProvider<AuthViewModel, UserViewModel>(
           create: (_) => UserViewModel(
-              GetAllUsersUseCase(
-                UserRepository(
-                  UserService(FirebaseFirestore.instance),
-                  "",
-                ),
+            GetAllUsersUseCase(
+              UserRepository(
+                UserService(FirebaseFirestore.instance),
               ),
+            ),
           ),
 
           update: (_, authVm, userVm) {
-            final tenantId = authVm.tenantId ?? "";
-
-            return UserViewModel(
-              GetAllUsersUseCase(
-                UserRepository(
-                  UserService(FirebaseFirestore.instance),
-                  tenantId,
-                ),
-              ),
-            );
+            userVm!.setTenantId(authVm.tenantId ?? "");
+            return userVm;
           },
         ),
       ],

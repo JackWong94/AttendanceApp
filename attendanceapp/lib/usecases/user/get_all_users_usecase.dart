@@ -6,7 +6,7 @@ class GetAllUsersUseCase {
 
   GetAllUsersUseCase(this.repository);
 
-  Future<List<UserModel>> call() async {
-    return await repository.getAllUsers();
+  Future<List<UserModel>> call(String tenantId) async {
+    return repository.getAllUsers(tenantId);
   }
 }

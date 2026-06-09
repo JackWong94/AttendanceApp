@@ -4,22 +4,20 @@ import '../mappers/user_mapper.dart';
 
 class UserRepository {
   final UserService _service;
-  final String tenantId;
 
-  UserRepository(this._service, this.tenantId);
+  UserRepository(this._service);
 
   // -------------------------
-  // Collection reference
+  // Collection builder
   // -------------------------
-  //String get _collection => '${tenantId}_Users';
-  String get _collection => '${tenantId}_Users';
+  String _collection(String tenantId) => '${tenantId}_Users';
 
   // -------------------------
   // Get single user
   // -------------------------
-  Future<UserModel?> getUserById(String id) async {
+  Future<UserModel?> getUserById(String tenantId, String id) async {
     final doc = await _service.firestore
-        .collection(_collection)
+        .collection(_collection(tenantId))
         .doc(id)
         .get();
 
@@ -32,11 +30,11 @@ class UserRepository {
   // -------------------------
   // Get all users
   // -------------------------
-  Future<List<UserModel>> getAllUsers() async {
-    print("🔥 COLLECTION: $_collection");
+  Future<List<UserModel>> getAllUsers(String tenantId) async {
+    print("🔥 COLLECTION: ${_collection(tenantId)}");
 
     final snapshot = await _service.firestore
-        .collection(_collection)
+        .collection(_collection(tenantId))
         .get();
 
     print("🔥 DOC COUNT: ${snapshot.docs.length}");
@@ -49,9 +47,9 @@ class UserRepository {
   // -------------------------
   // Add user
   // -------------------------
-  Future<void> addUser(UserModel user) async {
+  Future<void> addUser(String tenantId, UserModel user) async {
     await _service.firestore
-        .collection(_collection)
+        .collection(_collection(tenantId))
         .doc(user.id)
         .set(UserMapper.toFirestore(user));
   }
@@ -59,9 +57,9 @@ class UserRepository {
   // -------------------------
   // Update user
   // -------------------------
-  Future<void> updateUser(UserModel user) async {
+  Future<void> updateUser(String tenantId, UserModel user) async {
     await _service.firestore
-        .collection(_collection)
+        .collection(_collection(tenantId))
         .doc(user.id)
         .update(UserMapper.toFirestore(user));
   }
@@ -69,9 +67,9 @@ class UserRepository {
   // -------------------------
   // Delete user
   // -------------------------
-  Future<void> deleteUser(String userId) async {
+  Future<void> deleteUser(String tenantId, String userId) async {
     await _service.firestore
-        .collection(_collection)
+        .collection(_collection(tenantId))
         .doc(userId)
         .delete();
   }
