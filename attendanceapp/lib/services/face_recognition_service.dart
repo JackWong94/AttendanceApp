@@ -11,7 +11,7 @@ Debug debug = Debug(module: "face_recognition_service", enable: true);
 
 class FaceRecognitionService {
   /// Capture photo -> detect face -> validate -> compute embedding -> match
-  static Future<UserModel?> recognizeUser(Uint8List photoBytes) async {
+  static Future<String?> recognizeUserId(Uint8List photoBytes) async {
     debug.log('📸 Starting face recognition...');
 
     // Convert to image and resize
@@ -54,7 +54,7 @@ class FaceRecognitionService {
     }
 
     debug.log('🏆 Best matched user ID: $bestUserId');
-    return await UserModelService.instance.getUserById(bestUserId);
+    return await bestUserId;
   }
 
   /// Hybrid matching using multiple embeddings per user

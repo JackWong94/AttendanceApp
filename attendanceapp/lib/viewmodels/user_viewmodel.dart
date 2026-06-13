@@ -47,6 +47,14 @@ class UserViewModel extends ChangeNotifier {
         debug.log("User: ${user.name}");
       }
     }
+
+  }
+  UserModel? getUserById(String id) {
+    try {
+      return _users.firstWhere((u) => u.id == id);
+    } catch (_) {
+      return null;
+    }
   }
 
   void clear() {

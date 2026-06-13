@@ -1,30 +1,31 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:attendanceapp/pages/web_login_page.dart';
-import 'package:attendanceapp/pages/register_user_page.dart';
-import 'package:attendanceapp/pages/attendance_page.dart';
-import 'package:attendanceapp/pages/manage_user_page.dart';
-import 'package:attendanceapp/pages/non_admin_page.dart';
-import 'package:attendanceapp/pages/service_portal_admin_page.dart';
+import 'package:camera/camera.dart';
+import 'package:intl/intl.dart';
+import 'package:package_info_plus/package_info_plus.dart';
+import 'package:provider/provider.dart';
+import 'package:attendanceapp/models/user_model.dart';
 import 'package:attendanceapp/services/camera_service.dart';
 import 'package:attendanceapp/services/face_recognition_service.dart';
 import 'package:attendanceapp/services/attendance_service.dart';
 import 'package:attendanceapp/services/authentication_service.dart';
 import 'package:attendanceapp/services/navigation_service.dart';
-import 'package:attendanceapp/models/user_model.dart';
-import '../main.dart'; // routeObserver
-import 'package:camera/camera.dart';
 import 'package:attendanceapp/services/tenant_model_service.dart';
 import 'package:attendanceapp/services/image_model_service.dart';
-import 'package:intl/intl.dart';
 import 'package:attendanceapp/services/face_model_service.dart';
-import 'package:package_info_plus/package_info_plus.dart';
-import 'package:attendanceapp/utils/snackbar_helper.dart';
+import 'package:attendanceapp/viewmodels/user_viewmodel.dart';
+import 'package:attendanceapp/pages/register_user_page.dart';
+import 'package:attendanceapp/pages/attendance_page.dart';
+import 'package:attendanceapp/pages/manage_user_page.dart';
+import 'package:attendanceapp/pages/non_admin_page.dart';
+import 'package:attendanceapp/pages/service_portal_admin_page.dart';
 import 'package:attendanceapp/widgets/scan_beam.dart';
 import 'package:attendanceapp/widgets/scan_overlay_manager.dart';
 import 'package:attendanceapp/widgets/user_confirm_overlay_widget.dart';
 import 'package:attendanceapp/widgets/face_recognition_widget.dart';
 import 'package:attendanceapp/widgets/emergency_scan_overlay_widget.dart';
+import 'package:attendanceapp/utils/snackbar_helper.dart';
+import '../main.dart';
 
 class LoginUserPage extends StatefulWidget {
   const LoginUserPage({super.key});
@@ -118,7 +119,13 @@ class _LoginUserPageState extends State<LoginUserPage>
       final picture = await _cameraService.controller!.takePicture();
       final bytes = await picture.readAsBytes();
 
-      final user = await FaceRecognitionService.recognizeUser(bytes);
+      final userId = await FaceRecognitionService.recognizeUserId(bytes);
+      if (userId == null) {
+        SnackBarHelper.show(context, "User not found");
+        return null;
+      }
+      final userVm = context.read<UserViewModel>();
+      final user = userVm.getUserById(userId);
       if (user == null) {
         SnackBarHelper.show(context, "❌ Face not recognized");
         return null;
