@@ -41,6 +41,7 @@ class _LoginUserPageState extends State<LoginUserPage>
   final AttendanceService _attendanceService = AttendanceService();
   final ScanOverlayManager _overlayManager = ScanOverlayManager();
   final UserConfirmOverlayWidget _confirmOverlayWidget = UserConfirmOverlayWidget();
+  UserViewModel? _userVm;
 
   bool _scanInProgress = false;
   Timer? _cameraTimer;
@@ -76,6 +77,7 @@ class _LoginUserPageState extends State<LoginUserPage>
   void didChangeDependencies() {
     super.didChangeDependencies();
     routeObserver.subscribe(this, ModalRoute.of(context)!);
+    _userVm = context.read<UserViewModel>();
   }
 
   @override
@@ -124,8 +126,7 @@ class _LoginUserPageState extends State<LoginUserPage>
         SnackBarHelper.show(context, "User not found");
         return null;
       }
-      final userVm = context.read<UserViewModel>();
-      final user = userVm.getUserById(userId);
+      final user = _userVm!.getUserById(userId);
       if (user == null) {
         SnackBarHelper.show(context, "❌ Face not recognized");
         return null;
