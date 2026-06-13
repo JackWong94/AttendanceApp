@@ -1,7 +1,8 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:attendanceapp/models/user_model.dart';
-import 'package:attendanceapp/services/user_model_service.dart';
+import 'package:provider/provider.dart';
+import 'package:attendanceapp/viewmodels/user_viewmodel.dart';
 
 class EmergencyScanOverlayWidget {
   static OverlayEntry? _overlayEntry;
@@ -56,26 +57,10 @@ class _EmergencyScanOverlay extends StatefulWidget {
 class _EmergencyScanOverlayState extends State<_EmergencyScanOverlay> {
   UserModel? _selectedUser;
   bool _isScanIn = true;
-  List<UserModel> _users = [];
-  bool _loading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadUsers();
-  }
-
-  Future<void> _loadUsers() async {
-    try {
-      _users = await UserModelService.instance.getAllUsers();
-    } catch (e) {
-      debugPrint("Error loading users: $e");
-    }
-    if (mounted) setState(() => _loading = false);
-  }
 
   @override
   Widget build(BuildContext context) {
+    final users = context.watch<UserViewModel>().users;
     return Center(
       child: Material(
         color: Colors.transparent,
@@ -118,29 +103,25 @@ class _EmergencyScanOverlayState extends State<_EmergencyScanOverlay> {
 
                 const SizedBox(height: 16),
 
-                if (_loading)
-                  const CircularProgressIndicator()
-                else if (_users.isEmpty)
-                  const Text("No users found.")
-                else
-                  DropdownButtonFormField<String>(
-                    isExpanded: true,
-                    value: _selectedUser?.id,
-                    hint: const Text("Select User"),
-                    onChanged: (userId) {
-                      final selected = _users.firstWhere(
-                            (u) => u.id == userId,
-                        orElse: () => _users.first,
-                      );
-                      setState(() => _selectedUser = selected);
-                    },
-                    items: _users.map((user) {
-                      return DropdownMenuItem(
-                        value: user.id,
-                        child: Text(user.name),
-                      );
-                    }).toList(),
-                  ),
+
+          DropdownButtonFormField<String>(
+          isExpanded: true,
+          value: _selectedUser?.id,
+          hint: const Text("Select User"),
+          onChanged: (userId) {
+            final selected = users.firstWhere(
+                  (u) => u.id == userId,
+              orElse: () => users.first,
+            );
+            setState(() => _selectedUser = selected);
+          },
+          items: users.map((user) {
+            return DropdownMenuItem(
+              value: user.id,
+              child: Text(user.name),
+            );
+          }).toList(),
+        ),
 
                 const SizedBox(height: 12),
 
