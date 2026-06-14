@@ -137,8 +137,6 @@ class NavigationService {
       AttendanceModelService.clear();
       ImageModelService.clear();
       NotificationModelService.clear();
-
-      FaceModelService.reload(); // Remove caches
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Logout failed: $e")),

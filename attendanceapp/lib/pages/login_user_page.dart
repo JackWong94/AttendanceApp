@@ -69,8 +69,15 @@ class _LoginUserPageState extends State<LoginUserPage>
   }
 
   Future<void> _initApp() async {
-    await _initCamera();
-    await _initFaceModel();
+    Future.microtask(() async {
+      final userVm = context.read<UserViewModel>();
+
+      await userVm.fetchUsers();
+
+      await FaceModelService.initialize(userVm.users);
+
+      await _initCamera();
+    });
   }
 
   @override
@@ -97,8 +104,6 @@ class _LoginUserPageState extends State<LoginUserPage>
   }
 
   Future<void> _initFaceModel() async {
-    print("Initializing face recognition models...");
-    await FaceModelService.initialize();
     await FaceModelService.warmUp();
     print("Face recognition models ready");
   }

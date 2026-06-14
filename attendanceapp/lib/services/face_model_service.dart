@@ -29,35 +29,30 @@ class FaceModelService {
     print("Face-api.js models loaded");
   }
 
-  /// Load user embeddings from DB
-  static Future<void> loadEmbeddings() async {
+  /// Load embeddings from already-fetched users
+  static Future<void> loadEmbeddingsFromUsers(List<UserModel> users) async {
     if (_embeddingsLoaded) return;
 
-    final users = await UserModelService.instance.getAllUsers();
+    _multiUserEmbeddings.clear();
+    _userEmbeddings.clear();
+
     for (var user in users) {
-      if (user.faceEmbeddings != null && user.faceEmbeddings!.isNotEmpty) {
-        final allEmbeddings = <List<double>>[];
+      if (user.faceEmbeddings.isNotEmpty) {
+        _multiUserEmbeddings[user.id] = user.faceEmbeddings;
 
-        // Since faceEmbeddings is already List<double>, just add each embedding
-        for (final emb in user.faceEmbeddings!) {
-          allEmbeddings.add(emb); // emb is already List<double>
-        }
-
-        _multiUserEmbeddings[user.id] = allEmbeddings;
-
-        // Optionally store the first embedding in single embeddings map
-        _userEmbeddings[user.id] = allEmbeddings[0];
+        // first embedding for fast matching
+        _userEmbeddings[user.id] = user.faceEmbeddings.first;
       }
     }
 
     _embeddingsLoaded = true;
-    print("User embeddings loaded: ${_multiUserEmbeddings.length} users");
+    print("User embeddings loaded: ${users.length} users");
   }
 
   /// Initialize models and embeddings
-  static Future<void> initialize() async {
+  static Future<void> initialize(List<UserModel> users) async {
     await loadModels();
-    await loadEmbeddings();
+    await loadEmbeddingsFromUsers(users);
   }
 
   /// Warm-up face model using a dummy face image
@@ -80,12 +75,14 @@ class FaceModelService {
   }
 
   /// Reload models and embeddings
-  static Future<void> reload() async {
+  static Future<void> reload(List<UserModel> users) async {
     _modelsLoaded = false;
     _embeddingsLoaded = false;
     _userEmbeddings.clear();
     _multiUserEmbeddings.clear();
-    await initialize();
+
+    await loadModels();
+    await loadEmbeddingsFromUsers(users);
   }
 
   /// Load an asset image as HTML ImageElement

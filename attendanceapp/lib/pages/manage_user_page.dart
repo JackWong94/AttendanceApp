@@ -8,6 +8,8 @@ import 'package:attendanceapp/models/user_model.dart';
 import 'package:attendanceapp/widgets/face_capture_widget.dart';
 import 'package:attendanceapp/services/image_model_service.dart';
 import 'package:attendanceapp/services/non_admin_authentication_service.dart';
+import 'package:provider/provider.dart';
+import 'package:attendanceapp/viewmodels/user_viewmodel.dart';
 import '../main.dart'; // routeObserver
 
 class ManageUserPage extends StatefulWidget {
@@ -20,6 +22,7 @@ class ManageUserPage extends StatefulWidget {
 class _ManageUserPageState extends State<ManageUserPage> with RouteAware {
   final UserModelService _userService = UserModelService.instance;
   final CameraService _cameraService = CameraService.instance;
+  UserViewModel? _userVm;
 
   List<UserModel> _users = [];
   bool _isLoading = true;
@@ -40,6 +43,7 @@ class _ManageUserPageState extends State<ManageUserPage> with RouteAware {
   void didChangeDependencies() {
     super.didChangeDependencies();
     routeObserver.subscribe(this, ModalRoute.of(context)!);
+    _userVm = context.read<UserViewModel>();
   }
 
   @override
@@ -239,9 +243,6 @@ class _ManageUserPageState extends State<ManageUserPage> with RouteAware {
         photos: capturedPhotos[user.id]!,
       );
 
-      // ✅ 3. Reload face recognition model
-      await FaceModelService.reload();
-
       // ✅ 4. Reload user list to reflect updated data
       await _loadUsers();
 
@@ -289,9 +290,6 @@ class _ManageUserPageState extends State<ManageUserPage> with RouteAware {
 
       // 🧩 Delete stored photos
       await ImageModelService.instance.deleteUserPhotos(user.id);
-
-      // 🧩 Reload face recognition model
-      await FaceModelService.reload();
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("✅ User, photos, and attendance deleted successfully!")),

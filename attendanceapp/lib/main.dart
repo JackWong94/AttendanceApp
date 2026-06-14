@@ -47,6 +47,7 @@ void main() async {
           ),
 
           update: (_, authVm, userVm) {
+            debug.log("Updating user view model due to auth change");
             userVm!.setTenantId(authVm.tenantId ?? "");
             return userVm;
           },

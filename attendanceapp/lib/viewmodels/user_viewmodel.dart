@@ -3,6 +3,7 @@ import '../models/user_model.dart';
 import '../repositories/user_repository.dart';
 import 'package:attendanceapp/configs_and_tools/debug.dart';
 import 'package:attendanceapp/usecases/user/get_all_users_usecase.dart';
+import 'package:attendanceapp/services/face_model_service.dart';
 
 Debug debug = Debug(module: "user_viewmodel", enable: true);
 
@@ -39,6 +40,9 @@ class UserViewModel extends ChangeNotifier {
     } finally {
       _isLoading = false;
       notifyListeners();
+
+      // 🔥 sync FaceModelService automatically
+      await FaceModelService.loadEmbeddingsFromUsers(_users);
 
       debug.log("Done fetching users");
       print("🔥 VM USERS UPDATED: ${users.length}");

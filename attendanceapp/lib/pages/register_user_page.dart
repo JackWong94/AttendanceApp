@@ -141,7 +141,6 @@ class _RegisterUserPageState extends State<RegisterUserPage> {
           plainPassword: password,
         );
       }
-      await FaceModelService.reload();
 
       await ImageModelService.instance.saveCapturedPhotos(
         employeeId: employeeId,
