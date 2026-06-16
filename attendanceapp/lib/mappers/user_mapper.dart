@@ -28,9 +28,21 @@ class UserMapper {
   static List<List<double>> _parseEmbeddings(dynamic value) {
     if (value is! List) return [];
 
-    return value
-        .whereType<List>()
-        .map((e) => e.whereType<num>().map((x) => x.toDouble()).toList())
-        .toList();
+    return value.map<List<double>>((embedding) {
+      if (embedding is String) {
+        return embedding
+            .split(',')
+            .map((e) => double.tryParse(e.trim()) ?? 0.0)
+            .toList();
+      }
+
+      if (embedding is List) {
+        return embedding
+            .map((e) => (e as num).toDouble())
+            .toList();
+      }
+
+      return <double>[];
+    }).toList();
   }
 }
