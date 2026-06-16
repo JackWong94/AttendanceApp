@@ -61,11 +61,11 @@ class FaceModelService {
       ) async {
     await loadModels();
 
-    /*if (users.isNotEmpty) {
+    if (users.isNotEmpty) {
       await loadEmbeddingsFromUsers(users);
     } else {
       print("⚠️ FaceModelService initialized with empty user list");
-    }*/
+    }
   }
 
   /// Force refresh embeddings when users change
