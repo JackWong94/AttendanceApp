@@ -11,7 +11,6 @@ class FaceModelService {
 
   // Multi embeddings per user for hybrid recognition
   static final Map<String, List<List<double>>> _multiUserEmbeddings = {};
-
   static Map<String, List<List<double>>> get multiEmbeddings =>
       _multiUserEmbeddings;
 
@@ -27,11 +26,8 @@ class FaceModelService {
   /// Load face-api.js models once
   static Future<void> loadModels() async {
     if (_modelsLoaded) return;
-
     await webFaceApi.WebFaceApi.loadModels();
-
     _modelsLoaded = true;
-
     print("✅ Face-api.js models loaded");
   }
 
@@ -44,12 +40,9 @@ class FaceModelService {
 
     for (final user in users) {
       if (user.faceEmbeddings.isEmpty) continue;
-
       _multiUserEmbeddings[user.id] = user.faceEmbeddings;
-
       _userEmbeddings[user.id] = user.faceEmbeddings.first;
     }
-
     print(
       "✅ User embeddings loaded: ${_userEmbeddings.length} users",
     );
@@ -57,19 +50,6 @@ class FaceModelService {
 
   /// Initialize model + embeddings
   static Future<void> initialize(
-      List<UserModel> users,
-      ) async {
-    await loadModels();
-
-    if (users.isNotEmpty) {
-      await loadEmbeddingsFromUsers(users);
-    } else {
-      print("⚠️ FaceModelService initialized with empty user list");
-    }
-  }
-
-  /// Force refresh embeddings when users change
-  static Future<void> reload(
       List<UserModel> users,
       ) async {
     await loadModels();
