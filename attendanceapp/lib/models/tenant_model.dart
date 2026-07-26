@@ -2,7 +2,7 @@ class TenantModel {
   final String email;
   final String name;
   final String role;
-  final String tenantId; // lowercase
+  final String tenantId;
 
   TenantModel({
     required this.email,
@@ -11,23 +11,7 @@ class TenantModel {
     required this.tenantId,
   });
 
-  factory TenantModel.fromMap(Map<String, dynamic> map) {
-    return TenantModel(
-      email: map['email'] ?? '',
-      name: map['name'] ?? '',
-      role: map['role'] ?? '',
-      tenantId: map['tenantId'] ?? '',
-    );
-  }
 
-  Map<String, dynamic> toMap() {
-    return {
-      'email': email,
-      'name': name,
-      'role': role,
-      'tenantId': tenantId,
-    };
-  }
   // Example static predefined tenants
   static final devTenant = TenantModel(
     email: "w.yuheng94@gmail.com",
@@ -35,6 +19,7 @@ class TenantModel {
     role: "admin",
     tenantId: "dev",
   );
+
 
   static final proTenant = TenantModel(
     email: "ckhw8888@gmail.com",

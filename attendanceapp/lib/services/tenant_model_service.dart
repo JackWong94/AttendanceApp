@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/tenant_model.dart';
+import '../mappers/tenant_mapper.dart';
 
 class TenantModelService {
   TenantModelService._internal();
@@ -25,7 +26,7 @@ class TenantModelService {
       counter++;
     }
 
-    await _tenantCollection.doc(docId).set(tenant.toMap());
+    await _tenantCollection.doc(docId).set(TenantMapper.toMap(_currentTenant!));
   }
 
   Future<TenantModel?> getTenantByEmail(String email) async {
@@ -34,7 +35,7 @@ class TenantModelService {
 
     if (query.docs.isEmpty) return null;
     final tenant =
-    TenantModel.fromMap(query.docs.first.data() as Map<String, dynamic>);
+    TenantMapper.fromMap(query.docs.first.data() as Map<String, dynamic>);
 
     _currentTenant = tenant; // ✅ set as current tenant
     return tenant;
