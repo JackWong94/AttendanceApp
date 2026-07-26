@@ -4,6 +4,7 @@ import 'user_model_service.dart';
 import 'image_model_service.dart';
 import 'date_service.dart';
 import 'package:attendanceapp/configs_and_tools/debug.dart';
+import 'package:attendanceapp/mappers/attendance_mapper.dart';
 
 Debug debug = Debug(module: "attendance_model_service", enable: true);
 class AttendanceModelService {
@@ -39,8 +40,8 @@ class AttendanceModelService {
       throw Exception("Attendance must have a valid ID before saving.");
     }
     await _attendanceRef.doc(attendance.id).set(
-      attendance.toMap(),
-      SetOptions(merge: true), // update if exists, create if not
+        AttendanceMapper.toFirestore(attendance),
+        SetOptions(merge: true), // update if exists, create if not
     );
   }
 
@@ -53,7 +54,7 @@ class AttendanceModelService {
     final snapshot = await _attendanceRef.doc(docId).get();
 
     if (!snapshot.exists) return null;
-    return Attendance.fromDoc(snapshot);
+    return AttendanceMapper.fromFirestore(snapshot);
   }
 
   /// Fetch all attendance for a user for a given month
@@ -80,7 +81,7 @@ class AttendanceModelService {
         .orderBy('date')
         .get();
 
-    return snapshots.docs.map((doc) => Attendance.fromDoc(doc)).toList();
+    return snapshots.docs.map((doc) => AttendanceMapper.fromFirestore(doc)).toList();
   }
 
   /// Fetch attendance for a user between startDate and endDate
@@ -102,7 +103,7 @@ class AttendanceModelService {
         .orderBy('date')
         .get();
 
-    return snapshots.docs.map((doc) => Attendance.fromDoc(doc)).toList();
+    return snapshots.docs.map((doc) => AttendanceMapper.fromFirestore(doc)).toList();
   }
 
   /// Fetch attendance for all users between startDate and endDate
@@ -122,7 +123,7 @@ class AttendanceModelService {
         .orderBy('date')
         .get();
 
-    return snapshots.docs.map((doc) => Attendance.fromDoc(doc)).toList();
+    return snapshots.docs.map((doc) => AttendanceMapper.fromFirestore(doc)).toList();
   }
   /// Fetch all attendance for a specific user
   Future<List<Attendance>> fetchAttendanceForUser(String userId) async {
@@ -136,7 +137,7 @@ class AttendanceModelService {
       print(doc.id);
       print(doc.data());
     }
-    return snapshots.docs.map((doc) => Attendance.fromDoc(doc)).toList();
+    return snapshots.docs.map((doc) => AttendanceMapper.fromFirestore(doc)).toList();
   }
 
   /// Delete a specific attendance document
@@ -228,7 +229,7 @@ class AttendanceModelService {
         applicationStatus: applicationStatus,
       );
 
-      await docRef.set(attendance.toMap());
+      await docRef.set(AttendanceMapper.toFirestore(attendance));
 
       debug.log(
         '🆕 Created attendance with status: $attendanceId → ${status.name}',
