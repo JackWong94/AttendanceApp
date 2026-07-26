@@ -72,7 +72,7 @@ class _LoginUserPageState extends State<LoginUserPage>
     Future.microtask(() async {
       final userVm = context.read<UserViewModel>();
       await userVm.fetchUsers();
-      await FaceModelService.initialize(userVm.users);
+      await FaceModelService.initialize();
       await _initCamera();
     });
   }

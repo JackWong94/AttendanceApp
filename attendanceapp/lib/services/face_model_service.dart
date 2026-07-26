@@ -1,5 +1,3 @@
-import 'dart:typed_data';
-import 'dart:async';
 import 'dart:html' as html;
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:attendanceapp/web_face_api.dart' as webFaceApi;
@@ -8,6 +6,7 @@ import 'package:attendanceapp/configs_and_tools/debug.dart';
 
 Debug debug = Debug(module: "face_model_service", enable: true);
 class FaceModelService {
+  FaceModelService._(); //This is a private constructor to prevent instantiation of this class. Because all functions are static, no point of creating new instance
   static bool _modelsLoaded = false;
   static bool _warmingUp = false;
 
@@ -27,7 +26,7 @@ class FaceModelService {
   }
 
   /// Load embeddings from user list
-  static Future<void> loadEmbeddingsFromUsers(
+  static Future<void> updateEmbeddings(
       List<UserModel> users,
       ) async {
     _multiUserEmbeddings.clear();
@@ -42,9 +41,7 @@ class FaceModelService {
   }
 
   /// Initialize model + embeddings
-  static Future<void> initialize(
-      List<UserModel> users,
-      ) async {
+  static Future<void> initialize() async {
     await loadModels();
   }
 

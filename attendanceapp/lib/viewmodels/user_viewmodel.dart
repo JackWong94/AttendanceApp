@@ -44,7 +44,7 @@ class UserViewModel extends ChangeNotifier {
       debug.log("Done fetching users");
       print("🔥 VM USERS UPDATED: ${users.length}");
       // 🔥 sync FaceModelService automatically
-      await FaceModelService.loadEmbeddingsFromUsers(users);
+      await FaceModelService.updateEmbeddings(users);
       for (var user in _users) {
         debug.log("User: ${user.name}");
       }

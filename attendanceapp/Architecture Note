@@ -30,3 +30,15 @@ Repository	Decide where data comes from
 UseCase	What the system should do (If removing the UseCase changes nothing except an extra file → don’t create it)
 ViewModel	What UI should show
 Screen	Display only
+
+
+context.read<T>() → read<T>()
+→ call functions (no UI rebuild)
+context.watch<T>() → watch<T>()
+→ UI reacts to all changes (full rebuild)
+context.select<T, R>() → select<T, R>()
+→ UI reacts only to specific field changes
+Consumer<T> → Consumer<T>() widget
+→ widget-based watch (rebuilds part of UI)
+Selector<T, R> → Selector<T, R>() widget
+→ widget-based select (optimized partial rebuild)
