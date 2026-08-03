@@ -624,6 +624,7 @@ class ExportExcelService {
         ],
       ];
 
+      int? unpaidLeaveRow;
       for (final row in statusSummary) {
         sheet.getRangeByIndex(summaryRow, 1).setText(row[0]);
         sheet.getRangeByIndex(summaryRow, 2)
@@ -634,9 +635,12 @@ class ExportExcelService {
           ..formula = row[2]
           ..numberFormat = '0.000'
           ..cellStyle.borders.all.lineStyle = LineStyle.thin;
+
+        if (row[0] == 'UNPAID LEAVE') {
+          unpaidLeaveRow = summaryRow;
+        }
         summaryRow++;
       }
-
       summaryRow++;
 
       // Total Present Days ([Total Work Hour - Total Overtime + Total Undertime] / WorkHour per day)
@@ -735,6 +739,7 @@ class ExportExcelService {
         ..formula = totalUnderTimeHourFormula
         ..numberFormat = '0.000'
         ..cellStyle.borders.all.lineStyle = LineStyle.thin;
+      final totalUndertimeRow = summaryRow;
       summaryRow++;
 
       addLegend(sheet, summaryRow + 1);
@@ -758,9 +763,11 @@ class ExportExcelService {
       }
 
       customerRequestCalculation(
-          sheet,
-          customerRequestCalculationRow,
-          5,
+        sheet,
+        customerRequestCalculationRow,
+        5,
+        unpaidLeaveRow!,
+        totalUndertimeRow,
       );
     }
 
@@ -771,37 +778,118 @@ class ExportExcelService {
     _saveExcelFile(workbook, fileName);
   }
 
-  static void customerRequestCalculation(Worksheet sheet, int startRow, int startColumn) {
+  static void customerRequestCalculation(
+      Worksheet sheet,
+      int startRow,
+      int startColumn,
+      int unpaidLeaveRow,
+      int totalUndertimeRow,
+      ) {
     // Customer request calculation
-    sheet.getRangeByIndex(startRow-1, startColumn).setText('Final Calculation');
-    sheet.getRangeByIndex(startRow-1, startColumn+1).setText('(Day)');
-    sheet.getRangeByIndex(startRow, startColumn).setText('Workdays');
-      sheet.getRangeByIndex(startRow, startColumn+1)
-        ..formula = '=B42+B38+B39+B40'
-        ..numberFormat = '0.000'
-        ..cellStyle.borders.all.lineStyle = LineStyle.thin;
-    sheet.getRangeByIndex(startRow+1, startColumn).setText('UT (-)');
-      sheet.getRangeByIndex(startRow+1, startColumn+1)
-        ..formula = '=B47*-1'
-        ..numberFormat = '0.000'
-        ..cellStyle.borders.all.lineStyle = LineStyle.thin;
-    sheet.getRangeByIndex(startRow+2, startColumn).setText('OT HD');
-      sheet.getRangeByIndex(startRow+2, startColumn+1)
-      ..formula = '=B45'
+    // ============================================================
+    // Get the actual cells used for:
+    // Unpaid Leave
+    // Total Undertime
+
+    final unpaidLeaveCell =
+    sheet.getRangeByIndex(unpaidLeaveRow, 2);
+
+    final totalUndertimeCell =
+    sheet.getRangeByIndex(totalUndertimeRow, 2);
+
+    final calculationCell =
+    sheet.getRangeByIndex(startRow, startColumn);
+
+    calculationCell
+      ..formula =
+          '=${unpaidLeaveCell.addressLocal}+${totalUndertimeCell.addressLocal}'
       ..numberFormat = '0.000'
-      ..cellStyle.borders.all.lineStyle = LineStyle.thin;
-    sheet.getRangeByIndex(startRow+3, startColumn).setText('OT');
-      sheet.getRangeByIndex(startRow+3, startColumn+1)
-      ..formula = '=B46'
-      ..numberFormat = '0.000'
-      ..cellStyle.borders.all.lineStyle = LineStyle.thin;
-    sheet.getRangeByIndex(startRow+4, startColumn).setText('Final');
-    sheet.getRangeByIndex(startRow+4, startColumn+1).setText('[(Workdays + UT + OT HD) * daily wages ]+ [(OT) *OT wages]');
+      ..cellStyle.bold = true
+      ..cellStyle.underline = true
+      ..cellStyle.hAlign = HAlignType.center
+      ..cellStyle.vAlign = VAlignType.center;
+
+    // ============================================================
+    // Leave / Holiday Colour Legend
+    //
+    // Legend starts one column after calculationCell
+    //
+    // Example:
+    // calculationCell = E40
+    //
+    // E40 = calculation
+    // F40 = A/L
+    // G40 = U/L
+    // H40 = PH
+    // I40 = MC
+    // ============================================================
+
+    final legendItems = [
+      {
+        'label': 'A/L',
+        'color': '#00B050',
+      },
+      {
+        'label': 'U/L',
+        'color': '#FF0000',
+      },
+      {
+        'label': 'PH',
+        'color': '#FFC000',
+      },
+      {
+        'label': 'MC',
+        'color': '#5B9BD5',
+      },
+    ];
+
+    final int legendStartColumn = startColumn + 1;
+
+    for (int i = 0; i < legendItems.length; i++) {
+      final int column = legendStartColumn + i;
+
+      // Colored cell
+      final colorCell = sheet.getRangeByIndex(
+        startRow,
+        column,
+      );
+
+      colorCell
+        ..setText('')
+        ..cellStyle.backColor = legendItems[i]['color']!
+        ..cellStyle.hAlign = HAlignType.center
+        ..cellStyle.vAlign = VAlignType.center;
+
+      // Label underneath
+      final labelCell = sheet.getRangeByIndex(
+        startRow + 1,
+        column,
+      );
+
+      labelCell
+        ..setText(legendItems[i]['label']!)
+        ..cellStyle.bold = true
+        ..cellStyle.hAlign = HAlignType.center
+        ..cellStyle.vAlign = VAlignType.center;
+
+      colorCell.columnWidth = 10;
+    }
+
+    // Deduction Total Advance
+    sheet.getRangeByIndex(startRow + 6, startColumn + 5).setText("Deduction Total Advance:");
+
+    final rmCell = sheet.getRangeByIndex(startRow + 7, startColumn + 5);
+
+    rmCell
+      ..setText("RM")
+      ..cellStyle.bold = true
+      ..cellStyle.hAlign = HAlignType.center
+      ..cellStyle.vAlign = VAlignType.center;
 
     //Customer signature
-    sheet.getRangeByIndex(47, 10).setText("Approved by :");
-    sheet.getRangeByIndex(47, 11).setText("..............................................................");
-    sheet.getRangeByIndex(50, 10).setText("Date :");
-    sheet.getRangeByIndex(50, 11).setText("..............................................................");
+    sheet.getRangeByIndex(startRow + 10, startColumn + 5).setText("Approved by :");
+    sheet.getRangeByIndex(startRow + 10, startColumn + 6).setText("..............................................................");
+    sheet.getRangeByIndex(startRow + 13, startColumn + 5).setText("Date :");
+    sheet.getRangeByIndex(startRow + 13, startColumn + 6).setText("..............................................................");
   }
 }
